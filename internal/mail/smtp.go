@@ -78,6 +78,9 @@ func NewSMTPSender(cfg Config) (*SMTPSender, error) {
 // implicitTLSPort is SMTPS: TLS from the first byte (RFC 8314).
 const implicitTLSPort = 465
 
+// Delivers is true: a message that Send accepted went to the SMTP server.
+func (*SMTPSender) Delivers() bool { return true }
+
 func (s *SMTPSender) tlsConfig() *tls.Config {
 	c := &tls.Config{MinVersion: tls.VersionTLS12}
 	if s.cfg.TLSConfig != nil {
@@ -183,6 +186,10 @@ type LogSender struct {
 func NewLogSender(logger *slog.Logger) *LogSender {
 	return &LogSender{logger: logger}
 }
+
+// Delivers is false: the message stops in the log, where anyone who reads
+// the log can use its links.
+func (*LogSender) Delivers() bool { return false }
 
 // Send logs m.
 func (s *LogSender) Send(ctx context.Context, m Message) error {

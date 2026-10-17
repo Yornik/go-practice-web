@@ -10,6 +10,7 @@ const form = document.getElementById("invite-form");
 const status = document.querySelector('[data-status="invite"]');
 const result = document.querySelector("[data-invite-result]");
 const link = document.querySelector("[data-invite-link]");
+const linkParts = [document.querySelector('label[for="invite-link"]'), document.querySelector(".copy-row")];
 const mail = document.querySelector("[data-invite-mail]");
 
 form?.addEventListener("submit", async (event) => {
@@ -26,10 +27,17 @@ form?.addEventListener("submit", async (event) => {
       note: String(data.get("note") || "").trim(),
       days: Number(data.get("days") || 7),
     });
-    link.value = res.url;
+    // An invite that an SMTP server took comes without a url: the mail
+    // holds the only copy, so opening it proves the address.
+    link.value = res.url || "";
+    for (const part of linkParts) if (part) part.hidden = !res.url;
     result.hidden = false;
     mail.className = "";
-    if (res.mailed) {
+    if (res.mailed && !res.url) {
+      // A callout wraps; a status line stays on 1 line.
+      mail.className = "callout";
+      mail.textContent = `Sent to ${email}. The link is only in the mail. If it does not arrive, revoke this invite and create a new one.`;
+    } else if (res.mailed) {
       mail.className = "status status-ok";
       mail.textContent = `Sent to ${email}.`;
     } else if (res.mailError) {
@@ -39,8 +47,10 @@ form?.addEventListener("submit", async (event) => {
       mail.textContent = "Send the link yourself. It works once.";
     }
     addInviteRow(res);
-    link.focus();
-    link.select();
+    if (res.url) {
+      link.focus();
+      link.select();
+    }
   } catch (err) {
     setStatus(status, errorMessage(err), "error");
   } finally {

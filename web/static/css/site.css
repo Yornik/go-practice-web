@@ -639,6 +639,8 @@
   .steps-form > li::before { content: counter(fstep); font: 700 21px/28px var(--manual); }
   .steps-form h2 { font-size: 17px; line-height: 28px; margin-bottom: var(--s3); }
   .invite-note { margin-top: var(--s4); padding-left: var(--s3); border-left: 2px solid var(--blue); }
+  /* A long address must wrap at 320 px, not scroll the page. */
+  .check-email .lede strong { overflow-wrap: anywhere; }
 
   /* The course (dashboard) */
   .course-head { display: grid; gap: var(--s4); padding-bottom: var(--s6); }

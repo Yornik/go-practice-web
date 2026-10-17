@@ -10,7 +10,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { setupLink, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
+import { confirmEmail, mailLink, setupLink, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
 
 const dir = process.env.SCREENSHOTS_DIR;
 test.skip(!dir, "set SCREENSHOTS_DIR to take the screenshots");
@@ -21,15 +21,6 @@ const VARIANTS = [
   { size: "mobile", viewport: { width: 390, height: 844 } },
 ];
 const THEMES = ["light", "dark"];
-
-/** The path and query of the newest link in a mail of the log, for a path such as "/verify-email". */
-function mailLink(pathPrefix) {
-  const re = new RegExp(`https?://[^\\s]*${pathPrefix.replace(/[.?/]/g, "\\$&")}\\?token=[^\\s]+`);
-  const mails = webLog().filter((e) => typeof e.text === "string" && re.test(e.text)).reverse();
-  if (!mails.length) throw new Error(`no mail with ${pathPrefix} in web.log`);
-  const u = new URL(mails[0].text.match(re)[0]);
-  return u.pathname + u.search;
-}
 
 /** Opens a page in every theme and size and saves the screenshots. */
 async function shootAll(browser, name, url, { state, full = true, prepare, mobileFull = true, errors } = {}) {
@@ -148,11 +139,16 @@ test("screenshots of every page", async ({ browser, page, context }) => {
   await page.getByLabel("Display name").fill("Ada Lovelace");
   await page.getByLabel("Email address").fill("ada@example.org");
   await page.getByRole("button", { name: "Create my account and passkey" }).click();
-  await page.waitForURL("**/learn");
+  await page.waitForURL("**/check-email");
   const state = await context.storageState();
   const signedIn = { state, errors };
 
-  await shootAll(browser, "verify-email", mailLink("/verify-email"), anon);
+  // The email gate: the page a new account waits on, and the page of the
+  // link. Confirming the address opens the course.
+  await shootAll(browser, "check-email", "/check-email", signedIn);
+  await expect.poll(() => webLog().some((e) => e.to === "ada@example.org" && typeof e.text === "string" && e.text.includes("/verify-email?token=")), { timeout: 20_000 }).toBe(true);
+  await shootAll(browser, "verify-email", mailLink("/verify-email", { to: "ada@example.org" }), anon);
+  await confirmEmail(page, "ada@example.org");
   await shootAll(browser, "course-empty", "/learn", signedIn);
 
   // An invite for a second learner: the admin page with its result, and the join page.
@@ -246,10 +242,7 @@ test("screenshots of every page", async ({ browser, page, context }) => {
   await shootAll(browser, "account", "/account", signedIn);
   await shootAll(browser, "admin", "/admin", signedIn);
 
-  // Recovery: verify the address, ask for a link, open it.
-  await page.goto(mailLink("/verify-email"));
-  await page.getByRole("button", { name: "Confirm my address" }).click();
-  await expect(page.locator(".form-status")).toContainText("is verified");
+  // Recovery: the address is verified, so a link goes out; open it.
   await page.goto("/recover");
   await page.getByLabel("Email address").fill("ada@example.org");
   await page.getByRole("button", { name: "Send a recovery link" }).click();

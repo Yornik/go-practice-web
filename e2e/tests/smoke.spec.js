@@ -1,9 +1,10 @@
 // The smoke test of docs/DESIGN.md, "Testing": the setup link, sign-up,
-// sign-out and sign-in with a passkey, the IDE on 01-logfmt with hint 1
-// behind its soft gate, the reference solution passing every test with
-// -race, and the verify page of a certificate lookup.
+// the email gate until the address is verified, sign-out and sign-in with
+// a passkey, the IDE on 01-logfmt with hint 1 behind its soft gate, the
+// reference solution passing every test with -race, and the verify page of
+// a certificate lookup.
 import { test, expect } from "@playwright/test";
-import { setupLink, solution, virtualAuthenticator, watchErrors } from "./helpers.js";
+import { confirmEmail, setupLink, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
 
 test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context }) => {
   const errors = watchErrors(page);
@@ -17,6 +18,24 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await page.getByLabel("Display name").fill("Ada Admin");
   await page.getByLabel("Email address").fill("ada@example.com");
   await page.getByRole("button", { name: "Create my account and passkey" }).click();
+
+  // The course waits until the address is verified. The dev server has no
+  // mail server, so the page tells the operator where the link is.
+  await page.waitForURL("**/check-email");
+  await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+  await expect(page.locator("[data-lede]")).toHaveText("We sent a link to ada@example.com. Open it to start the course.");
+  await expect(page.getByText("The link works for 48 hours.")).toBeVisible();
+  await expect(page.locator(".callout")).toContainText("The link is in the server log");
+  await expect(page.getByRole("link", { name: "Change the address" })).toHaveAttribute("href", "/account");
+  await page.goto("/learn");
+  await page.waitForURL("**/check-email");
+
+  // A new link replaces the first one; the status line says so.
+  const since = webLog().length;
+  await page.getByRole("button", { name: "Send the link again" }).click();
+  await expect(page.locator("[data-status]")).toHaveText("We sent a new link to ada@example.com. The link before it does not work any more.");
+  await confirmEmail(page, "ada@example.com", { since });
+  await page.getByRole("link", { name: "Open your course" }).click();
   await page.waitForURL("**/learn");
   await expect(page.getByRole("heading", { name: "Your course" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Admin" })).toBeVisible();

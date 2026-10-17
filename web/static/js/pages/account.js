@@ -1,5 +1,5 @@
 // account.js: the profile, the passkeys and the sessions.
-import { api, errorMessage, setStatus } from "../api.js";
+import { ApiError, api, errorMessage, setStatus } from "../api.js";
 import { createPasskey } from "../webauthn.js";
 import { confirmDialog, promptDialog } from "../ui/dialog.js";
 import { toast, toastNext } from "../ui/toast.js";
@@ -38,6 +38,12 @@ document.querySelector("[data-resend]")?.addEventListener("click", async () => {
     const res = await api("POST", "/api/auth/verify-email/resend", {});
     setStatus(profileStatus, `Verification link sent to ${res.email}.`, "success");
   } catch (err) {
+    // The link was used elsewhere: the page says "verified" after a reload.
+    if (err instanceof ApiError && err.code === "already_verified") {
+      toastNext(err.message, "ok", undefined, '[data-status="profile"]');
+      location.reload();
+      return;
+    }
     setStatus(profileStatus, errorMessage(err), "error");
   }
 });

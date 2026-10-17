@@ -19,20 +19,29 @@ type Invite struct {
 	ExpiresAt time.Time
 	UsedBy    int64     // 0 while unused
 	UsedAt    time.Time // zero while unused
+	// MailedAt is when an SMTP server accepted the invite mail; zero for
+	// an invite without an address, a mail that failed or one that only
+	// reached the log.
+	MailedAt time.Time
 }
 
 // Used reports whether someone signed up with the invite.
 func (i Invite) Used() bool { return !i.UsedAt.IsZero() }
 
+// Mailed reports whether the invite went out by mail. Opening its link
+// then proves control of Email.
+func (i Invite) Mailed() bool { return i.Email != "" && !i.MailedAt.IsZero() }
+
 // Expired reports whether the invite expired at now.
 func (i Invite) Expired(now time.Time) bool { return !now.Before(i.ExpiresAt) }
 
-const inviteCols = `token_hash, created_by, email, note, created_at, expires_at, used_by, used_at`
+const inviteCols = `token_hash, created_by, email, note, created_at, expires_at, used_by, used_at, mailed_at`
 
 func scanInvite(r scanner) (Invite, error) {
 	var i Invite
 	var by, usedBy sql.NullInt64
-	err := r.Scan(&i.TokenHash, &by, scol(&i.Email), &i.Note, tcol(&i.CreatedAt), tcol(&i.ExpiresAt), &usedBy, tcol(&i.UsedAt))
+	err := r.Scan(&i.TokenHash, &by, scol(&i.Email), &i.Note, tcol(&i.CreatedAt), tcol(&i.ExpiresAt), &usedBy, tcol(&i.UsedAt),
+		tcol(&i.MailedAt))
 	i.CreatedBy, i.UsedBy = by.Int64, usedBy.Int64
 	return i, mapErr(err)
 }
@@ -52,6 +61,17 @@ func (s *Store) CreateInvite(ctx context.Context, i Invite) (Invite, error) {
 		return Invite{}, fmt.Errorf("store: create invite: %w", mapErr(err))
 	}
 	return i, nil
+}
+
+// MarkInviteMailed records that an SMTP server accepted the mail of an
+// unused invite. Call it only after a real delivery: the mark makes a
+// sign-up with the invite's address verified.
+func (s *Store) MarkInviteMailed(ctx context.Context, hash []byte) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE invites SET mailed_at = ? WHERE token_hash = ? AND used_at IS NULL`, s.stamp(), hash)
+	if err := found(res, err); err != nil {
+		return fmt.Errorf("store: mark invite mailed: %w", err)
+	}
+	return nil
 }
 
 // Invite returns an invite in any state.

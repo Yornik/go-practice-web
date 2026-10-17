@@ -46,7 +46,10 @@ type signUpView struct {
 	InvitedBy string
 	Note      string
 	Email     string // the address the invite went to, as a default
-	Expires   time.Time
+	// Mailed is true when the invite was mailed to Email: a sign-up with
+	// that address is verified at once.
+	Mailed  bool
+	Expires time.Time
 }
 
 func (s *Server) joinPage(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +63,7 @@ func (s *Server) joinPage(w http.ResponseWriter, r *http.Request) {
 			v.Error = s.deadInviteMessage(r, token)
 		}
 	} else {
-		v.Note, v.Email, v.Expires = inv.Note, inv.Email, inv.ExpiresAt
+		v.Note, v.Email, v.Expires, v.Mailed = inv.Note, inv.Email, inv.ExpiresAt, inv.Mailed()
 		if inv.CreatedBy != 0 {
 			if u, err := s.cfg.Store.User(r.Context(), inv.CreatedBy); err == nil {
 				v.InvitedBy = u.DisplayName
@@ -126,6 +129,56 @@ func (s *Server) recoverConfirmPage(w http.ResponseWriter, r *http.Request) {
 		data["Name"], data["Username"] = u.DisplayName, u.Username
 	}
 	s.render(w, r, status, "recover-confirm", view{Title: "Add a new passkey", Script: "pages/recover.js", Data: data})
+}
+
+// checkEmailView is the page a user waits on until the address is
+// verified.
+type checkEmailView struct {
+	Email   string // where the link went; "" when the account has no address
+	Pending bool   // a link that still works is out
+	// ValidFor is how long a link works, for a sentence: "48 hours".
+	ValidFor string
+	// MailLogged is true when the server has no mail server: the link
+	// is in the server log, and the page tells the operator so.
+	MailLogged bool
+}
+
+// checkEmailPage is where the email gate sends a user whose address is not
+// verified. A verified user has nothing to wait for and goes on.
+func (s *Server) checkEmailPage(w http.ResponseWriter, r *http.Request) {
+	id, _ := identity(r)
+	if id.User.EmailVerified() {
+		http.Redirect(w, r, "/learn", http.StatusSeeOther)
+		return
+	}
+	pending, err := s.cfg.Auth.PendingEmail(r.Context(), id.User)
+	if err != nil {
+		// The page still works: the user can send a new link.
+		s.log.Error("check email", "err", err)
+	}
+	v := checkEmailView{
+		Email:      id.User.Email,
+		Pending:    pending != "",
+		ValidFor:   lifetime(auth.VerifyTTL),
+		MailLogged: !s.cfg.Auth.MailDelivers(),
+	}
+	if pending != "" {
+		v.Email = pending
+	}
+	s.render(w, r, http.StatusOK, "check-email", view{Title: "Check your email", Script: "pages/check-email.js", Data: v})
+}
+
+// lifetime writes how long a link works, for a sentence: "48 hours",
+// "1 hour", "15 minutes".
+func lifetime(d time.Duration) string {
+	n, unit := int(d/time.Minute), "minute"
+	if d >= time.Hour && d%time.Hour == 0 {
+		n, unit = int(d/time.Hour), "hour"
+	}
+	if n == 1 {
+		return "1 " + unit
+	}
+	return itoa(n) + " " + unit + "s"
 }
 
 func (s *Server) verifyEmailPage(w http.ResponseWriter, r *http.Request) {

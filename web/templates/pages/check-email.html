@@ -1,0 +1,37 @@
+{{define "content"}}
+<div class="wrap page">
+  <section class="auth medium check-email" aria-labelledby="check-title">
+    {{- with .Data}}
+    <header class="page-head">
+      <h1 id="check-title">Check your email</h1>
+      {{- if not .Email}}
+      <p class="lede">Your account has no email address. Add an address to start the course.</p>
+      {{- else if .Pending}}
+      <p class="lede" data-lede>We sent a link to <strong>{{.Email}}</strong>. Open it to start the course.</p>
+      {{- else}}
+      <p class="lede" data-lede>The link to <strong>{{.Email}}</strong> does not work any more. Send a new link to start the course.</p>
+      {{- end}}
+    </header>
+    {{- if .Email}}
+    <p class="body-text">The link works for {{.ValidFor}}. It confirms that the address is yours. If you lose your passkey, a recovery link goes to this address.</p>
+    {{- if .MailLogged}}
+    <p class="callout mt-4"><b>NOTE:</b> This server sends no email: SMTP is not set up. The link is in the server log, in the line <code>mail not sent</code>. The operator of this site can pass it on.</p>
+    {{- end}}
+    <div class="btn-row mt-5">
+      <button type="button" class="btn btn-primary" data-resend>Send the link again</button>
+      <a class="btn" href="/account">Change the address</a>
+    </div>
+    <p class="form-status mt-3" role="status" aria-live="polite" data-status></p>
+    {{- else}}
+    <p class="body-text">If you lose your passkey, the address is your way back in. A recovery link goes there.</p>
+    <div class="btn-row mt-5">
+      <a class="btn btn-primary" href="/account">Add an address</a>
+    </div>
+    {{- end}}
+    {{- end}}
+    <div class="auth-aside">
+      <p>You are signed in as <span class="mono">{{.User.Username}}</span>. <button type="button" class="link-button" data-logout>Sign out</button></p>
+    </div>
+  </section>
+</div>
+{{end}}

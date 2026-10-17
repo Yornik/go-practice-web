@@ -33,7 +33,7 @@ func (u User) EmailVerified() bool { return u.Email != "" && !u.EmailVerifiedAt.
 type NewUser struct {
 	Username       string
 	DisplayName    string
-	Email          string // stored unverified; "" for none
+	Email          string // stored unverified, unless a mailed invite proves it; "" for none
 	WebAuthnHandle []byte
 }
 
@@ -163,18 +163,28 @@ type Registration struct {
 // RegisterWithInvite creates the account and its passkey and uses the
 // invite, all or nothing. A used, expired or unknown invite gives
 // ErrTokenInvalid; a taken username or email gives a *ConflictError.
+//
+// When the invite was mailed (MarkInviteMailed) to the address the user
+// signs up with, ignoring ASCII case, the address is verified in the same
+// transaction: the link reached the user through that mailbox.
 func (s *Store) RegisterWithInvite(ctx context.Context, inviteHash []byte, r Registration) (User, error) {
 	var u User
 	err := s.tx(ctx, func(tx *sql.Tx) error {
 		// The invite first, so that a used invite reports as such even when
 		// the username is taken too.
 		now := s.stamp()
-		res, err := tx.ExecContext(ctx, `UPDATE invites SET used_at = ?
-			WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`, now, inviteHash, now)
-		if err := oneRow(res, err); err != nil {
+		var inv Invite
+		err := tx.QueryRowContext(ctx, `UPDATE invites SET used_at = ?
+			WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?
+			RETURNING email, mailed_at`, now, inviteHash, now).Scan(scol(&inv.Email), tcol(&inv.MailedAt))
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrTokenInvalid
+		}
+		if err != nil {
 			return err
 		}
-		if u, err = s.insertRegistration(ctx, tx, r, false); err != nil {
+		verified := inv.Mailed() && asciiLower(inv.Email) == asciiLower(strings.TrimSpace(r.User.Email))
+		if u, err = s.insertRegistration(ctx, tx, r, false, verified); err != nil {
 			return err
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE invites SET used_by = ? WHERE token_hash = ?`, u.ID, inviteHash)
@@ -184,6 +194,18 @@ func (s *Store) RegisterWithInvite(ctx context.Context, inviteHash []byte, r Reg
 		return User{}, fmt.Errorf("store: register with invite: %w", err)
 	}
 	return u, nil
+}
+
+// asciiLower folds A-Z only, as the email column's COLLATE NOCASE does:
+// strings.EqualFold also folds U+212A to k and U+017F to s, which would
+// verify an address that no mail went to.
+func asciiLower(s string) string {
+	return strings.Map(func(r rune) rune {
+		if 'A' <= r && r <= 'Z' {
+			return r + 'a' - 'A'
+		}
+		return r
+	}, s)
 }
 
 // oneRow turns the result of a conditional token update into
@@ -212,7 +234,7 @@ func (s *Store) RegisterWithSetupToken(ctx context.Context, setupHash []byte, r 
 		if err := oneRow(res, err); err != nil {
 			return err
 		}
-		u, err = s.insertRegistration(ctx, tx, r, true)
+		u, err = s.insertRegistration(ctx, tx, r, true, false)
 		return err
 	})
 	if err != nil {
@@ -221,7 +243,9 @@ func (s *Store) RegisterWithSetupToken(ctx context.Context, setupHash []byte, r 
 	return u, nil
 }
 
-func (s *Store) insertRegistration(ctx context.Context, tx *sql.Tx, r Registration, admin bool) (User, error) {
+// insertRegistration adds the user and the passkey. verified marks the
+// email address verified now; it needs an address.
+func (s *Store) insertRegistration(ctx context.Context, tx *sql.Tx, r Registration, admin, verified bool) (User, error) {
 	now := s.now()
 	u := User{
 		Username:       r.User.Username,
@@ -234,9 +258,14 @@ func (s *Store) insertRegistration(ctx context.Context, tx *sql.Tx, r Registrati
 	if len(u.WebAuthnHandle) == 0 {
 		return User{}, errors.New("no WebAuthn user handle")
 	}
-	err := tx.QueryRowContext(ctx, `INSERT INTO users (username, display_name, email, is_admin, webauthn_handle, created_at)
-		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-		u.Username, u.DisplayName, nullString(u.Email), admin, u.WebAuthnHandle, fmtTime(now)).Scan(&u.ID)
+	var verifiedAt any
+	if verified && u.Email != "" {
+		u.EmailVerifiedAt = u.CreatedAt
+		verifiedAt = fmtTime(now)
+	}
+	err := tx.QueryRowContext(ctx, `INSERT INTO users (username, display_name, email, email_verified_at, is_admin, webauthn_handle, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+		u.Username, u.DisplayName, nullString(u.Email), verifiedAt, admin, u.WebAuthnHandle, fmtTime(now)).Scan(&u.ID)
 	if err != nil {
 		return User{}, mapErr(err)
 	}

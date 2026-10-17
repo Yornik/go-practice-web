@@ -200,13 +200,14 @@ func (s *Service) UpdateAccount(ctx context.Context, u store.User, in Account, c
 	if err != nil {
 		return AccountResult{}, err
 	}
-	email, err := cleanEmail(in.Email)
+	// An address can change but not go: it is the only way back in.
+	email, err := requiredEmail(in.Email)
 	if err != nil {
 		return AccountResult{}, err
 	}
 	// A change of address mails a link to it from the site's domain. The
 	// limits come before any change, so a refused request changes nothing.
-	if email != "" && (!strings.EqualFold(email, u.Email) || !u.EmailVerified()) {
+	if !strings.EqualFold(email, u.Email) || !u.EmailVerified() {
 		if err := s.allowVerification(u, email); err != nil {
 			return AccountResult{}, err
 		}
@@ -222,14 +223,6 @@ func (s *Service) UpdateAccount(ctx context.Context, u store.User, in Account, c
 	switch {
 	case strings.EqualFold(email, u.Email) && u.EmailVerified():
 		// No change.
-	case email == "" && u.EmailVerified():
-		return AccountResult{}, badInput("email_required",
-			"Keep an email address: it is the only way to recover your account if you lose your passkeys.")
-	case email == "":
-		if err := s.store.SetEmail(ctx, u.ID, ""); err != nil {
-			return AccountResult{}, storeError(err, "remove email")
-		}
-		res.User.Email = ""
 	default:
 		if other, err := s.store.UserByVerifiedEmail(ctx, email); err == nil && other.ID != u.ID {
 			return AccountResult{}, storeError(&store.ConflictError{Column: "users.email"}, "")
@@ -282,6 +275,11 @@ func (s *Service) allowVerification(u store.User, addr string) error {
 // errNotVerifiable is returned when there is nothing to verify.
 var errNotVerifiable = newError(http.StatusBadRequest, "no_email", "Add an email address first.", nil)
 
+// errAlreadyVerified is returned when the address is verified and no
+// change waits: the link was used, perhaps on another device, so the page
+// that asked can send the user on to the course.
+var errAlreadyVerified = newError(http.StatusConflict, "already_verified", "Your address is verified. Open your course.", nil)
+
 // ResendVerification sends a new link for the pending or unverified
 // address.
 func (s *Service) ResendVerification(ctx context.Context, u store.User, c Client) (string, error) {
@@ -291,6 +289,9 @@ func (s *Service) ResendVerification(ctx context.Context, u store.User, c Client
 	}
 	if addr == "" && !u.EmailVerified() {
 		addr = u.Email
+	}
+	if addr == "" && u.EmailVerified() {
+		return "", errAlreadyVerified
 	}
 	if addr == "" {
 		return "", errNotVerifiable

@@ -292,6 +292,25 @@ func TestNewSender(t *testing.T) {
 		if _, isLog := s.(*LogSender); isLog != tt.wantLog {
 			t.Errorf("%d: %T, want log sender %v", i, s, tt.wantLog)
 		}
+		// Only the SMTP sender delivers: a mailed link proves an address
+		// only when it left the server.
+		if Delivers(s) == tt.wantLog || NewMailer(s, site).Delivers() == tt.wantLog {
+			t.Errorf("%d: %T delivers %v, want %v", i, s, Delivers(s), !tt.wantLog)
+		}
+	}
+}
+
+// quietSender sends nothing and does not say whether it delivers.
+type quietSender struct{}
+
+func (quietSender) Send(context.Context, Message) error { return nil }
+
+func TestDeliversNeedsTheClaim(t *testing.T) {
+	if Delivers(quietSender{}) || NewMailer(quietSender{}, site).Delivers() {
+		t.Error("a sender that does not claim delivery counts as delivering")
+	}
+	if Delivers(NewLogSender(slog.New(slog.DiscardHandler))) {
+		t.Error("the log sender counts as delivering")
 	}
 }
 

@@ -239,6 +239,27 @@ func (s *Server) requireUserPage(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireVerified is the email gate: a user whose address is not verified
+// does not reach the course, the certificates or the admin pages. The
+// address is the only way back in after a lost passkey, so the site does
+// not let anyone build up work on an account they cannot recover. Pages
+// go to /check-email; APIs answer 403 email_unverified. It runs after a
+// require-user wrapper.
+func (s *Server) requireVerified(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if id, ok := identity(r); ok && id.User.EmailVerified() {
+			next(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			writeJSONError(w, http.StatusForbidden, "email_unverified",
+				"Verify your email address first. Open the link in the email we sent you.")
+			return
+		}
+		http.Redirect(w, r, "/check-email", http.StatusSeeOther)
+	}
+}
+
 // requireAdmin answers 403 to everyone but admins. It runs after a
 // require-user wrapper.
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {

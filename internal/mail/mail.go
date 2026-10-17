@@ -34,6 +34,16 @@ type Sender interface {
 	Send(ctx context.Context, m Message) error
 }
 
+// Delivers reports whether s hands its messages to a mail server, so that
+// a link in a sent message can only be opened from the recipient's
+// mailbox. Only a sender that says so counts: the log sender writes the
+// link where the operator can read it, and a sender that does not
+// implement the method proves nothing either.
+func Delivers(s Sender) bool {
+	d, ok := s.(interface{ Delivers() bool })
+	return ok && d.Delivers()
+}
+
 // ParseFrom parses a sender like "Go Practice <go-practice@yornik.eu>".
 func ParseFrom(from string) (*mail.Address, error) {
 	a, err := mail.ParseAddress(from)

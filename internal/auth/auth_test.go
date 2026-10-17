@@ -1,16 +1,20 @@
 package auth_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -42,17 +46,33 @@ func (c *clock) Advance(d time.Duration) {
 	c.t = c.t.Add(d)
 }
 
-// mailbox is a mail.Sender that keeps every message.
+// mailbox is a mail.Sender that keeps every message. By default it does
+// not claim delivery, like the log sender; delivers makes it stand in for
+// SMTP, and err makes every send fail after it was kept.
 type mailbox struct {
-	mu   sync.Mutex
-	msgs []mail.Message
+	mu       sync.Mutex
+	msgs     []mail.Message
+	delivers bool
+	err      error
 }
 
 func (m *mailbox) Send(_ context.Context, msg mail.Message) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.msgs = append(m.msgs, msg)
-	return nil
+	return m.err
+}
+
+func (m *mailbox) Delivers() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.delivers
+}
+
+func (m *mailbox) setErr(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.err = err
 }
 
 func (m *mailbox) all() []mail.Message {
@@ -102,19 +122,28 @@ var client = auth.Client{IP: "192.0.2.10", UserAgent: "Mozilla/5.0 (X11; Linux x
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	mb := &mailbox{}
+	f := newFixtureWith(t, mb)
+	f.mails = mb
+	return f
+}
+
+// newFixtureWith sends the service's mail with sender; mails is nil
+// unless the caller sets it.
+func newFixtureWith(t *testing.T, sender mail.Sender) *fixture {
+	t.Helper()
 	clk := &clock{t: time.Now().UTC()}
 	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "test.db"), store.WithClock(clk.Now))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	mb := &mailbox{}
-	svc, err := auth.New(st, mail.NewMailer(mb, publicURL), auth.Config{PublicURL: publicURL, Now: clk.Now})
+	svc, err := auth.New(st, mail.NewMailer(sender, publicURL), auth.Config{PublicURL: publicURL, Now: clk.Now})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(svc.Wait)
-	return &fixture{st: st, svc: svc, mails: mb, clock: clk}
+	return &fixture{st: st, svc: svc, clock: clk}
 }
 
 func optionsJSON(t *testing.T, b auth.Begin) []byte {
@@ -241,7 +270,7 @@ func TestSetupLink(t *testing.T) {
 	}
 
 	a := authtest.New(publicURL)
-	u, err := f.signUp(t, a, auth.SignUp{Setup: query(t, second, "token"), Username: "ada", DisplayName: "Ada", Email: ""})
+	u, err := f.signUp(t, a, auth.SignUp{Setup: query(t, second, "token"), Username: "ada", DisplayName: "Ada", Email: "ada@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,6 +282,26 @@ func TestSetupLink(t *testing.T) {
 	}
 	_, err = f.signUp(t, authtest.New(publicURL), auth.SignUp{Setup: query(t, second, "token"), Username: "eve", DisplayName: "Eve"})
 	wantCode(t, err, http.StatusGone, "token_invalid")
+}
+
+// TestSetupNeedsEmail: the first account needs an address like every
+// other; the setup link keeps working after the refusal.
+func TestSetupNeedsEmail(t *testing.T) {
+	f := newFixture(t)
+	link, err := f.svc.EnsureSetupLink(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := auth.SignUp{Setup: query(t, link, "token"), Username: "ada", DisplayName: "Ada"}
+	_, err = f.signUp(t, authtest.New(publicURL), in)
+	wantCode(t, err, http.StatusBadRequest, "email_required")
+	if ae, _ := auth.AsError(err); !strings.Contains(ae.Message, "way back in") {
+		t.Errorf("message = %q", ae.Message)
+	}
+	in.Email = "ada@example.com"
+	if _, err := f.signUp(t, authtest.New(publicURL), in); err != nil {
+		t.Fatalf("setup with an address: %v", err)
+	}
 }
 
 func TestSignUpValidation(t *testing.T) {
@@ -273,11 +322,14 @@ func TestSignUpValidation(t *testing.T) {
 		{"garbage token", auth.SignUp{Invite: "../../etc", Username: "bob", DisplayName: "Bob"}, "token_invalid"},
 		{"short username", auth.SignUp{Invite: token, Username: "bo", DisplayName: "Bob"}, "bad_username"},
 		{"username with space", auth.SignUp{Invite: token, Username: "bo b", DisplayName: "Bob"}, "bad_username"},
-		{"taken username", auth.SignUp{Invite: token, Username: "ADMIN", DisplayName: "Bob"}, "username_taken"},
+		{"taken username", auth.SignUp{Invite: token, Username: "ADMIN", DisplayName: "Bob", Email: "bob@example.com"}, "username_taken"},
 		{"empty name", auth.SignUp{Invite: token, Username: "bob", DisplayName: "  "}, "bad_display_name"},
 		{"control in name", auth.SignUp{Invite: token, Username: "bob", DisplayName: "Bob\u202e"}, "bad_display_name"},
 		{"bad email", auth.SignUp{Invite: token, Username: "bob", DisplayName: "Bob", Email: "bob"}, "bad_email"},
 		{"email with name", auth.SignUp{Invite: token, Username: "bob", DisplayName: "Bob", Email: "Bob <bob@example.com>"}, "bad_email"},
+		// The address is the only way back in after a lost passkey.
+		{"no email", auth.SignUp{Invite: token, Username: "bob", DisplayName: "Bob"}, "email_required"},
+		{"blank email", auth.SignUp{Invite: token, Username: "bob", DisplayName: "Bob", Email: " \t "}, "email_required"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -313,7 +365,7 @@ func TestInviteIsSingleUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b2, err := f.svc.BeginRegistration(ctx, auth.SignUp{Invite: token, Username: "mallory", DisplayName: "Mal"}, client)
+	b2, err := f.svc.BeginRegistration(ctx, auth.SignUp{Invite: token, Username: "mallory", DisplayName: "Mal", Email: "mal@example.com"}, client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,6 +396,166 @@ func TestInviteIsSingleUse(t *testing.T) {
 	}
 }
 
+// TestMailedInviteVerifies: an invite that an SMTP server accepted for an
+// address proves that address, so a sign-up with it starts verified and
+// gets no link. The mail then holds the only copy of the link: the admin
+// gets none to pass on. Nothing else counts: the log sender, a failed
+// send, an invite without an address or another address all get the
+// usual verification link.
+func TestMailedInviteVerifies(t *testing.T) {
+	// A port that refuses connections: the real SMTP sender fails on it.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closedPort := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	tests := []struct {
+		name       string
+		sender     func(t *testing.T, log *bytes.Buffer) mail.Sender
+		invite     string // the address the admin enters; "" for an invite without one
+		signUp     string
+		wantMailed bool // the invite response says it went out
+		wantMark   bool // the store records a real delivery
+		wantVer    bool
+	}{
+		{"SMTP, same address", smtpStandIn(nil), "bob@example.com", "bob@example.com", true, true, true},
+		{"SMTP, same address in other case", smtpStandIn(nil), "Bob@Example.COM", "bob@example.com", true, true, true},
+		{"SMTP, other address", smtpStandIn(nil), "bob@example.com", "bob@example.org", true, true, false},
+		{"SMTP, same local part elsewhere", smtpStandIn(nil), "bob@example.com", "bob@example.com.au", true, true, false},
+		// U+212A folds to k in Unicode, not in the mailbox the mail reached.
+		{"SMTP, Kelvin sign", smtpStandIn(nil), "kate@example.com", "\u212aate@example.com", true, true, false},
+		{"SMTP refused the mail", smtpStandIn(errors.New("550 mailbox unavailable")), "bob@example.com", "bob@example.com", false, false, false},
+		{"real SMTP sender, server down", func(t *testing.T, _ *bytes.Buffer) mail.Sender {
+			s, err := mail.NewSMTPSender(mail.Config{Host: "127.0.0.1", Port: closedPort, Username: "resend", Password: "re_test",
+				From: "Go Practice <go-practice@yornik.eu>", Timeout: 5 * time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return s
+		}, "bob@example.com", "bob@example.com", false, false, false},
+		{"log sender", func(_ *testing.T, log *bytes.Buffer) mail.Sender {
+			return mail.NewLogSender(slog.New(slog.NewJSONHandler(log, nil)))
+		}, "bob@example.com", "bob@example.com", true, false, false},
+		{"invite without an address", smtpStandIn(nil), "", "bob@example.com", false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var log bytes.Buffer
+			sender := tt.sender(t, &log)
+			f := newFixtureWith(t, sender)
+			mb, _ := sender.(*mailbox)
+			ctx := t.Context()
+
+			// The admin comes from the setup link, which no mail proves.
+			link, err := f.svc.EnsureSetupLink(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			admin, err := f.signUp(t, authtest.New(publicURL), auth.SignUp{Setup: query(t, link, "token"), Username: "ada", DisplayName: "Ada", Email: "ada@example.com"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if admin.EmailVerified() {
+				t.Fatal("the setup account starts verified")
+			}
+
+			inv, err := f.svc.CreateInvite(ctx, admin, auth.InviteRequest{Email: tt.invite}, client)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if inv.Mailed != tt.wantMailed {
+				t.Errorf("Mailed = %v (%q), want %v", inv.Mailed, inv.MailError, tt.wantMailed)
+			}
+			stored, err := f.st.Invite(ctx, inv.Invite.TokenHash)
+			if err != nil || stored.Mailed() != tt.wantMark {
+				t.Fatalf("stored invite mailed = %v (%v), want %v", stored.Mailed(), err, tt.wantMark)
+			}
+			// A recorded delivery leaves the link in the mail only; every
+			// other invite gives the admin the link to pass on.
+			invLink := inv.Link
+			if (invLink == "") != tt.wantMark {
+				t.Fatalf("admin's link = %q with mailed_at %v", invLink, tt.wantMark)
+			}
+			if tt.wantMark {
+				msg, ok := mb.find(tt.invite, "invite")
+				if !ok {
+					t.Fatalf("no invite mail to %s in %v", tt.invite, mb.all())
+				}
+				invLink = inviteLinkFrom(t, msg)
+			}
+			if mb != nil {
+				mb.setErr(nil) // the verification mail goes through
+			}
+
+			bob, err := f.signUp(t, authtest.New(publicURL), auth.SignUp{Invite: query(t, invLink, "invite"), Username: "bob", DisplayName: "Bob", Email: tt.signUp})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bob.EmailVerified() != tt.wantVer || bob.Email != tt.signUp {
+				t.Fatalf("bob = %+v, want verified %v", bob, tt.wantVer)
+			}
+			if got, err := f.st.User(ctx, bob.ID); err != nil || got.EmailVerified() != tt.wantVer {
+				t.Fatalf("stored bob = %+v, %v", got, err)
+			}
+			f.svc.Wait()
+			pending, err := f.svc.PendingEmail(ctx, bob)
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch {
+			case tt.wantVer:
+				// No second link for an address the invite proved.
+				if pending != "" {
+					t.Errorf("a verified sign-up has a pending link to %s", pending)
+				}
+				if _, ok := mb.find(tt.signUp, "Verify"); mb == nil || ok {
+					t.Error("a verified sign-up got a verification mail, or the case has no mailbox to check")
+				}
+				events, err := f.st.AuditLog(ctx, store.AuditQuery{UserID: bob.ID})
+				if err != nil || !slices.ContainsFunc(events, func(e store.AuditEntry) bool {
+					return e.Event == "email.verified" && strings.Contains(string(e.Detail), `"by":"invite"`)
+				}) {
+					t.Errorf("audit = %+v, %v; want email.verified by invite", events, err)
+				}
+			default:
+				if pending != tt.signUp {
+					t.Errorf("pending link to %q, want %q", pending, tt.signUp)
+				}
+				switch {
+				case mb != nil:
+					if _, ok := mb.find(tt.signUp, "Verify"); !ok {
+						t.Errorf("no verification mail to %s in %v", tt.signUp, mb.all())
+					}
+				case strings.Contains(tt.name, "log"):
+					if !strings.Contains(log.String(), "/verify-email?token=") {
+						t.Errorf("the log has no verification link: %s", log.String())
+					}
+				}
+			}
+		})
+	}
+}
+
+// inviteLinkFrom returns the invite link in msg.
+func inviteLinkFrom(t *testing.T, msg mail.Message) string {
+	t.Helper()
+	for _, l := range linkRE.FindAllString(msg.Text, -1) {
+		if strings.HasPrefix(l, publicURL+"/join?invite=") {
+			return l
+		}
+	}
+	t.Fatalf("no invite link in %q", msg.Text)
+	return ""
+}
+
+// smtpStandIn returns a mailbox that claims delivery, as the SMTP sender
+// does, and fails every send with err until the test clears it.
+func smtpStandIn(err error) func(*testing.T, *bytes.Buffer) mail.Sender {
+	return func(*testing.T, *bytes.Buffer) mail.Sender { return &mailbox{delivers: true, err: err} }
+}
+
 func TestInviteExpires(t *testing.T) {
 	f := newFixture(t)
 	admin, _ := f.admin(t)
@@ -364,7 +576,7 @@ func TestInviteExpires(t *testing.T) {
 func TestInviteNeedsAdmin(t *testing.T) {
 	f := newFixture(t)
 	admin, _ := f.admin(t)
-	bob, _ := f.learner(t, admin, "bob", "")
+	bob, _ := f.learner(t, admin, "bob", "bob@example.com")
 	_, err := f.svc.CreateInvite(t.Context(), bob, auth.InviteRequest{}, client)
 	wantCode(t, err, http.StatusForbidden, "forbidden")
 }
@@ -446,7 +658,7 @@ func TestConditionalLoginOptions(t *testing.T) {
 func TestRegistrationOptions(t *testing.T) {
 	f := newFixture(t)
 	link, _ := f.svc.EnsureSetupLink(t.Context())
-	b, err := f.svc.BeginRegistration(t.Context(), auth.SignUp{Setup: query(t, link, "token"), Username: "ada", DisplayName: "Ada"}, client)
+	b, err := f.svc.BeginRegistration(t.Context(), auth.SignUp{Setup: query(t, link, "token"), Username: "ada", DisplayName: "Ada", Email: "ada@example.com"}, client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -490,7 +702,7 @@ func TestDisabledUser(t *testing.T) {
 	f := newFixture(t)
 	ctx := t.Context()
 	admin, _ := f.admin(t)
-	bob, a := f.learner(t, admin, "bob", "")
+	bob, a := f.learner(t, admin, "bob", "bob@example.com")
 
 	rec := httptest.NewRecorder()
 	if err := f.svc.StartSession(ctx, rec, bob.ID, client); err != nil {
@@ -554,7 +766,7 @@ func TestAddRenameDeletePasskey(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Another user cannot finish the ceremony.
-	bob, _ := f.learner(t, admin, "bob", "")
+	bob, _ := f.learner(t, admin, "bob", "bob@example.com")
 	_, err = f.svc.FinishAddPasskey(ctx, bob, auth.AddPasskey{Finish: auth.Finish{Ceremony: b.Ceremony, Credential: raw}}, client)
 	wantCode(t, err, http.StatusBadRequest, "ceremony_expired")
 
@@ -808,9 +1020,23 @@ func TestChangeEmail(t *testing.T) {
 	_, err = f.svc.UpdateAccount(ctx, u, auth.Account{DisplayName: "Ada", Email: ""}, client)
 	wantCode(t, err, http.StatusBadRequest, "email_required")
 
-	bob, _ := f.learner(t, admin, "bob", "")
+	bob, _ := f.learner(t, admin, "bob", "bob@example.com")
 	_, err = f.svc.UpdateAccount(ctx, bob, auth.Account{DisplayName: "Bob", Email: "ADA@new.example"}, client)
 	wantCode(t, err, http.StatusConflict, "email_taken")
+
+	// An unverified address can change at once, but it cannot go either:
+	// without it the account has no way back in.
+	for _, empty := range []string{"", "  "} {
+		_, err = f.svc.UpdateAccount(ctx, bob, auth.Account{DisplayName: "Bobby", Email: empty}, client)
+		wantCode(t, err, http.StatusBadRequest, "email_required")
+	}
+	if got, err := f.st.User(ctx, bob.ID); err != nil || got.Email != "bob@example.com" || got.DisplayName == "Bobby" {
+		t.Fatalf("bob after a refused change = %+v, %v", got, err)
+	}
+	res, err = f.svc.UpdateAccount(ctx, bob, auth.Account{DisplayName: "Bob", Email: "bob@example.org"}, client)
+	if err != nil || res.User.Email != "bob@example.org" || !res.VerificationSent {
+		t.Fatalf("unverified change = %+v, %v", res, err)
+	}
 }
 
 func TestSessions(t *testing.T) {
@@ -918,7 +1144,7 @@ func TestDevMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := svc.BeginRegistration(t.Context(), auth.SignUp{Setup: query(t, link, "token"), Username: "dev", DisplayName: "Dev"}, client)
+	b, err := svc.BeginRegistration(t.Context(), auth.SignUp{Setup: query(t, link, "token"), Username: "dev", DisplayName: "Dev", Email: "dev@example.com"}, client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -984,5 +1210,28 @@ func TestEmailChangesAreRateLimited(t *testing.T) {
 	f.clock.Advance(time.Hour)
 	if _, err := f.svc.UpdateAccount(ctx, admin, auth.Account{DisplayName: "Ada", Email: "ada@other.example"}, client); err != nil {
 		t.Fatalf("change after an hour: %v", err)
+	}
+}
+
+// TestResendAfterVerify: a page that still waits for the link, while the
+// link was used on another device, learns that nothing waits any more, and
+// no mail goes out.
+func TestResendAfterVerify(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+	f.admin(t)
+	admin := f.verify(t, "ada@example.com")
+	sent := len(f.mails.all())
+	_, err := f.svc.ResendVerification(ctx, admin, client)
+	wantCode(t, err, http.StatusConflict, "already_verified")
+	if n := len(f.mails.all()); n != sent {
+		t.Errorf("%d mails after the refused resend, want %d", n, sent)
+	}
+	// A change that waits for its link can still get a new one.
+	if _, err := f.svc.UpdateAccount(ctx, admin, auth.Account{DisplayName: "Ada", Email: "ada@example.org"}, client); err != nil {
+		t.Fatal(err)
+	}
+	if addr, err := f.svc.ResendVerification(ctx, admin, client); err != nil || addr != "ada@example.org" {
+		t.Errorf("resend of a pending change = %q, %v", addr, err)
 	}
 }

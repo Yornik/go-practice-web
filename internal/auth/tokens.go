@@ -91,6 +91,24 @@ func cleanLabel(s string, maxRunes int, code, msg string) (string, error) {
 
 const maxEmailLen = 254
 
+// errEmailRequired is the answer to an account without an address: the
+// address is the only way back in after a lost passkey.
+var errEmailRequired = badInput("email_required", "Enter your email address. It is your way back in if you lose your passkey.")
+
+// requiredEmail checks the address of an account: cleanEmail, and it must
+// not be empty. Sign-up and the account page use it; an invite's address
+// stays optional.
+func requiredEmail(s string) (string, error) {
+	e, err := cleanEmail(s)
+	if err != nil {
+		return "", err
+	}
+	if e == "" {
+		return "", errEmailRequired
+	}
+	return e, nil
+}
+
 // cleanEmail checks an optional email address. It accepts a bare address
 // only, so that "Name <a@b>" cannot sneak a display name into a header.
 func cleanEmail(s string) (string, error) {

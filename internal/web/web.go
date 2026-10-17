@@ -67,6 +67,10 @@ type Server struct {
 	writeLimit  *auth.Limiter
 	claimLimit  *auth.Limiter
 
+	// routeTable lists every route with its access rule, as routes
+	// registered it; the gate test reads it.
+	routeTable []routeInfo
+
 	mu        sync.Mutex
 	running   map[int64]bool       // users with a test run in flight
 	checks    map[int64]*checkSlot // users with a check in flight
@@ -155,16 +159,56 @@ func (s *Server) highlightCSS(w http.ResponseWriter, _ *http.Request) {
 // Handler returns the site's HTTP handler.
 func (s *Server) Handler() http.Handler { return s.handler }
 
-// routes builds the mux and wraps it in the middleware. Every route that
-// needs a user says so here, so a reader sees the access rule next to the
-// path.
-func (s *Server) routes() http.Handler {
+// access says who may use a route.
+type access int
+
+const (
+	public    access = iota // anyone
+	signedIn                // a session, also with an unverified address: the way to fix it, or to leave
+	verified                // a session with a verified address (requireVerified)
+	adminOnly               // verified, and an admin
+)
+
+// routeInfo is 1 route of the mux and its access rule.
+type routeInfo struct {
+	pattern string
+	access  access
+}
+
+// newRouteMux returns the only way to add a route, which records it for
+// the gate test, and the mux as a plain http.Handler with no Handle method:
+// a route added past the record would also slip past that test.
+func newRouteMux(table *[]routeInfo) (func(access, string, http.Handler), http.Handler) {
 	mux := http.NewServeMux()
-	page := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, h) }
-	userPage := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.requireUserPage(h)) }
-	api := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, h) }
-	userAPI := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.requireUserAPI(h)) }
-	adminAPI := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, s.requireUserAPI(s.requireAdmin(h))) }
+	return func(a access, pattern string, h http.Handler) {
+		*table = append(*table, routeInfo{pattern: pattern, access: a})
+		mux.Handle(pattern, h)
+	}, mux
+}
+
+// routes builds the mux and wraps it in the middleware. Every route says
+// here who may use it, so a reader sees the access rule next to the path.
+// The course, the certificates and the admin pages sit behind the email
+// gate (requireVerified); only the routes registered as page, api,
+// userPage and userAPI skip it, and a test lists each of them by name.
+func (s *Server) routes() http.Handler {
+	handle, mux := newRouteMux(&s.routeTable)
+	page := func(pattern string, h http.HandlerFunc) { handle(public, pattern, h) }
+	userPage := func(pattern string, h http.HandlerFunc) { handle(signedIn, pattern, s.requireUserPage(h)) }
+	coursePage := func(pattern string, h http.HandlerFunc) {
+		handle(verified, pattern, s.requireUserPage(s.requireVerified(h)))
+	}
+	adminPage := func(pattern string, h http.HandlerFunc) {
+		handle(adminOnly, pattern, s.requireUserPage(s.requireVerified(s.requireAdmin(h))))
+	}
+	api := func(pattern string, h http.HandlerFunc) { handle(public, pattern, h) }
+	userAPI := func(pattern string, h http.HandlerFunc) { handle(signedIn, pattern, s.requireUserAPI(h)) }
+	courseAPI := func(pattern string, h http.HandlerFunc) {
+		handle(verified, pattern, s.requireUserAPI(s.requireVerified(h)))
+	}
+	adminAPI := func(pattern string, h http.HandlerFunc) {
+		handle(adminOnly, pattern, s.requireUserAPI(s.requireVerified(s.requireAdmin(h))))
+	}
 
 	// Pages.
 	page("GET /{$}", s.landingPage)
@@ -175,23 +219,25 @@ func (s *Server) routes() http.Handler {
 	page("GET /recover/confirm", s.recoverConfirmPage)
 	page("GET /verify-email", s.verifyEmailPage)
 	page("GET /guide", s.guidePage)
-	userPage("GET /learn", s.dashboardPage)
-	userPage("GET /learn/{exercise}", s.idePage)
+	userPage("GET /check-email", s.checkEmailPage)
 	userPage("GET /account", s.accountPage)
-	userPage("GET /certificates", s.certificatesPage)
-	userPage("GET /admin", s.requireAdmin(s.adminPage))
+	coursePage("GET /learn", s.dashboardPage)
+	coursePage("GET /learn/{exercise}", s.idePage)
+	coursePage("GET /certificates", s.certificatesPage)
+	adminPage("GET /admin", s.adminPage)
 	page("GET /verify", s.verifyLookup)
 	page("GET /verify/{id}", s.verifyPage) // also /verify/<id>.pdf
 	page("GET /.well-known/go-practice-certificates.pub", s.publicKey)
 	page("GET /healthz", s.healthz)
 	page("GET /readyz", s.readyz)
-	mux.Handle("GET /static/", http.StripPrefix("/static/", s.static))
+	handle(public, "GET /static/", http.StripPrefix("/static/", s.static))
 	page("GET /highlight.css", s.highlightCSS)
 	page("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, s.static.url("img/favicon.svg"), http.StatusMovedPermanently)
 	})
 
-	// Accounts.
+	// Accounts. A user with an unverified address can still fix the
+	// address, ask for a new link, manage passkeys and sign out.
 	api("POST /api/auth/register/begin", s.registerBegin)
 	api("POST /api/auth/register/finish", s.registerFinish)
 	api("POST /api/auth/login/begin", s.loginBegin)
@@ -209,20 +255,20 @@ func (s *Server) routes() http.Handler {
 	userAPI("PUT /api/account", s.updateAccount)
 
 	// Learning.
-	userAPI("GET /api/exercises/{exercise}", s.exerciseBootstrap)
-	userAPI("PUT /api/exercises/{exercise}/files/{file}", s.saveFile)
-	userAPI("POST /api/exercises/{exercise}/files/{file}/reset", s.resetFile)
-	userAPI("POST /api/exercises/{exercise}/check", s.check)
-	userAPI("POST /api/exercises/{exercise}/format", s.format)
-	userAPI("POST /api/exercises/{exercise}/test", s.runTests)
-	userAPI("POST /api/exercises/{exercise}/reveal", s.reveal)
-	userAPI("POST /api/exercises/{exercise}/heartbeat", s.heartbeatHandler)
-	userAPI("PUT /api/exercises/{exercise}/notes", s.saveNotes)
-	mux.Handle("GET /api/docs/", s.requireUserAPI(s.cfg.Docs.ServeHTTP))
+	courseAPI("GET /api/exercises/{exercise}", s.exerciseBootstrap)
+	courseAPI("PUT /api/exercises/{exercise}/files/{file}", s.saveFile)
+	courseAPI("POST /api/exercises/{exercise}/files/{file}/reset", s.resetFile)
+	courseAPI("POST /api/exercises/{exercise}/check", s.check)
+	courseAPI("POST /api/exercises/{exercise}/format", s.format)
+	courseAPI("POST /api/exercises/{exercise}/test", s.runTests)
+	courseAPI("POST /api/exercises/{exercise}/reveal", s.reveal)
+	courseAPI("POST /api/exercises/{exercise}/heartbeat", s.heartbeatHandler)
+	courseAPI("PUT /api/exercises/{exercise}/notes", s.saveNotes)
+	courseAPI("GET /api/docs/", s.cfg.Docs.ServeHTTP)
 
 	// Certificates.
-	userAPI("GET /api/certificates", s.listCertificates)
-	userAPI("POST /api/certificates", s.claimCertificate)
+	courseAPI("GET /api/certificates", s.listCertificates)
+	courseAPI("POST /api/certificates", s.claimCertificate)
 
 	// Admin.
 	adminAPI("POST /api/admin/invites", s.createInvite)

@@ -36,8 +36,12 @@
             </div>
             <div class="field">
               <label for="join-email">Email address</label>
-              <input class="input" id="join-email" name="email" type="email" maxlength="254" autocomplete="email" value="{{.Email}}" aria-describedby="join-email-help">
-              <p class="help" id="join-email-help">For recovery and security notices. You get a link to verify it. Without a verified address, a lost passkey means a lost account.</p>
+              <input class="input" id="join-email" name="email" type="email" required maxlength="254" autocomplete="email" value="{{.Email}}" aria-describedby="join-email-help">
+              {{- if .Mailed}}
+              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. The invite came to this address, so it counts as verified. Another address gets a link to verify first.</p>
+              {{- else}}
+              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. You get a link to verify it. The course starts when you open the link.</p>
+              {{- end}}
             </div>
           </div>
         </li>

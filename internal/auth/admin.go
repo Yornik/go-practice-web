@@ -24,7 +24,10 @@ type InviteRequest struct {
 // InviteResult is a created invite. The link holds the only copy of the
 // token; the store keeps its hash.
 type InviteResult struct {
-	Link   string       `json:"url"`
+	// Link is the invite link for the admin to pass on. It is "" when an
+	// SMTP server took the mail: then the mail holds the only copy, so
+	// opening the link proves the address (flow 2 in docs/DESIGN.md).
+	Link   string       `json:"url,omitempty"`
 	Invite store.Invite `json:"-"`
 	// Mailed is true when the invite went out by email. MailError holds
 	// the reason when sending failed; the link still works.
@@ -63,18 +66,36 @@ func (s *Service) CreateInvite(ctx context.Context, admin store.User, in InviteR
 	if err != nil {
 		return InviteResult{}, storeError(err, "create invite")
 	}
-	res := InviteResult{Link: s.link("/join", url.Values{"invite": {token}}), Invite: inv}
+	link := s.link("/join", url.Values{"invite": {token}})
+	res := InviteResult{Link: link, Invite: inv}
 	s.audit(ctx, admin.ID, "invite.created", map[string]any{"email": email, "days": days}, c)
 	if email != "" {
 		mctx, cancel := context.WithTimeout(ctx, mailTimeout)
 		defer cancel()
 		err := s.mailer.Send(mctx, email, mail.Invite{
-			InvitedBy: admin.DisplayName, Note: note, Link: res.Link, Expires: inv.ExpiresAt,
+			InvitedBy: admin.DisplayName, Note: note, Link: link, Expires: inv.ExpiresAt,
 		})
-		if err != nil {
+		switch {
+		case err != nil:
 			s.log.Error("send invite", "err", err)
 			res.MailError = "The email could not be sent. Copy the link and send it yourself."
-		} else {
+		case s.mailer.Delivers():
+			res.Mailed = true
+			// Only a mail that left the server proves the address, so only
+			// it is recorded: anyone with the log can read the log sender's
+			// copy.
+			if err := s.store.MarkInviteMailed(ctx, hash); err != nil {
+				// The invite works; a sign-up with it gets a verification
+				// link, as with an invite without an address, so the admin
+				// may have the link to pass on.
+				s.log.Error("mark invite mailed", "err", err)
+				break
+			}
+			// The mail must hold the only copy of the link: a copy the
+			// admin passes on would prove nothing about the address, for
+			// example when it has a typo and the mail bounced later.
+			res.Link = ""
+		default:
 			res.Mailed = true
 		}
 	}

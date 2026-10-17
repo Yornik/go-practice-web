@@ -100,7 +100,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 1 {
+	if err != nil || v != 2 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 	// Every connection of the pool has the pragmas, not only the first.
@@ -142,7 +142,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 1 {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
 		t.Errorf("schema_migrations has %d rows, %v", n, err)
 	}
 	// A schema from a newer build stops an older one.
@@ -161,6 +161,136 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 	}
 	if _, err := Open(ctx, filepath.Join(t.TempDir(), "missing", "dir", "x.db")); err == nil {
 		t.Error("Open in a missing directory succeeded")
+	}
+}
+
+// TestMigrationInviteMailed upgrades a database at schema version 1: its
+// invites keep working and none of them counts as mailed.
+func TestMigrationInviteMailed(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "v1.db")
+	db, err := sql.Open("sqlite", dsn(path, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	initSQL, err := migrations.ReadFile("migrations/0001_init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`,
+		string(initSQL),
+		`INSERT INTO schema_migrations VALUES (1, 'init', '2026-10-01T00:00:00.000Z')`,
+		`INSERT INTO invites (token_hash, email, created_at, expires_at) VALUES (x'01', 'bob@example.com', '2026-10-19T09:00:00.000Z', '2026-10-26T09:00:00.000Z')`,
+	} {
+		if _, err := db.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%.40s: %v", q, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	clk := &clock{now: t0}
+	s, err := Open(ctx, path, WithClock(clk.Now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	if v, err := s.SchemaVersion(ctx); err != nil || v != 2 {
+		t.Fatalf("SchemaVersion = %d, %v", v, err)
+	}
+	var name string
+	if err := s.db.QueryRowContext(ctx, `SELECT name FROM schema_migrations WHERE version = 2`).Scan(&name); err != nil || name != "invite_mailed" {
+		t.Errorf("migration 2 = %q, %v", name, err)
+	}
+	inv, err := s.ValidInvite(ctx, []byte{1})
+	if err != nil || inv.Mailed() || !inv.MailedAt.IsZero() || inv.Email != "bob@example.com" {
+		t.Fatalf("old invite = %+v, %v", inv, err)
+	}
+	// An old invite was never marked, so its sign-up mails a link as before.
+	u, err := s.RegisterWithInvite(ctx, []byte{1}, Registration{User: newUser("bob"), Credential: newCred("c1")})
+	if err != nil || u.EmailVerified() {
+		t.Fatalf("sign-up with an old invite = %+v, %v", u, err)
+	}
+}
+
+func TestInviteMailedVerifiesTheAddress(t *testing.T) {
+	s, clk := newStore(t)
+	ctx := context.Background()
+	tests := []struct {
+		name    string
+		invite  string // the invite's address
+		mailed  bool
+		signUp  string // the address of the sign-up
+		wantVer bool
+	}{
+		{"mailed, same address", "dora@example.com", true, "dora@example.com", true},
+		{"mailed, other case", " Erin@Example.COM ", true, "erin@example.com", true},
+		{"mailed, other address", "fay@example.com", true, "fay@example.org", false},
+		{"mailed, address with a suffix", "gus@example.com", true, "gus@example.com.evil", false},
+		{"not mailed", "hal@example.com", false, "hal@example.com", false},
+		{"copied link without address", "", false, "ida@example.com", false},
+		// Only ASCII letters fold, as COLLATE NOCASE does: a Kelvin sign
+		// or a long s is another mailbox, which no mail reached.
+		{"kelvin sign", "kate@example.com", true, "Kate@example.com", false},
+		{"long s", "sam@example.com", true, "ſam@example.com", false},
+	}
+	for i, tt := range tests {
+		hash := fmt.Appendf(nil, "inv-%d", i)
+		if _, err := s.CreateInvite(ctx, Invite{TokenHash: hash, Email: tt.invite, ExpiresAt: t0.Add(time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
+		if tt.mailed {
+			clk.Advance(time.Second)
+			if err := s.MarkInviteMailed(ctx, hash); err != nil {
+				t.Fatal(err)
+			}
+			inv, err := s.Invite(ctx, hash)
+			if err != nil || !inv.Mailed() || !inv.MailedAt.Equal(clk.Now()) {
+				t.Fatalf("%s: marked invite = %+v, %v", tt.name, inv, err)
+			}
+		}
+		nu := newUser(fmt.Sprintf("user%d", i))
+		nu.Email = tt.signUp
+		u, err := s.RegisterWithInvite(ctx, hash, Registration{User: nu, Credential: newCred(fmt.Sprintf("c%d", i))})
+		if err != nil {
+			t.Fatalf("%s: %v", tt.name, err)
+		}
+		if u.EmailVerified() != tt.wantVer {
+			t.Errorf("%s: verified = %v, want %v", tt.name, u.EmailVerified(), tt.wantVer)
+		}
+		// The stored row says the same as the returned user.
+		got, err := s.User(ctx, u.ID)
+		if err != nil || got.EmailVerified() != tt.wantVer || got.EmailVerifiedAt != u.EmailVerifiedAt {
+			t.Errorf("%s: stored user = %+v, %v; returned %+v", tt.name, got, err, u)
+		}
+		if tt.wantVer && !u.EmailVerifiedAt.Equal(clk.Now()) {
+			t.Errorf("%s: verified at %v, want %v", tt.name, u.EmailVerifiedAt, clk.Now())
+		}
+	}
+
+	// A used or unknown invite cannot be marked; a failed registration
+	// leaves the address unverified.
+	if err := s.MarkInviteMailed(ctx, []byte("inv-0")); !errors.Is(err, ErrNotFound) {
+		t.Errorf("MarkInviteMailed of a used invite: %v", err)
+	}
+	if err := s.MarkInviteMailed(ctx, []byte("nope")); !errors.Is(err, ErrNotFound) {
+		t.Errorf("MarkInviteMailed of an unknown invite: %v", err)
+	}
+	if _, err := s.CreateInvite(ctx, Invite{TokenHash: []byte("taken"), Email: "jo@example.com", ExpiresAt: t0.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkInviteMailed(ctx, []byte("taken")); err != nil {
+		t.Fatal(err)
+	}
+	nu := newUser("user0") // the username is taken
+	nu.Email = "jo@example.com"
+	if _, err := s.RegisterWithInvite(ctx, []byte("taken"), Registration{User: nu, Credential: newCred("c-jo")}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("register with a taken username: %v", err)
+	}
+	if inv, err := s.ValidInvite(ctx, []byte("taken")); err != nil || !inv.Mailed() {
+		t.Errorf("the invite after a failed sign-up = %+v, %v", inv, err)
 	}
 }
 

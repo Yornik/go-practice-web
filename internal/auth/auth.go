@@ -131,6 +131,11 @@ func New(st *store.Store, mailer *mail.Mailer, cfg Config) (*Service, error) {
 // PublicURL returns the site origin without a trailing slash.
 func (s *Service) PublicURL() string { return s.publicURL }
 
+// MailDelivers reports whether the site's mail reaches a mail server.
+// When it does not, every link goes to the server log (mail.LogSender),
+// and only the operator can pass it on.
+func (s *Service) MailDelivers() bool { return s.mailer.Delivers() }
+
 // Wait blocks until the notices sent in the background are out. Call it at
 // shutdown, after the HTTP server stopped.
 func (s *Service) Wait() { s.bg.Wait() }

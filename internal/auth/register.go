@@ -119,7 +119,7 @@ func (s *Service) BeginRegistration(ctx context.Context, in SignUp, c Client) (B
 	if err != nil {
 		return Begin{}, err
 	}
-	email, err := cleanEmail(in.Email)
+	email, err := requiredEmail(in.Email)
 	if err != nil {
 		return Begin{}, err
 	}
@@ -177,10 +177,14 @@ func (s *Service) FinishRegistration(ctx context.Context, in Finish, c Client) (
 		return store.User{}, storeError(err, "register")
 	}
 	s.audit(ctx, u.ID, "user.registered", map[string]any{"setup": d.Setup, "admin": u.IsAdmin}, c)
-	if u.Email != "" {
+	switch {
+	case u.EmailVerified():
+		// The invite was mailed to this address, and its link was opened:
+		// that proves the mailbox, so no second link is needed.
+		s.audit(ctx, u.ID, "email.verified", map[string]string{"email": u.Email, "by": "invite"}, c)
+	case u.Email != "":
 		if err := s.sendVerification(ctx, u, u.Email); err != nil {
-			// The account exists; the user can ask for a new link on the
-			// account page.
+			// The account exists; the check-email page sends a new link.
 			s.log.Error("verification email after sign-up", "user_id", u.ID, "err", err)
 		}
 	}

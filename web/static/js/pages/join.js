@@ -13,7 +13,14 @@ const fields = {
   email: document.getElementById("join-email"),
 };
 // The server's codes, by the field they are about.
-const FIELD_OF = { bad_username: "username", username_taken: "username", bad_display_name: "displayName", bad_email: "email", email_taken: "email" };
+const FIELD_OF = {
+  bad_username: "username",
+  username_taken: "username",
+  bad_display_name: "displayName",
+  bad_email: "email",
+  email_required: "email",
+  email_taken: "email",
+};
 const LABEL = { username: "Username", displayName: "Display name", email: "Email address" };
 
 function check(body) {
@@ -21,7 +28,8 @@ function check(body) {
   if (!/^[a-z0-9_-]{3,32}$/.test(body.username)) problems.username = "Username: use 3 to 32 characters: lower-case letters, digits, - and _.";
   if (!body.displayName) problems.displayName = "Display name: enter the name to print on your certificates.";
   else if ([...body.displayName].length > 64) problems.displayName = "Display name: use at most 64 characters.";
-  if (body.email && !looksLikeEmail(body.email)) problems.email = "Email address: enter an address like name@example.com, or leave it empty.";
+  if (!body.email) problems.email = "Email address: enter your email address. It is your way back in if you lose your passkey.";
+  else if (!looksLikeEmail(body.email)) problems.email = "Email address: enter an address like name@example.com.";
   return problems;
 }
 

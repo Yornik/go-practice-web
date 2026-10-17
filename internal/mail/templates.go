@@ -208,6 +208,10 @@ func NewMailer(s Sender, siteURL string) *Mailer {
 	return &Mailer{sender: s, siteURL: siteURL}
 }
 
+// Delivers reports whether the Mailer's sender hands messages to a mail
+// server; see the function Delivers.
+func (m *Mailer) Delivers() bool { return Delivers(m.sender) }
+
 // Send renders e for to and sends it.
 func (m *Mailer) Send(ctx context.Context, to string, e Email) error {
 	msg, err := Compose(m.siteURL, to, e)

@@ -1,5 +1,6 @@
-// Helpers for the E2E tests: the dev server's log, the course's reference
-// solutions and a virtual passkey authenticator.
+// Helpers for the E2E tests: the dev server's log and the mails in it, the
+// course's reference solutions and a virtual passkey authenticator.
+import { expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +31,47 @@ export function setupLink() {
     .find((e) => typeof e.msg === "string" && e.msg.startsWith("setup link: "));
   if (!line) throw new Error("no setup link in web.log: the database already has an account");
   return new URL(line.msg.slice("setup link: ".length));
+}
+
+/**
+ * The path and query of the newest link in a mail of the log, for a path
+ * such as "/verify-email". to limits it to 1 recipient; since skips the log
+ * lines before that index (webLog().length before the action that mails).
+ * The dev server logs mail instead of sending it (mail.LogSender).
+ */
+export function mailLink(pathPrefix, { to, since = 0 } = {}) {
+  const re = new RegExp(`https?://[^\\s]*${pathPrefix.replace(/[.?/]/g, "\\$&")}\\?token=[^\\s]+`);
+  const mails = webLog()
+    .slice(since)
+    .filter((e) => typeof e.text === "string" && re.test(e.text) && (!to || e.to === to))
+    .reverse();
+  if (!mails.length) throw new Error(`no mail with ${pathPrefix}${to ? ` to ${to}` : ""} in web.log`);
+  const u = new URL(mails[0].text.match(re)[0]);
+  return u.pathname + u.search;
+}
+
+/**
+ * Waits for the newest verification link mailed to `to` and returns its
+ * path and query. The site mails it in the background, so the page that
+ * caused it can be there first.
+ */
+export async function verificationLink(to, { since = 0, timeout = 20_000 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    try {
+      return mailLink("/verify-email", { to, since });
+    } catch (err) {
+      if (Date.now() > deadline) throw err;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+
+/** Opens the newest verification link mailed to `to` and confirms the address, as a learner does. */
+export async function confirmEmail(page, to, { since = 0 } = {}) {
+  await page.goto(await verificationLink(to, { since }));
+  await page.getByRole("button", { name: "Confirm my address" }).click();
+  await expect(page.locator(".form-status")).toContainText(`Your email address ${to} is verified.`);
 }
 
 const rot13 = (s) =>

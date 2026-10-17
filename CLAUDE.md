@@ -23,5 +23,6 @@ scripts/dev.sh                      # runs runner and web locally on http://loca
 - Hidden course material (hints, explanations, walkthroughs, solutions) reaches a browser only through the reveal API, after the previous level was revealed. Do not embed it in pages or bootstrap JSON.
 - The runner accepts only the exercise's stub file names. Keep that check; it blocks path traversal and test replacement.
 - Every state-changing endpoint needs the CSRF header and the Origin check described in `docs/DESIGN.md`.
+- Course, certificate and admin routes sit behind the email gate: register them in `internal/web/web.go` with `coursePage`, `courseAPI`, `adminPage` or `adminAPI`. A route that must stay open to a user with an unverified address goes on the allow-list in `internal/web/gate_test.go`, with a reason (flow 11 in `docs/DESIGN.md`).
 - Comments give the reason, not the description. Docs use short sentences, the active voice and numbers as digits.
 - Commit messages and pull request titles follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`): Release Please reads them to choose the next version and to write `CHANGELOG.md`. Do not push `v*` tags by hand; merging the release pull request creates them (see "Build and release" in `docs/DESIGN.md`).

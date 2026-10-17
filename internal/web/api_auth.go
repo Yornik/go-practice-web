@@ -61,7 +61,13 @@ func (s *Server) registerFinish(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.signedIn(w, r, u, "/learn")
+	// A mailed invite verified the address already; everyone else waits
+	// for the link, behind the email gate.
+	next := "/learn"
+	if !u.EmailVerified() {
+		next = "/check-email"
+	}
+	s.signedIn(w, r, u, next)
 }
 
 func (s *Server) loginBegin(w http.ResponseWriter, r *http.Request) {

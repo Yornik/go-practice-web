@@ -163,4 +163,17 @@ func TestAdminInvites(t *testing.T) {
 	wantStatus(t, h.do(req{method: "DELETE", path: "/api/admin/invites/" + hash, as: admin}), http.StatusNotFound)
 	w = h.do(req{method: "POST", path: "/api/admin/invites", body: map[string]any{"days": 99}, as: admin})
 	wantStatus(t, w, http.StatusBadRequest)
+
+	// An invite that an SMTP server took counts as proof of its address,
+	// so the mail holds the only copy of the link: the answer has no url.
+	h.mails.setDelivers(true)
+	w = h.do(req{method: "POST", path: "/api/admin/invites", body: map[string]any{"email": "cat@example.com"}, as: admin})
+	wantStatus(t, w, http.StatusCreated)
+	res = decodeJSON[map[string]any](t, w)
+	if _, ok := res["url"]; ok || res["mailed"] != true || res["hash"] == "" {
+		t.Fatalf("SMTP-mailed invite = %v, want no url", res)
+	}
+	if token := h.lastInvite("cat@example.com"); token == "" {
+		t.Fatal("the invite mail has no link")
+	}
 }

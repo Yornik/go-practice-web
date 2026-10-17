@@ -33,6 +33,28 @@ func (h *harness) lastLink(addr, subject string) string {
 	return ""
 }
 
+// lastInvite returns the invite token of the newest invite mail to addr.
+// An invite that an SMTP server took has no other copy of its link.
+func (h *harness) lastInvite(addr string) string {
+	h.t.Helper()
+	h.mails.mu.Lock()
+	defer h.mails.mu.Unlock()
+	for i := len(h.mails.msgs) - 1; i >= 0; i-- {
+		m := h.mails.msgs[i]
+		if m.To != addr || !strings.Contains(m.Subject, "invited you") {
+			continue
+		}
+		for _, l := range linkRE.FindAllString(m.Text, -1) {
+			if u, err := url.Parse(l); err == nil && u.Path == "/join" && u.Query().Get("invite") != "" {
+				return u.Query().Get("invite")
+			}
+		}
+		h.t.Fatalf("no invite link in %q", m.Text)
+	}
+	h.t.Fatalf("no invite mail to %s", addr)
+	return ""
+}
+
 func tokenOf(t *testing.T, m mail.Message) string {
 	t.Helper()
 	for _, l := range linkRE.FindAllString(m.Text, -1) {
@@ -46,7 +68,7 @@ func tokenOf(t *testing.T, m mail.Message) string {
 
 func TestVerifyEmailAndRecoveryAPI(t *testing.T) {
 	h := newHarness(t)
-	admin := h.admin()
+	admin := h.unverifiedAdmin()
 
 	token := h.lastLink("ada@example.com", "Verify")
 	w := h.do(req{method: "POST", path: "/api/auth/verify-email", body: map[string]string{"token": token}})

@@ -62,9 +62,12 @@ func (c *clock) Advance(d time.Duration) {
 	c.t = c.t.Add(d)
 }
 
+// mailbox keeps every message. It does not claim delivery, like the log
+// sender, until a test calls setDelivers: then it stands in for SMTP.
 type mailbox struct {
-	mu   sync.Mutex
-	msgs []mail.Message
+	mu       sync.Mutex
+	msgs     []mail.Message
+	delivers bool
 }
 
 func (m *mailbox) Send(_ context.Context, msg mail.Message) error {
@@ -72,6 +75,18 @@ func (m *mailbox) Send(_ context.Context, msg mail.Message) error {
 	defer m.mu.Unlock()
 	m.msgs = append(m.msgs, msg)
 	return nil
+}
+
+func (m *mailbox) Delivers() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.delivers
+}
+
+func (m *mailbox) setDelivers(v bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.delivers = v
 }
 
 // fakeRunner answers the runner API with canned responses and records the
@@ -240,6 +255,7 @@ func failingRun(runnerapi.TestRequest) []runnerapi.Event {
 type harness struct {
 	t       *testing.T
 	cfg     web.Config
+	srv     *web.Server
 	handler http.Handler
 	store   *store.Store
 	auth    *auth.Service
@@ -290,7 +306,7 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &harness{t: t, cfg: cfg, handler: srv.Handler(), store: st, auth: a, runner: fake, clock: clk, mails: mb, signer: signer}
+	return &harness{t: t, cfg: cfg, srv: srv, handler: srv.Handler(), store: st, auth: a, runner: fake, clock: clk, mails: mb, signer: signer}
 }
 
 // newServerWithRunner builds the harness's server again with another
@@ -373,6 +389,14 @@ func wantStatus(t *testing.T, w *httptest.ResponseRecorder, status int) {
 // signUp registers through the API with a software authenticator.
 func (h *harness) signUp(body map[string]string) *user {
 	h.t.Helper()
+	u, _ := h.signUpNext(body)
+	return u
+}
+
+// signUpNext registers like signUp and also returns where the site sends
+// the new user.
+func (h *harness) signUpNext(body map[string]string) (*user, string) {
+	h.t.Helper()
 	key := authtest.New(publicURL)
 	w := h.do(req{method: "POST", path: "/api/auth/register/begin", body: body})
 	wantStatus(h.t, w, http.StatusOK)
@@ -386,7 +410,10 @@ func (h *harness) signUp(body map[string]string) *user {
 	}
 	w = h.do(req{method: "POST", path: "/api/auth/register/finish", body: map[string]any{"ceremony": begin.Ceremony, "credential": cred}})
 	wantStatus(h.t, w, http.StatusOK)
-	return h.userFrom(w, key)
+	next := decodeJSON[struct {
+		Next string `json:"next"`
+	}](h.t, w).Next
+	return h.userFrom(w, key), next
 }
 
 func (h *harness) userFrom(w *httptest.ResponseRecorder, key *authtest.Authenticator) *user {
@@ -412,8 +439,16 @@ func (h *harness) userFrom(w *httptest.ResponseRecorder, key *authtest.Authentic
 	return &user{User: u, cookie: cookie, key: key}
 }
 
-// admin signs up the first account with the setup link.
+// admin signs up the first account with the setup link and verifies its
+// address, so it passes the email gate.
 func (h *harness) admin() *user {
+	h.t.Helper()
+	return h.verify(h.unverifiedAdmin())
+}
+
+// unverifiedAdmin signs up the first account and leaves the verification
+// link unused: the account is behind the email gate.
+func (h *harness) unverifiedAdmin() *user {
 	h.t.Helper()
 	link, err := h.auth.EnsureSetupLink(h.t.Context())
 	if err != nil {
@@ -423,8 +458,16 @@ func (h *harness) admin() *user {
 	return h.signUp(map[string]string{"setup": u.Query().Get("token"), "username": "ada", "displayName": "Ada Admin", "email": "ada@example.com"})
 }
 
-// learner joins with an invite the admin creates.
+// learner joins with an invite the admin creates, as <username>@example.com,
+// and verifies the address.
 func (h *harness) learner(admin *user, username string) *user {
+	h.t.Helper()
+	return h.verify(h.unverifiedLearner(admin, username))
+}
+
+// unverifiedLearner joins with a copied invite link and leaves the
+// verification link unused.
+func (h *harness) unverifiedLearner(admin *user, username string) *user {
 	h.t.Helper()
 	w := h.do(req{method: "POST", path: "/api/admin/invites", body: map[string]any{"days": 7}, as: admin})
 	wantStatus(h.t, w, http.StatusCreated)
@@ -432,7 +475,27 @@ func (h *harness) learner(admin *user, username string) *user {
 		URL string `json:"url"`
 	}](h.t, w)
 	u, _ := url.Parse(inv.URL)
-	return h.signUp(map[string]string{"invite": u.Query().Get("invite"), "username": username, "displayName": strings.ToUpper(username[:1]) + username[1:]})
+	return h.signUp(map[string]string{
+		"invite": u.Query().Get("invite"), "username": username,
+		"displayName": strings.ToUpper(username[:1]) + username[1:], "email": username + "@example.com",
+	})
+}
+
+// verify uses the newest verification link mailed to u's address, as the
+// verify page does, and refreshes u from the store.
+func (h *harness) verify(u *user) *user {
+	h.t.Helper()
+	token := h.lastLink(u.Email, "Verify")
+	wantStatus(h.t, h.do(req{method: "POST", path: "/api/auth/verify-email", body: map[string]string{"token": token}}), http.StatusOK)
+	fresh, err := h.store.User(h.t.Context(), u.ID)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	if !fresh.EmailVerified() {
+		h.t.Fatalf("%s is not verified after the link", u.Username)
+	}
+	u.User = fresh
+	return u
 }
 
 // ndjson splits a stream body into events.
