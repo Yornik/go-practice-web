@@ -1,0 +1,4 @@
+id: vet-timeformat
+command: vet
+file: x.go
+line: 6

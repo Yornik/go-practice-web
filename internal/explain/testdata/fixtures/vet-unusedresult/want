@@ -1,0 +1,5 @@
+id: vet-unusedresult
+command: vet
+file: x.go
+line: 6
+capture: call=slices.Delete

@@ -1,0 +1,6 @@
+id: compile-generic-without-instantiation
+command: build
+file: x.go
+line: 11
+capture: kind=function
+capture: name=Largest

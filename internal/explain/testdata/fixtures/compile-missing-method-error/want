@@ -1,0 +1,7 @@
+id: compile-missing-method
+command: build
+file: x.go
+line: 5
+capture: iface=error
+capture: type=string
+capture: method=Error

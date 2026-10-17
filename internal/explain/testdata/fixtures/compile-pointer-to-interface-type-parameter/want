@@ -1,0 +1,6 @@
+id: compile-pointer-to-interface
+command: build
+file: x.go
+line: 6
+capture: name=String
+capture: type=*T

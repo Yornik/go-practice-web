@@ -1,0 +1,27 @@
+fatal error: all goroutines are asleep - deadlock!
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0x200a2ac2c008, {0x555f4d?, 0x200a2ac25aa0?}, 0x6dda28)
+	/usr/local/go/src/testing/testing.go:2268 +0x4f2
+testing.runTests.func1(0x200a2ac2c008)
+	/usr/local/go/src/testing/testing.go:2744 +0x37
+testing.tRunner(0x200a2ac2c008, 0x200a2ac25bc8)
+	/usr/local/go/src/testing/testing.go:2195 +0xea
+testing.runTests({0x557301, 0xd}, {0x557301, 0xd}, 0x200a2ab041c8, {0x6fd3d0, 0x7, 0x7}, {0x0, 0x0, ...})
+	/usr/local/go/src/testing/testing.go:2742 +0x510
+testing.(*M).Run(0x200a2ab76280)
+	/usr/local/go/src/testing/testing.go:2602 +0x6af
+main.main()
+	_testmain.go:62 +0x9b
+
+goroutine 6 [chan receive]:
+github.com/yornik/go-practice/exercises/99-demo.Stuck(...)
+	/tmp/runs/k3x9/exercises/99-demo/y.go:25
+github.com/yornik/go-practice/exercises/99-demo_test.TestStuck(0x200a2ac2c248?)
+	/tmp/runs/k3x9/exercises/99-demo/y_test.go:19 +0x25
+testing.tRunner(0x200a2ac2c248, 0x6dda28)
+	/usr/local/go/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:2260 +0x4d4
+FAIL	github.com/yornik/go-practice/exercises/99-demo	0.010s
+FAIL

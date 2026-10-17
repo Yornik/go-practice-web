@@ -1,0 +1,5 @@
+id: vet-hostport
+command: vet
+file: x.go
+line: 9
+capture: format="%s:%d"

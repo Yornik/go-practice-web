@@ -1,0 +1,5 @@
+id: compile-map-struct-field
+command: build
+file: x.go
+line: 9
+capture: expr=stock[sku].Qty

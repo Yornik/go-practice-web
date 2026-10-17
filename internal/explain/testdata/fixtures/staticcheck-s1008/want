@@ -1,0 +1,5 @@
+id: staticcheck-s1008
+command: staticcheck
+file: x.go
+line: 4
+capture: want=return code >= 500

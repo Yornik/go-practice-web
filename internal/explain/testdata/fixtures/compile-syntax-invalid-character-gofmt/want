@@ -1,0 +1,5 @@
+id: compile-syntax-invalid-character
+command: gofmt
+file: x.go
+line: 4
+capture: char=?

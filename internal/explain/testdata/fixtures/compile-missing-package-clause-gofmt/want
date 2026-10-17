@@ -1,0 +1,5 @@
+id: compile-missing-package-clause
+command: gofmt
+file: x.go
+line: 1
+capture: found='import'

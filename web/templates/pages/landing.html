@@ -1,0 +1,153 @@
+{{define "content"}}
+<div class="landing">
+  <div class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">Practice Go on real operations tasks.<br> Do the thinking yourself.</h1>
+      <div class="hero-text">
+        <p class="lede">Parse logs, compute burn rates, retry with backoff, elect a leader, balance traffic. {{len .Course.Exercises}} exercises in {{len .Course.Tiers}} tiers, about {{printf "%.0f" .Course.Hours}} hours of work.</p>
+        <p class="body-text">You read the spec, write Go in the browser and run the real tests with <code>-race</code>. When a test fails, the site explains the error in plain words. It does not write the fix, and it has no LLM.</p>
+        <div class="hero-actions">
+          {{- if .User}}
+          <a class="btn btn-primary btn-lg" href="/learn">Open your course</a>
+          <a href="/guide">Read the guide</a>
+          {{- else}}
+          <a class="btn btn-primary btn-lg" href="/login">Sign in</a>
+          <a href="/guide">Read the guide</a>
+          {{- end}}
+        </div>
+        {{- if not .User}}
+        <p class="hero-invite">Invite only. To make an account, you need an invite link.</p>
+        {{- end}}
+      </div>
+
+      <figure class="fig" aria-labelledby="fig1-caption">
+        <div class="fig-body" data-leaders>
+          <div class="fig-sheet grid-bg">
+            <div class="fig-code" role="region" aria-label="Figure 1, Go code" tabindex="0">
+<span class="ln"><span class="tok-com">// fetch gets the config. It tries 5 times.</span></span>
+<span class="ln"><span class="tok-kw">func</span> fetch(ctx context.Context) (Config, <span class="tok-num">error</span>) {</span>
+<span class="ln">&#9;<span class="tok-kw">var</span> cfg Config</span>
+<span class="ln">&#9;<span class="tok-kw">var</span> err <span class="tok-num">error</span></span>
+<span class="ln">&#9;<span class="tok-kw">for</span> i := <span class="tok-num">0</span>; i &lt; <span class="tok-num">5</span>; i++ {</span>
+<span class="ln">&#9;&#9;cfg, err = get(ctx, <span class="tok-str">"/config"</span>)</span>
+<span class="ln">&#9;&#9;<span class="tok-kw">if</span> <span class="mark">err == <span class="tok-num">nil</span></span> {<span class="eol" data-note="1"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">1</span></span>
+<span class="ln">&#9;&#9;&#9;<span class="tok-kw">return</span> cfg, <span class="tok-num">nil</span></span>
+<span class="ln">&#9;&#9;}</span>
+<span class="ln">&#9;&#9;delay := <span class="mark"><span class="tok-num">1</span> * time.Second</span><span class="eol" data-note="2"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">2</span></span>
+<span class="ln">&#9;&#9;<span class="mark">time.Sleep</span>(delay)<span class="eol" data-note="3"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">3</span></span>
+<span class="ln">&#9;}</span>
+<span class="ln">&#9;<span class="tok-kw">return</span> cfg, err</span>
+<span class="ln">}</span>
+            </div>
+          </div>
+          <ol class="fig-notes" aria-label="Notes on Figure 1">
+            <li data-note="1"><span class="balloon" aria-hidden="true">1</span><p>Every error gets a retry. A 400 can never succeed. A <code>Retry-After:&nbsp;30</code> is ignored.</p></li>
+            <li data-note="2"><span class="balloon" aria-hidden="true">2</span><p>Every replica waits the same 1&nbsp;s. 200 replicas retry at the same moment and hit the service as 1 wave.</p></li>
+            <li data-note="3"><span class="balloon" aria-hidden="true">3</span><p><code>time.Sleep</code> ignores <code>ctx</code>. On SIGTERM the pod waits for the sleep. A deadline cannot stop it.</p></li>
+          </ol>
+          <svg class="leaders" aria-hidden="true" focusable="false"></svg>
+        </div>
+        <figcaption class="fig-caption" id="fig1-caption">
+          <p><b>Figure 1.</b> The retry loop from the scenario of exercise 07. You replace it with the helper that your team's clients share.</p>
+          <dl class="titleblock">
+            <div><dt>Exercise</dt><dd>07</dd></div>
+            <div><dt>Tier</dt><dd>2</dd></div>
+            <div><dt>Estimate</dt><dd>2.5&nbsp;h</dd></div>
+          </dl>
+        </figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <section class="section" aria-labelledby="explain-title">
+    <div class="wrap">
+      <h2 id="explain-title">When it breaks, you get the reason</h2>
+      <p class="section-intro">The site does not stop at "error at line 120". It names each part of the message and explains the rule behind it.</p>
+      {{- with .Data.Figure}}
+      <div class="fig2">
+        <figure aria-labelledby="fig2-caption">
+          <article class="problem" aria-label="Problem 1">
+            <span class="balloon is-filled" aria-hidden="true">1</span>
+            <p class="problem-source">The compiler found this while you typed, at 14:06.</p>
+            <h3 class="problem-title">{{.Title}}</h3>
+            <p class="problem-where">Line 120 in <span class="mono">retry.go</span></p>
+            <div class="anatomy">
+              <div class="raw" data-fig2="raw"><span class="part" data-part="a">retry.go:120:11</span>: undefined: <span class="part is-key" data-part="b">sleepContext</span></div>
+              <dl class="parts" data-fig2="parts">
+                <div><dt><span class="balloon" aria-hidden="true">a</span><code>retry.go:120:11</code></dt><dd>The file, the line and the column. The column counts bytes from 1, and a tab counts as 1.</dd></div>
+                <div><dt><span class="balloon" aria-hidden="true">b</span><code>sleepContext</code></dt><dd>The name that Go cannot find.</dd></div>
+              </dl>
+            </div>
+            {{- range $i, $s := .Sections}}
+            <details class="xsec" open{{if eq $i 0}} data-fig2="rule"{{end}}>
+              <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>{{$s.Title}}</summary>
+              <div class="xsec-body">{{$s.HTML}}</div>
+            </details>
+            {{- end}}
+          </article>
+          <figcaption id="fig2-caption"><b>Figure 2.</b> A compile error in exercise 07, as the editor explains it. The text comes from the catalog of explanations that the site ships.</figcaption>
+        </figure>
+        <ul class="fig2-notes" aria-label="Notes on Figure 2" data-fig2-notes>
+          <li data-for="raw"><p>The raw message stays visible. Reading real Go errors is part of the course.</p></li>
+          <li data-for="parts"><p>Each part has a name: the place in the file, and the value Go complains about.</p></li>
+          <li data-for="rule"><p>The rule comes from the Go spec, not from a model. Every explanation is written and checked against the real compiler.</p></li>
+        </ul>
+      </div>
+      {{- end}}
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="how-title">
+    <div class="wrap">
+      <h2 id="how-title">How you work an exercise</h2>
+      <p class="section-intro">The steps come from the course itself. The site keeps the time, the runs and the hints in your learning log.</p>
+      <ol class="procedure">
+        <li><b>Read the spec twice.</b> Then read the tests. Their names tell you what "done" means.</li>
+        <li><b>Work 2 examples by hand.</b> Write down the state your code keeps and what must stay true about it.</li>
+        <li><b>Pass 1 test first.</b> Write the simplest code that can pass it. Run only that step.</li>
+        <li><b>Read each failure.</b> The site names every part of the message and explains the rule behind it.</li>
+        <li><b>Stuck for 25 minutes?</b> Reveal hint 1. Wait 10 minutes before the next hint.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="toc-title">
+    <div class="wrap">
+      <h2 id="toc-title">The {{len .Course.Exercises}} exercises</h2>
+      <p class="section-intro">Work them in order. Each tier assumes the tiers before it. The times are for a medior engineer who works without an LLM.</p>
+      {{template "strip" .Data.Strip}}
+      <div class="contents">
+        {{- range .Course.Tiers}}
+        <div>
+          <h3>{{.Title}}</h3>
+          <p>{{.Theme}}</p>
+          <ol>
+            {{- range .Exercises}}
+            <li><span class="no">{{pad2 .Number}}</span><span class="t"><span>{{.Title}}</span></span><span class="h">{{hours .Hours}}</span></li>
+            {{- end}}
+          </ol>
+        </div>
+        {{- end}}
+        <div class="contents-cert">
+          <h3>Certificates</h3>
+          <p class="muted">1 per tier and 1 for the course.</p>
+          <p>Each certificate is a signed PDF with a link to a public verify page. You choose if it shows your time and your hints.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="rules-title">
+    <div class="wrap">
+      <h2 id="rules-title">The rules</h2>
+      <ol class="rules">
+        <li><span>Do not use an LLM. That includes chat assistants and AI autocomplete. The editor has none.</span></li>
+        <li><span>Use the documentation freely: <code>go doc</code>, pkg.go.dev, the Go spec, the Go blog and RFCs. The editor shows the standard library docs when you hover a name.</span></li>
+        <li><span>Try for at least 25 minutes before you reveal hint 1. Wait at least 10 minutes between hints.</span></li>
+        <li><span>If you read the reference solution, close it, wait, and write your own version from memory.</span></li>
+        <li><span>After you pass, read the explanation and the walkthrough. They show the trade-offs.</span></li>
+      </ol>
+    </div>
+  </section>
+</div>
+{{end}}

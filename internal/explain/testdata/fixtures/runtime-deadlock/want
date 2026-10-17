@@ -1,0 +1,6 @@
+id: runtime-deadlock
+command: test -timeout=0
+file: x.go
+line: 7
+capture: func=Doubles
+test: TestDoubles

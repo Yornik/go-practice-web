@@ -1,0 +1,7 @@
+id: runtime-makeslice
+command: test
+file: x.go
+line: 5
+test: TestGaps
+capture: func=Gaps
+capture: which=len

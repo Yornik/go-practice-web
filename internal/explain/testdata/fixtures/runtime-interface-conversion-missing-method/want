@@ -1,0 +1,7 @@
+id: runtime-interface-conversion
+command: test
+file: x.go
+line: 10
+test: TestDrain
+capture: func=Drain
+capture: detail=*strings.Reader is not io.Closer: missing method Close

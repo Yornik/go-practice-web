@@ -1,0 +1,5 @@
+id: staticcheck-sa4005
+command: staticcheck
+file: x.go
+line: 8
+capture: field=Point.X

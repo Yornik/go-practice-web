@@ -1,0 +1,6 @@
+id: runtime-nil-map
+command: test
+file: x.go
+line: 10
+test: TestAdd
+capture: func=(*Tally).Add

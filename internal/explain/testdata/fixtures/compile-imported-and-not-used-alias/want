@@ -1,0 +1,6 @@
+id: compile-imported-and-not-used
+command: build
+file: x.go
+line: 3
+capture: path=strings
+capture: alias=str

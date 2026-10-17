@@ -1,0 +1,5 @@
+id: compile-syntax-unexpected-token
+command: gofmt
+file: x.go
+line: 5
+capture: found=n

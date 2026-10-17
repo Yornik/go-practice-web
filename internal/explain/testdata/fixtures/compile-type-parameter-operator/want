@@ -1,0 +1,6 @@
+id: compile-type-parameter-operator
+command: build
+file: x.go
+line: 6
+capture: param=T
+capture: op=>

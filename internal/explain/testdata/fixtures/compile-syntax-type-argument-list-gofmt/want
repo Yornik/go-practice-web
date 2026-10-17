@@ -1,0 +1,4 @@
+id: compile-syntax-type-argument-list
+command: gofmt
+file: x.go
+line: 7

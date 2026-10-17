@@ -1,0 +1,8 @@
+id: compile-argument-count
+command: test
+file: x_test.go
+line: 10
+capture: which=not enough
+capture: func=fixture.Sum
+capture: have=([]int)
+capture: want=([]int, int)

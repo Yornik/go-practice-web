@@ -1,0 +1,8 @@
+id: runtime-slice-bounds
+command: test
+file: x.go
+line: 5
+test: TestPrefix
+capture: func=Prefix
+capture: bounds=:5
+capture: size=3

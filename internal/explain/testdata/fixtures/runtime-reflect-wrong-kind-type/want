@@ -1,0 +1,8 @@
+id: runtime-reflect-wrong-kind
+command: test
+file: x.go
+line: 15
+test: TestNames
+capture: func=Names
+capture: method=NumField
+capture: kind=*fixture.Stats

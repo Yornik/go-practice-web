@@ -1,0 +1,6 @@
+id: staticcheck-sa4006
+command: staticcheck
+file: x.go
+line: 9
+capture: name=err
+capture: code=SA4006

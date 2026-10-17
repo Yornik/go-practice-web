@@ -1,0 +1,6 @@
+id: compile-syntax-unbalanced
+command: build
+file: x.go
+line: 4
+capture: found=newline
+capture: want=)

@@ -1,0 +1,7 @@
+id: compile-requires-go-version
+command: build
+file: x.go
+line: 7
+capture: feature=generic method
+capture: version=go1.27
+capture: lang=go1.24

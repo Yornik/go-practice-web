@@ -1,0 +1,3 @@
+id: runtime-exit-log-fatal
+command: test
+test: TestPorts

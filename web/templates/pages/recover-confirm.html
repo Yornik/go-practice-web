@@ -1,0 +1,28 @@
+{{define "content"}}
+<div class="wrap page">
+  <section class="auth medium" aria-labelledby="recover-title">
+    <header class="page-head">
+      <h1 id="recover-title">Add a new passkey</h1>
+      {{- with .Data}}{{if not .Error}}
+      <p class="lede">The new passkey is for <b>{{.Name}}</b> (username <span class="mono">{{.Username}}</span>) on this device.</p>
+      {{- end}}{{end}}
+    </header>
+    {{- with .Data}}
+    {{- if .Error}}
+    <p class="callout callout-warning" role="alert">{{.Error}}</p>
+    <p class="mt-4"><a href="/recover">Ask for a new recovery link</a>.</p>
+    {{- else}}
+    <form id="recover-confirm-form" class="auth-form" data-token="{{.Token}}">
+      <label class="check" for="recover-remove">
+        <input id="recover-remove" name="removeOthers" type="checkbox" aria-describedby="recover-remove-warning">
+        <span>Remove all my other passkeys and sign out every session</span>
+      </label>
+      <p class="callout callout-warning mt-3" id="recover-remove-warning" hidden data-remove-warning><b>WARNING:</b> Every other device loses access. Use this if a device is lost or stolen.</p>
+      <button type="submit" class="btn btn-primary btn-lg">Add the new passkey</button>
+      <p class="form-status mt-4" role="status" aria-live="polite"></p>
+    </form>
+    {{- end}}
+    {{- end}}
+  </section>
+</div>
+{{end}}

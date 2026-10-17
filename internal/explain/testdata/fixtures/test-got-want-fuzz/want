@@ -1,0 +1,7 @@
+id: test-got-want
+command: test
+file: x_test.go
+line: 16
+test: FuzzReverse/seed#1
+capture: call=Reverse("héllo")
+capture: want=valid UTF-8

@@ -1,0 +1,7 @@
+id: vet-printf-wrong-type
+command: test
+file: x.go
+line: 6
+capture: call=fmt.Sprintf
+capture: verb=%d
+capture: arg=name

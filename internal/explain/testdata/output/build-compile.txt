@@ -1,0 +1,6 @@
+# github.com/yornik/go-practice/exercises/99-demo [github.com/yornik/go-practice/exercises/99-demo.test]
+./z.go:4:2: declared and not used: x
+./z.go:5:9: undefined: y
+./z_test.go:5:32: assignment mismatch: 1 variable but F returns 2 values
+FAIL	github.com/yornik/go-practice/exercises/99-demo [build failed]
+FAIL

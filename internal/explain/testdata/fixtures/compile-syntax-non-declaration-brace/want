@@ -1,0 +1,4 @@
+id: compile-syntax-non-declaration
+command: build
+file: x.go
+line: 8

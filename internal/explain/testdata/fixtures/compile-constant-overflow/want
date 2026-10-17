@@ -1,0 +1,6 @@
+id: compile-constant-overflow
+command: build
+file: x.go
+line: 4
+capture: value=256
+capture: type=byte

@@ -1,0 +1,6 @@
+id: runtime-deadlock
+command: test -timeout=0
+file: x.go
+line: 13
+capture: func=(*Counter).Get
+test: TestInc

@@ -1,0 +1,7 @@
+id: vet-ifaceassert
+command: vet
+file: x.go
+line: 10
+capture: have=io.Writer
+capture: want=example.com/fixture.StringWriter
+capture: method=Write

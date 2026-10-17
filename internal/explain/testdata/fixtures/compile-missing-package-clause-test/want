@@ -1,0 +1,5 @@
+id: compile-missing-package-clause
+command: test
+file: x_test.go
+line: 1
+capture: found='import'

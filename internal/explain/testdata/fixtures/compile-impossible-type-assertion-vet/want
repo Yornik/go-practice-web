@@ -1,0 +1,6 @@
+id: compile-impossible-type-assertion
+command: vet
+file: x.go
+line: 8
+capture: expr=err.(NotFoundError)
+capture: reason=NotFoundError does not implement error (method Error has pointer receiver)

@@ -1,0 +1,5 @@
+id: vet-structtag-syntax
+command: vet
+file: x.go
+line: 4
+capture: problem=key:"value" pairs not separated by spaces

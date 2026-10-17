@@ -1,0 +1,5 @@
+id: vet-httpresponse
+command: vet
+file: x.go
+line: 7
+capture: name=resp

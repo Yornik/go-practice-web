@@ -1,0 +1,6 @@
+id: test-panicked
+command: test
+file: x_test.go
+line: 10
+test: TestAdd
+capture: value=assignment to entry in nil map

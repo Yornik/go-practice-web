@@ -1,0 +1,6 @@
+id: vet-structtag-unexported
+command: vet
+file: x.go
+line: 5
+capture: field=checks
+capture: key=json

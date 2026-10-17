@@ -1,0 +1,12 @@
+{{define "subject"}}Verify your email address{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+Confirm that {{.To}} is your email address for Go Practice. Open this link:
+
+{{.E.Link}}
+
+The link works once and expires in {{duration .E.ValidFor}}. With a verified address you can recover your account if you lose your passkeys.
+
+If you did not ask for this, ignore this email. Nothing changes.
+{{end}}

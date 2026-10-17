@@ -1,0 +1,8 @@
+id: test-got-want
+command: test
+file: x_test.go
+line: 12
+test: TestWords
+capture: call=Words("Hello World")
+capture: got=["Hello" "World"]
+capture: want=["hello" "world"]

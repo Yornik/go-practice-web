@@ -1,0 +1,3 @@
+id: runtime-exit
+command: test
+capture: output=exit status 1

@@ -1,0 +1,5 @@
+id: staticcheck-sa2000
+command: staticcheck
+file: x.go
+line: 9
+capture: call=wg.Add(1)

@@ -1,0 +1,6 @@
+id: runtime-close-nil-channel
+command: test
+file: x.go
+line: 10
+test: TestStop
+capture: func=(*Poller).Stop

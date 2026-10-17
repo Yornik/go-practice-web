@@ -1,0 +1,6 @@
+id: compile-package-mismatch
+command: build
+capture: first=fixture
+capture: firstfile=x.go
+capture: second=main
+capture: secondfile=y.go

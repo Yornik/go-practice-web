@@ -1,0 +1,6 @@
+id: compile-cannot-range
+command: build
+file: x.go
+line: 5
+capture: expr=xs
+capture: what=variable of type *[]int

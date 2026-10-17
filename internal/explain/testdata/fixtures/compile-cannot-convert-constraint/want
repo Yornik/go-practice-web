@@ -1,0 +1,8 @@
+id: compile-cannot-convert
+command: build
+file: x.go
+line: 4
+capture: expr=x
+capture: what=variable of type T constrained by int | string
+capture: type=float64
+capture: reason=cannot convert string (in T) to type float64

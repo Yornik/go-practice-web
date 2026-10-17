@@ -1,0 +1,8 @@
+id: test-did-not-return
+command: test
+file: x_test.go
+line: 29
+test: TestConcurrent
+capture: call=4 goroutines doing 10 calls each
+capture: action=finish
+capture: limit=100ms

@@ -1,0 +1,6 @@
+id: compile-cannot-infer
+command: build
+file: x.go
+line: 9
+capture: func=Zero
+capture: param=T

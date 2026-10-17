@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .sheet { fill: #F6F9F1; stroke: #2346A0; }
+    .pencil { stroke: #2346A0; }
+    @media (prefers-color-scheme: dark) {
+      .sheet { fill: #1A251F; stroke: #A3BAFF; }
+      .pencil { stroke: #A3BAFF; }
+    }
+  </style>
+  <circle class="sheet" cx="16" cy="16" r="14.5" stroke-width="2.5"/>
+  <g class="pencil" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16.3 12.8A5 5 0 1 0 17.5 16.4H13.8"/>
+    <circle cx="22.4" cy="17.3" r="3.1"/>
+  </g>
+</svg>

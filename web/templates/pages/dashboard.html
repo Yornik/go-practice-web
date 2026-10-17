@@ -1,0 +1,84 @@
+{{define "content"}}
+{{- with .Data}}
+<div class="wrap page course">
+  <header class="course-head">
+    <h1>Your course</h1>
+    <p class="summary"><span data-stat="passed">{{.Passed}}</span> of {{.Total}} exercises pass. {{duration .ActiveSeconds}} active{{if .Runs}}, {{plural .Runs "test run" "test runs"}}{{end}}.</p>
+    {{template "strip" .Strip}}
+    {{- if eq .Started 0}}
+    <div class="course-next">
+      {{- with .Next}}
+      <p>Start with {{pad2 .Number}} {{.Title}}. It takes about {{hours .Hours}}.</p>
+      <a class="btn btn-primary" href="/learn/{{.Slug}}">Start exercise {{pad2 .Number}}</a>
+      {{- end}}
+    </div>
+    {{- else}}
+    {{- with .Next}}
+    <div class="course-next">
+      <p>Next: {{pad2 .Number}} {{.Title}}</p>
+      <a class="btn btn-primary" href="/learn/{{.Slug}}">{{if $.Data.NextStarted}}Continue{{else}}Start{{end}} exercise {{pad2 .Number}}</a>
+    </div>
+    {{- else}}
+    <div class="course-next">
+      <p class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
+      <a class="btn btn-primary" href="/certificates">Claim the course certificate</a>
+    </div>
+    {{- end}}
+    {{- end}}
+    <p class="help">This page is your learning log. Step 10 of the course asks you to keep one: the time, the runs and the help you used per exercise. The site keeps it for you.</p>
+  </header>
+
+  {{- range .Tiers}}
+  {{- $tier := .}}
+  {{- $open := or .Started (eq .N 1)}}
+  <section class="tier" aria-labelledby="tier-{{.N}}">
+    <div class="tier-head">
+      <h2 id="tier-{{.N}}">{{.Title}} <span class="theme">{{.Theme}}</span></h2>
+      <p class="state">
+        {{- .Passed}} of {{len .Exercises}} pass.
+        {{- with .Cert}}
+        {{- if .Certificate}} Certificate issued {{shortdate .Certificate.IssuedAt}}.
+        {{- else if .Eligible}} <a href="/certificates">Claim the tier {{$tier.N}} certificate</a>
+        {{- else}} {{sub (len $tier.Exercises) $tier.Passed}} to go for the certificate.
+        {{- end}}
+        {{- end}}
+      </p>
+      <button type="button" class="btn btn-quiet" aria-expanded="{{if $open}}true{{else}}false{{end}}" aria-controls="tier-{{.N}}-log" data-fold>{{if $open}}Hide{{else}}Show{{end}}<span class="visually-hidden"> tier {{.N}}</span></button>
+    </div>
+    <div class="table-scroll" id="tier-{{.N}}-log"{{if not $open}} hidden{{end}}>
+      <table class="table log table-stack">
+        <colgroup><col class="col-no"><col><col class="col-est"><col class="col-active"><col class="col-runs"><col class="col-help"><col class="col-passed"></colgroup>
+        <thead>
+          <tr><th scope="col">No.</th><th scope="col">Exercise</th><th scope="col" class="num">Estimate</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col">Help</th><th scope="col">Passed</th></tr>
+        </thead>
+        <tbody>
+          {{- range .Exercises}}
+          <tr{{if eq .Status "started"}} class="is-started"{{end}}>
+            <td class="no">{{pad2 .Number}}</td>
+            <th scope="row" class="ex-title"><a href="/learn/{{.Slug}}">{{.Title}}</a></th>
+            <td class="num" data-label="Estimate">{{hours .Hours}}</td>
+            {{- /* An exercise not started has no log yet: its cells stay empty. */}}
+            {{- if eq .Status ""}}
+            <td class="num is-empty" data-label="Active"></td>
+            <td class="num is-empty" data-label="Runs"></td>
+            <td class="is-empty" data-label="Help"></td>
+            {{- else}}
+            <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
+            <td class="num" data-label="Runs">{{.Runs}}</td>
+            <td data-label="Help">{{if .Levels}}{{level .Levels}}{{if gt .Levels 1}}<span class="visually-hidden"> and the levels before it</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
+            {{- end}}
+            <td data-label="Passed">
+              {{- if eq .Status "passed"}}<span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><time datetime="{{iso .PassedAt}}">{{shortdate .PassedAt}}</time></span>
+              {{- else if eq .Status "started"}}<span>started</span>
+              {{- else}}<span class="muted">not started</span>{{end}}
+            </td>
+          </tr>
+          {{- end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{- end}}
+</div>
+{{- end}}
+{{end}}

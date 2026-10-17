@@ -1,0 +1,7 @@
+id: staticcheck-sa1003
+command: staticcheck
+file: x.go
+line: 9
+capture: type=int
+capture: call=binary.Write
+capture: code=SA1003

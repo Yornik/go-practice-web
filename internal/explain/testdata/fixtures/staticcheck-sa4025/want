@@ -1,0 +1,5 @@
+id: staticcheck-sa4025
+command: staticcheck
+file: x.go
+line: 3
+capture: expr=99 / 100

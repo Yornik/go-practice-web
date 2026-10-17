@@ -1,0 +1,4 @@
+id: test-panicked
+command: test
+test: TestAdd
+capture: value=assignment to entry in nil map

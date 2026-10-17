@@ -1,0 +1,5 @@
+id: staticcheck-sa2002
+command: staticcheck
+file: x_test.go
+line: 7
+capture: call=T.Fatal

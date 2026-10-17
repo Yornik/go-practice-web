@@ -1,0 +1,4 @@
+id: staticcheck-s1005
+command: staticcheck
+file: x.go
+line: 5

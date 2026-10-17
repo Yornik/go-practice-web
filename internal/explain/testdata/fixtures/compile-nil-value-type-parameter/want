@@ -1,0 +1,5 @@
+id: compile-nil-value
+command: build
+file: x.go
+line: 5
+capture: type=T

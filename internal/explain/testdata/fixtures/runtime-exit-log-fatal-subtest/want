@@ -1,0 +1,4 @@
+id: runtime-exit-log-fatal
+command: test
+test: TestSplit/db
+capture: message=no port in "db"

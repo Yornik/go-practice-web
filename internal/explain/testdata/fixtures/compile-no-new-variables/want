@@ -1,0 +1,4 @@
+id: compile-no-new-variables
+command: build
+file: x.go
+line: 10

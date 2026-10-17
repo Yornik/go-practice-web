@@ -1,0 +1,9 @@
+id: test-got-want
+command: test
+file: x_test.go
+line: 17
+test: TestLimitValidate
+capture: case=zero limit
+capture: call=Validate()
+capture: got=<nil>
+capture: want=an error that wraps ErrBadLimit

@@ -1,0 +1,14 @@
+=== RUN   TestRace
+--- PASS: TestRace (0.00s)
+=== RUN   TestGotWant
+=== RUN   TestGotWant/case_one
+    y_test.go:29: Add(1, 2) = 3, want 4
+=== NAME  TestGotWant
+    y_test.go:32: Parse("a")
+         got  ["x"]
+         want ["y"]
+--- FAIL: TestGotWant (0.00s)
+    --- FAIL: TestGotWant/case_one (0.00s)
+FAIL
+FAIL	github.com/yornik/go-practice/exercises/99-demo	0.010s
+FAIL

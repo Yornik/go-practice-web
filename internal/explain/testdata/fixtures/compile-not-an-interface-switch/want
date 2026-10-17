@@ -1,0 +1,5 @@
+id: compile-not-an-interface
+command: build
+file: x.go
+line: 6
+capture: expr=s

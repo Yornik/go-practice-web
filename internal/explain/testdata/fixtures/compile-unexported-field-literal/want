@@ -1,0 +1,5 @@
+id: compile-unexported-field
+command: build
+file: x.go
+line: 5
+capture: name=wall

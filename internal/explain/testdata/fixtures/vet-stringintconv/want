@@ -1,0 +1,6 @@
+id: vet-stringintconv
+command: vet
+file: x.go
+line: 4
+capture: from=int
+capture: to=string

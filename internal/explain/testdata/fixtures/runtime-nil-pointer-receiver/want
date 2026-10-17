@@ -1,0 +1,6 @@
+id: runtime-nil-pointer
+command: test
+file: x.go
+line: 21
+test: TestInc
+capture: func=(*Counter).Inc

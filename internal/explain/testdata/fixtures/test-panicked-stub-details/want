@@ -1,0 +1,5 @@
+id: test-panicked-stub
+command: test
+file: x_test.go
+line: 9
+test: TestSum

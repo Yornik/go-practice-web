@@ -1,0 +1,14 @@
+{{define "subject"}}The email address of your account is changing{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+On {{when .E.When}}, someone changed the email address of your Go Practice account from {{.E.Old}} to {{.E.New}}.
+{{if .E.Pending}}
+The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.
+{{else}}
+From now on, security notices and recovery links go to {{.E.New}}.
+{{end}}
+If you did not do this, sign in and check your account page:
+
+{{.SiteURL}}/account
+{{end}}

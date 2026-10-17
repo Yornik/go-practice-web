@@ -1,0 +1,8 @@
+id: vet-printf-recursive-string
+command: vet
+file: x.go
+line: 8
+capture: call=fmt.Sprintf
+capture: arg=c
+capture: type=Celsius
+capture: method=String

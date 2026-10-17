@@ -1,0 +1,8 @@
+id: runtime-index-out-of-range
+command: test
+file: x.go
+line: 5
+test: TestLast
+capture: func=Last
+capture: index=2
+capture: length=2

@@ -1,0 +1,8 @@
+id: runtime-unlock-unlocked
+command: test
+file: x.go
+line: 15
+capture: func=(*Registry).Lookup
+capture: call=Unlock
+capture: lock=RWMutex
+test: TestLookup

@@ -1,0 +1,6 @@
+id: staticcheck-st1013
+command: staticcheck
+file: x.go
+line: 6
+capture: want=http.StatusServiceUnavailable
+capture: have=503

@@ -1,0 +1,5 @@
+id: compile-value-not-used
+command: build
+file: x.go
+line: 4
+capture: expr=code

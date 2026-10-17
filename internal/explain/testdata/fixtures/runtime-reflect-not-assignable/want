@@ -1,0 +1,8 @@
+id: runtime-reflect-not-assignable
+command: test
+file: x.go
+line: 13
+test: TestApply
+capture: func=Apply
+capture: from=string
+capture: to=int

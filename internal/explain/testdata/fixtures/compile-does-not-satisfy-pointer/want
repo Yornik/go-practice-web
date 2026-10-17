@@ -1,0 +1,8 @@
+id: compile-does-not-satisfy
+command: build
+file: x.go
+line: 21
+capture: func=JoinAll
+capture: type=T (type ID)
+capture: constraint=fmt.Stringer
+capture: reason=method String has pointer receiver

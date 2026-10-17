@@ -1,0 +1,12 @@
+{{define "subject"}}A passkey was added to your account{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+A new passkey, "{{.E.Passkey}}", was added to your Go Practice account on {{when .E.When}}.
+
+If you added it, you need to do nothing.
+
+If you did not, someone else can sign in to your account. Open your account page, remove the passkey and sign out everywhere:
+
+{{.SiteURL}}/account
+{{end}}

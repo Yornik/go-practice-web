@@ -1,0 +1,8 @@
+id: compile-argument-count
+command: vet
+file: x.go
+line: 10
+capture: which=not enough
+capture: func=Scale
+capture: have=(number)
+capture: want=(int, time.Duration)

@@ -1,0 +1,7 @@
+id: compile-pointer-to-interface
+command: build
+file: x.go
+line: 7
+capture: expr=r
+capture: name=Read
+capture: type=*io.Reader

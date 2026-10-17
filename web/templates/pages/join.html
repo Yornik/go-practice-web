@@ -1,0 +1,66 @@
+{{define "content"}}
+<div class="wrap page">
+  <section class="auth medium" aria-labelledby="join-title">
+    {{- with .Data}}
+    <header class="page-head">
+      <h1 id="join-title">{{if .Setup}}Set up Go Practice{{else}}Create your account{{end}}</h1>
+      {{- if not .Error}}
+      <p class="lede">You need a passkey. It is a key that your device keeps. Your fingerprint, face or device PIN unlocks it. There is no password.</p>
+      {{- end}}
+    </header>
+    {{- if .Error}}
+    <p class="callout callout-warning" role="alert">{{.Error}}</p>
+    <p class="mt-4">{{if .Setup}}Restart the web server. It logs a new setup link.{{else}}Ask the owner of this site for a new invite link.{{end}}</p>
+    {{- else}}
+    {{- if .Setup}}
+    <p class="callout"><b>NOTE:</b> This is the first account. It is the admin account. It can create invite links.</p>
+    {{- else}}
+    <p>{{if .InvitedBy}}{{.InvitedBy}} invited you.{{else}}You have an invite.{{end}}</p>
+    {{- with .Note}}<blockquote class="invite-note">{{.}}</blockquote>{{end}}
+    {{- end}}
+    <form id="join-form" data-mode="{{if .Setup}}setup{{else}}invite{{end}}" data-token="{{.Token}}" novalidate>
+      <ol class="steps-form">
+        <li>
+          <div>
+            <h2>Your details</h2>
+            <div class="field">
+              <label for="join-username">Username</label>
+              <input class="input" id="join-username" name="username" required minlength="3" maxlength="32" pattern="[a-z0-9_\-]{3,32}"
+                     autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="join-username-help">
+              <p class="help" id="join-username-help">3 to 32 characters: lower-case letters, digits, "-" and "_". You sign in with it on a new device.</p>
+            </div>
+            <div class="field">
+              <label for="join-name">Display name</label>
+              <input class="input" id="join-name" name="displayName" required maxlength="64" autocomplete="name" aria-describedby="join-name-help">
+              <p class="help" id="join-name-help">Printed on your certificates. You can change it later.</p>
+            </div>
+            <div class="field">
+              <label for="join-email">Email address</label>
+              <input class="input" id="join-email" name="email" type="email" required maxlength="254" autocomplete="email" value="{{.Email}}" aria-describedby="join-email-help">
+              {{- if .Mailed}}
+              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. The invite came to this address, so it counts as verified. Another address gets a link to verify first.</p>
+              {{- else}}
+              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. You get a link to verify it. The course starts when you open the link.</p>
+              {{- end}}
+            </div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h2>Your passkey</h2>
+            <button type="submit" class="btn btn-primary btn-lg">Create my account and passkey</button>
+            <p class="form-status mt-4" role="status" aria-live="polite"></p>
+            {{- if not .Expires.IsZero}}
+            <p class="help mt-3">The {{if .Setup}}setup link{{else}}invite{{end}} works once. It expires on {{shortdate .Expires}}.</p>
+            {{- else}}
+            <p class="help mt-3">The {{if .Setup}}setup link{{else}}invite{{end}} works once.</p>
+            {{- end}}
+          </div>
+        </li>
+      </ol>
+    </form>
+    {{- end}}
+    {{- end}}
+  </section>
+</div>
+{{end}}

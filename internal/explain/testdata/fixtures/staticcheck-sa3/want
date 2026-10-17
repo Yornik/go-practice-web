@@ -1,0 +1,5 @@
+id: staticcheck-sa3
+command: staticcheck
+file: x_test.go
+line: 6
+capture: code=SA3001

@@ -1,0 +1,8 @@
+id: runtime-unlock-unlocked
+command: test
+file: x.go
+line: 17
+capture: func=(*Counter).Inc
+capture: call=unlock
+capture: lock=mutex
+test: TestInc

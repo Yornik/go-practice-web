@@ -1,0 +1,7 @@
+id: runtime-range-func-continued
+command: test
+file: x_test.go
+line: 7
+test: TestFieldsBreak
+capture: func=TestFieldsBreak-range1
+capture: when=function for loop body returned false

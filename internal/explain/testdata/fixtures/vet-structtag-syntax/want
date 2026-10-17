@@ -1,0 +1,6 @@
+id: vet-structtag-syntax
+command: vet
+file: x.go
+line: 4
+capture: tag=`json:port`
+capture: problem=bad syntax for struct tag value

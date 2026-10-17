@@ -1,0 +1,100 @@
+# CI on every pull request and push to main. release.yml calls it too, so
+# the images of a release come only from a commit that passes it
+# (docs/DESIGN.md, "Build and release").
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to test. Empty means the commit of the event.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# The workflow name is the caller's when release.yml calls this file, so a
+# release's checks never queue behind the CI run of the same push to main.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The images build on golang:1.27-bookworm, and the explain fixtures pin
+  # this release: the compiler's messages are part of what they check.
+  GO_VERSION: "1.27.2"
+  GOTOOLCHAIN: local
+
+jobs:
+  check:
+    name: gofmt, vet, lint, test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # release.yml passes the release commit; other events leave it empty.
+          ref: ${{ inputs.ref }}
+          submodules: true
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          # The explain fixtures are broken on purpose.
+          out="$(git ls-files '*.go' | grep -v '/testdata/' | xargs gofmt -l)"
+          if [ -n "$out" ]; then echo "gofmt needed:"; echo "$out"; exit 1; fi
+      - run: go vet ./...
+      # Both tools load the standard library's export data, so they are
+      # built by the Go release that CI runs.
+      - name: Install golangci-lint and staticcheck
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
+      - run: golangci-lint run ./...
+      - name: go test -race
+        env:
+          # The staticcheck fixtures fail instead of skipping without it.
+          EXPLAIN_REQUIRE_STATICCHECK: "1"
+        run: go test -race ./...
+
+  e2e:
+    name: end-to-end
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # release.yml passes the release commit; other events leave it empty.
+          ref: ${{ inputs.ref }}
+          submodules: true
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: scripts/fetch-monaco.sh
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Playwright
+        working-directory: e2e
+        env:
+          # A known place for the logs of scripts/dev.sh.
+          GO_PRACTICE_DEV_STATE: ${{ runner.temp }}/gpw-state
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: |
+            e2e/test-results/
+            ${{ runner.temp }}/gpw-state/*.log
+          retention-days: 7

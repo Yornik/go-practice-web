@@ -1,0 +1,4 @@
+id: runtime-exit-log-fatal
+command: test
+test: TestPortInvalid
+capture: message=strconv.Atoi: parsing "http": invalid syntax

@@ -1,0 +1,7 @@
+id: test-did-not-return
+command: test
+file: x_test.go
+line: 16
+test: TestStatusAfterReset
+capture: action=answer
+capture: limit=100ms

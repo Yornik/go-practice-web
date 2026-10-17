@@ -1,0 +1,6 @@
+id: compile-channel-direction
+command: build
+file: x.go
+line: 5
+capture: op=receive from
+capture: expr=in

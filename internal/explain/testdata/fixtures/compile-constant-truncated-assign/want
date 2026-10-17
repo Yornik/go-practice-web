@@ -1,0 +1,6 @@
+id: compile-constant-truncated
+command: build
+file: x.go
+line: 4
+capture: value=0.25
+capture: type=int

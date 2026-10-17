@@ -1,0 +1,6 @@
+id: compile-cannot-infer
+command: build
+file: x.go
+line: 8
+capture: func=Count
+capture: param=K

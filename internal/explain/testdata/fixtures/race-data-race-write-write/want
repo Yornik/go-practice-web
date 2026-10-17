@@ -1,0 +1,10 @@
+id: race-data-race
+command: test -race
+file: x.go
+line: 15
+test: TestLast
+capture: access=write
+capture: prev_access=write
+capture: func=Last.func1
+capture: prev_func=Last.func1
+capture: prev_line=15

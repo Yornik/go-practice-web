@@ -1,0 +1,6 @@
+id: compile-type-switch-on-type-parameter
+command: build
+file: x.go
+line: 6
+capture: kind=switch
+capture: expr=v

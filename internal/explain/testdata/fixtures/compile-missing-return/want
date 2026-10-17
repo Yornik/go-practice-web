@@ -1,0 +1,4 @@
+id: compile-missing-return
+command: build
+file: x.go
+line: 9

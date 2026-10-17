@@ -1,0 +1,5 @@
+id: compile-label-not-used
+command: vet
+file: x.go
+line: 5
+capture: label=search

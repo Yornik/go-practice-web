@@ -1,0 +1,10 @@
+--- FAIL: ExampleCount (0.00s)
+got:
+1
+hello
+want:
+1
+world
+FAIL
+FAIL	github.com/yornik/go-practice/exercises/99-demo	0.010s
+FAIL

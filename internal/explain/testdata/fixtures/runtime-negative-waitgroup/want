@@ -1,0 +1,6 @@
+id: runtime-negative-waitgroup
+command: test -timeout=60s
+file: x.go
+line: 20
+capture: func=Total.func1
+test: TestTotal

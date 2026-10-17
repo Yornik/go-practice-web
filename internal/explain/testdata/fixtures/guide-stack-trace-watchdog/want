@@ -1,0 +1,6 @@
+id: guide-stack-trace
+command: test -race
+file: x.go
+line: 13
+test: TestInc/once
+capture: func=(*Counter).Get

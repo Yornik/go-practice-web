@@ -1,0 +1,5 @@
+id: staticcheck-s1002
+command: staticcheck
+file: x.go
+line: 4
+capture: expr=healthy

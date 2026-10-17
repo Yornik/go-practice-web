@@ -1,0 +1,5 @@
+id: staticcheck-sa4015
+command: staticcheck
+file: x.go
+line: 6
+capture: func=math.Ceil

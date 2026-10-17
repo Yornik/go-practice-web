@@ -1,0 +1,5 @@
+id: compile-missing-package-clause
+command: build
+file: x.go
+line: 1
+capture: found='import'

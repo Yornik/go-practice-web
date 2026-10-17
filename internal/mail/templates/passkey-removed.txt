@@ -1,0 +1,10 @@
+{{define "subject"}}A passkey was removed from your account{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+The passkey "{{.E.Passkey}}" was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.
+
+WARNING: If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys:
+
+{{.SiteURL}}/account
+{{end}}

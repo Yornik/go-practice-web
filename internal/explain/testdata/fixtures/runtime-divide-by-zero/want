@@ -1,0 +1,6 @@
+id: runtime-divide-by-zero
+command: test
+file: x.go
+line: 9
+test: TestMean
+capture: func=Mean

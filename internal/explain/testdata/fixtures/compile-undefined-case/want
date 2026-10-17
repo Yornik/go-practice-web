@@ -1,0 +1,6 @@
+id: compile-undefined
+command: build
+file: x.go
+line: 6
+capture: name=strings.contains
+capture: have=Contains

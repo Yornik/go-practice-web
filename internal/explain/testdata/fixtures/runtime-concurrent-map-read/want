@@ -1,0 +1,7 @@
+id: runtime-concurrent-map
+command: test -timeout=60s
+file: x.go
+line: 15
+test: TestGetWhileSet
+capture: func=(*Cache).Get
+capture: op=read and map write

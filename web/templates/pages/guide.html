@@ -1,0 +1,91 @@
+{{define "content"}}
+<div class="wrap page guide">
+  <header class="page-head">
+    <h1>The guide</h1>
+    <p class="lede">How the course works, and how to think through a problem.</p>
+  </header>
+  <div class="guide-layout">
+    <nav class="toc" aria-label="On this page" data-toc>
+      <ol>
+        {{- range .Data.Sections}}
+        {{- if eq .Title "Make it a tool"}}
+        <li><a href="#read-go-messages">How to read Go messages</a></li>
+        <li><a href="#editor-keys">Keys in the editor</a></li>
+        {{- end}}
+        <li><a href="#{{.ID}}">{{if eq .Title "A problem-solving checklist"}}The checklist{{else}}{{.Title}}{{end}}</a></li>
+        {{- end}}
+      </ol>
+    </nav>
+    <div class="guide-body">
+      {{- range .Data.Sections}}
+      {{- if eq .Title "Make it a tool"}}
+      {{template "guide-messages" $}}
+      {{- end}}
+      <section class="guide-section{{if eq .Title "Make it a tool"}} guide-tools{{end}}" id="{{.ID}}" aria-labelledby="{{.ID}}-title">
+        {{- if eq .Title "A problem-solving checklist"}}
+        {{- /* The heading is inside the card, so a printed card has its title. */}}
+        <div class="checklist-card" data-checklist>
+          <h2 id="{{.ID}}-title">{{.Title}}</h2>
+          <div class="prose">{{.HTML}}</div>
+          <p class="btn-row no-print mt-5"><button type="button" class="btn" data-print-checklist>Print the checklist</button></p>
+        </div>
+        {{- else if eq .Title "How to work an exercise"}}
+        <h2 id="{{.ID}}-title">{{.Title}}</h2>
+        {{template "guide-work"}}
+        {{- else}}
+        <h2 id="{{.ID}}-title">{{.Title}}</h2>
+        <div class="prose">{{.HTML}}</div>
+        {{- end}}
+      </section>
+      {{- end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "guide-messages"}}
+      <section class="guide-section" id="read-go-messages" aria-labelledby="read-go-messages-title">
+        <h2 id="read-go-messages-title">How to read Go messages</h2>
+        <div class="prose">
+          <p>The editor explains every problem that the compiler, <code>go vet</code>, staticcheck or a test reports. When no explanation fits a message, it links 1 of these 4 guides. Read them once before your first exercise.</p>
+        </div>
+        <div class="guide-guides">
+          {{- range .Data.Guides}}
+          <details id="{{.ID}}">
+            <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>{{.Title}}</summary>
+            <div class="prose">{{catalogHTML .HTML}}</div>
+          </details>
+          {{- end}}
+        </div>
+      </section>
+      <section class="guide-section" id="editor-keys" aria-labelledby="editor-keys-title">
+        <h2 id="editor-keys-title">Keys in the editor</h2>
+        <dl class="facts guide-keys">
+          <dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run the tests of the step you picked.</dd>
+          <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd>Save now. The editor also saves 1.5 seconds after you stop typing.</dd>
+          <dt><kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd></dt><dd>Go to the next or the previous problem.</dd>
+          <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd>Format the file with gofmt.</dd>
+          <dt><kbd>Ctrl</kbd>+<kbd>M</kbd>, then <kbd>Tab</kbd></dt><dd>Tab moves the focus out of the editor instead of typing a tab. Press <kbd>Ctrl</kbd>+<kbd>M</kbd> again to type tabs.</dd>
+        </dl>
+        <p class="help mt-3">On a Mac, use Cmd in place of Ctrl.</p>
+      </section>
+{{end}}
+
+{{define "guide-work"}}
+        {{- /* The course README's 10 steps, adapted to the site: the site runs
+           the tests, keeps the log and has the Steps tab. */}}
+        <div class="prose">
+          <ol>
+            <li>Read the spec twice. It is on the left of the exercise page.</li>
+            <li>Read the tests: open them from the Tests menu above the editor. Find the case names and the helper functions. They tell you what "done" means.</li>
+            <li>Work 2 small examples by hand, on paper.</li>
+            <li>Write down the state your code must keep and what must always be true about it: the invariants.</li>
+            <li>Write the simplest version that can pass 1 test.</li>
+            <li>Run 1 step at a time: open the Steps tab and press Run step 1. The site runs with <code>-race</code> unless you clear the box.</li>
+            <li>Make it correct. Then make it clean.</li>
+            <li>Keep <code>-race</code> on. An exercise passes only when all its tests pass with the race detector.</li>
+            <li>Read the explanation and the walkthrough: levels 4 and 5 of the hint ladder. Compare them with your solution.</li>
+            <li>Keep a log of where you got stuck: the Notes tab of the exercise. The course page keeps the time, the runs and the hints you used.</li>
+          </ol>
+        </div>
+{{end}}

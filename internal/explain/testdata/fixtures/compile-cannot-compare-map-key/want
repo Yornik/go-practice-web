@@ -1,0 +1,5 @@
+id: compile-cannot-compare
+command: build
+file: x.go
+line: 7
+capture: reason=TagSet

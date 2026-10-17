@@ -1,0 +1,6 @@
+id: runtime-todo-implement
+command: test
+file: x.go
+line: 5
+test: TestSum
+capture: func=Sum

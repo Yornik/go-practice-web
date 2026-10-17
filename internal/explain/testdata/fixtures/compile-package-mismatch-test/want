@@ -1,0 +1,4 @@
+id: compile-package-mismatch
+command: test
+capture: first=main
+capture: second=fixture

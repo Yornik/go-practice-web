@@ -1,0 +1,6 @@
+id: compile-range-iteration-variables
+command: build
+file: x.go
+line: 7
+capture: expr=seq
+capture: what=variable of func type iter.Seq[string]

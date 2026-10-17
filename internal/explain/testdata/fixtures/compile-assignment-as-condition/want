@@ -1,0 +1,4 @@
+id: compile-assignment-as-condition
+command: build
+file: x.go
+line: 4

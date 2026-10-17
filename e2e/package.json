@@ -1,0 +1,12 @@
+{
+  "name": "go-practice-web-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests of go-practice-web against scripts/dev.sh.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

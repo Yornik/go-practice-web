@@ -1,0 +1,8 @@
+id: compile-pointer-receiver
+command: build
+file: x.go
+line: 9
+capture: expr=NotFoundError{…}
+capture: iface=error
+capture: type=NotFoundError
+capture: method=Error

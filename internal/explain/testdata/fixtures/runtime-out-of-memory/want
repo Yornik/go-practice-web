@@ -1,0 +1,6 @@
+id: runtime-out-of-memory
+command: test
+file: x.go
+line: 9
+capture: func=Payload
+test: TestPayloadCorrupt

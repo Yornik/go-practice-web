@@ -1,0 +1,7 @@
+id: vet-bools
+command: vet
+file: x.go
+line: 4
+capture: kind=suspect
+capture: op=or
+capture: expr=code != 200 || code != 204

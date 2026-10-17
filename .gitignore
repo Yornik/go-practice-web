@@ -1,0 +1,11 @@
+# Build output and local state.
+/bin/
+/data/
+*.db
+*.db-journal
+/web/static/vendor/monaco/
+/e2e/node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
+/tmp/
+/.design/

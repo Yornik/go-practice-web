@@ -1,0 +1,5 @@
+id: compile-syntax-unbalanced
+command: build
+file: x.go
+capture: found=EOF
+capture: want=}

@@ -1,0 +1,5 @@
+id: compile-undefined-package
+command: build
+file: x.go
+line: 5
+capture: name=fmt

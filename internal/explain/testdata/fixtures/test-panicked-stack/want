@@ -1,0 +1,6 @@
+id: test-panicked
+command: test
+file: x_test.go
+line: 11
+test: TestLast
+capture: value=runtime error: index out of range [2] with length 2

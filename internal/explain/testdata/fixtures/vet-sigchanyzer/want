@@ -1,0 +1,4 @@
+id: vet-sigchanyzer
+command: vet
+file: x.go
+line: 10

@@ -1,0 +1,6 @@
+id: test-timeout
+command: test -timeout=1s
+file: x.go
+line: 9
+test: TestSum
+capture: after=1s

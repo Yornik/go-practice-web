@@ -1,0 +1,5 @@
+id: compile-constraint-as-type
+command: build
+file: x.go
+line: 4
+capture: name=comparable

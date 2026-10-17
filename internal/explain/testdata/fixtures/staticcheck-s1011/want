@@ -1,0 +1,5 @@
+id: staticcheck-s1011
+command: staticcheck
+file: x.go
+line: 4
+capture: want=a = append(a, b...)

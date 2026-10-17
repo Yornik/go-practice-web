@@ -1,0 +1,7 @@
+id: vet-copylocks-by-value
+command: vet
+file: x.go
+line: 10
+capture: func=Inc
+capture: what=example.com/fixture.Counter contains sync.Mutex
+capture: code=copylocks

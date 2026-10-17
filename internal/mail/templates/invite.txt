@@ -1,0 +1,15 @@
+{{define "subject"}}{{.E.InvitedBy}} invited you to Go Practice{{end}}
+{{define "content"}}
+Hello,
+
+{{.E.InvitedBy}} invited you to Go Practice: 25 Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.
+{{if .E.Note}}
+A note from {{.E.InvitedBy}}:
+"{{.E.Note}}"
+{{end}}
+Open this link to create your account. You sign in with a passkey, so you need no password:
+
+{{.E.Link}}
+
+The invite works once and expires on {{date .E.Expires}}.
+{{end}}

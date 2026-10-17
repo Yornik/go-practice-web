@@ -1,0 +1,34 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>{{template "heading" .}}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#E4ECD9;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#E4ECD9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#F6F9F1;border:1px solid #6B8562;border-radius:4px;">
+<tr><td style="padding:24px 32px 4px 32px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1E2821;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px 0;"><tr>
+<td width="20" height="20" align="center" valign="middle" style="width:20px;height:20px;border:2px solid #2346A0;border-radius:50%;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:9px;line-height:20px;font-weight:700;color:#2346A0;">Go</td>
+<td style="padding-left:10px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;font-weight:700;color:#1E2821;">Go Practice</td>
+</tr></table>
+<h1 style="margin:0 0 18px 0;font-size:22px;line-height:30px;font-weight:700;color:#1E2821;">{{template "heading" .}}</h1>
+{{template "content" .}}
+</td></tr>
+<tr><td style="padding:20px 32px 28px 32px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#475A4C;">
+<p style="margin:0;border-top:1px solid #BCCDB0;padding-top:16px;">Go Practice sent this email automatically. Nobody reads replies.<br><a href="{{.SiteURL}}/" style="color:#2346A0;">{{.SiteURL}}</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+{{end}}
+
+{{define "p"}}margin:0 0 16px 0;font-size:15px;line-height:24px;color:#1E2821;{{end}}
+{{define "small"}}margin:0 0 16px 0;font-size:13px;line-height:20px;color:#475A4C;{{end}}
+{{define "button"}}display:inline-block;padding:12px 22px;border-radius:4px;background-color:#2346A0;color:#FFFFFF;font-size:15px;line-height:20px;font-weight:700;text-decoration:none;{{end}}
+{{define "link"}}color:#2346A0;word-break:break-all;{{end}}

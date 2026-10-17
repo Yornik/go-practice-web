@@ -1,0 +1,7 @@
+id: compile-operator-not-defined
+command: build
+file: x.go
+line: 4
+capture: op=+
+capture: expr=a
+capture: what=variable of type map[string]int

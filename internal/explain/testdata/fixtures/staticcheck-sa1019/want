@@ -1,0 +1,5 @@
+id: staticcheck-sa1019
+command: staticcheck
+file: x.go
+line: 6
+capture: name=strings.Title

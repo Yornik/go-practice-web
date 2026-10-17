@@ -1,0 +1,5 @@
+id: compile-invalid-recursive-type
+command: build
+file: x.go
+line: 3
+capture: type=Team

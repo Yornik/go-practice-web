@@ -1,0 +1,5 @@
+id: staticcheck-sa5
+command: staticcheck
+file: x.go
+line: 4
+capture: code=SA5002

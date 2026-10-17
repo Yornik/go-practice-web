@@ -1,0 +1,6 @@
+id: compile-syntax-unbalanced
+command: gofmt
+file: x.go
+line: 7
+capture: found=EOF
+capture: want=}

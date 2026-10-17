@@ -1,0 +1,5 @@
+id: compile-undefined
+command: build
+file: x.go
+line: 9
+capture: name=n

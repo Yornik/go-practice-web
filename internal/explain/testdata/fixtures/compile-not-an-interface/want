@@ -1,0 +1,6 @@
+id: compile-not-an-interface
+command: build
+file: x.go
+line: 4
+capture: expr=v
+capture: what=variable of type int

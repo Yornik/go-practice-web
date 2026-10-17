@@ -1,0 +1,5 @@
+id: staticcheck-sa4023
+command: staticcheck
+file: x.go
+line: 16
+capture: result=never

@@ -1,0 +1,5 @@
+id: vet-slog-missing-value
+command: vet
+file: x.go
+line: 6
+capture: call=slog.Info

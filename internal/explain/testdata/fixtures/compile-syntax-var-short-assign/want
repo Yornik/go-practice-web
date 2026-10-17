@@ -1,0 +1,4 @@
+id: compile-syntax-var-short-assign
+command: build
+file: x.go
+line: 4

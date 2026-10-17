@@ -1,0 +1,7 @@
+id: compile-cannot-convert
+command: build
+file: x.go
+line: 6
+capture: expr=x
+capture: what=variable of type T constrained by any
+capture: type=float64

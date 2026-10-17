@@ -1,0 +1,7 @@
+id: compile-return-count
+command: build
+file: x.go
+line: 8
+capture: which=not enough
+capture: have=(error)
+capture: want=(int, error)
