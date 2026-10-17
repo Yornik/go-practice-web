@@ -24,3 +24,4 @@ scripts/dev.sh                      # runs runner and web locally on http://loca
 - The runner accepts only the exercise's stub file names. Keep that check; it blocks path traversal and test replacement.
 - Every state-changing endpoint needs the CSRF header and the Origin check described in `docs/DESIGN.md`.
 - Comments give the reason, not the description. Docs use short sentences, the active voice and numbers as digits.
+- Commit messages and pull request titles follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`): Release Please reads them to choose the next version and to write `CHANGELOG.md`. Do not push `v*` tags by hand; merging the release pull request creates them (see "Build and release" in `docs/DESIGN.md`).

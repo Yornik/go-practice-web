@@ -1,0 +1,83 @@
+# Releases with Release Please. On each push to main it keeps a release pull
+# request up to date from the Conventional Commits since the last release.
+# Merging that pull request creates the tag vX.Y.Z and the GitHub release;
+# this workflow then runs the full CI on that commit and pushes the 2 images
+# that the gitops repository pins (docs/DESIGN.md, "Build and release").
+#
+# The images are built here and not on the tag: a tag that Release Please
+# creates with GITHUB_TOKEN starts no other workflow.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      issues: write # the autorelease labels
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  checks:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: [release-please, checks]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [web, runner]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+          submodules: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/yornik/go-practice-${{ matrix.image }}
+          # Only the exact tag: the gitops repository pins it, and Renovate
+          # bumps it there. Without latest=false, :latest would move too.
+          flavor: latest=false
+          tags: type=raw,value=${{ needs.release-please.outputs.tag }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.image }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
