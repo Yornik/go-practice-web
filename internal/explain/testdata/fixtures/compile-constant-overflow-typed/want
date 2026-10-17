@@ -1,0 +1,6 @@
+id: compile-constant-overflow
+command: build
+file: x.go
+line: 6
+capture: value=limit * 4
+capture: type=int

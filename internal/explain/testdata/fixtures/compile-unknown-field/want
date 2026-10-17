@@ -1,0 +1,7 @@
+id: compile-unknown-field
+command: build
+file: x.go
+line: 9
+capture: name=timeout
+capture: type=http.Client
+capture: have=Timeout

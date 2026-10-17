@@ -1,0 +1,7 @@
+id: compile-does-not-satisfy
+command: build
+file: x.go
+line: 16
+capture: type=string
+capture: constraint=Number
+capture: reason=string missing in ~int | ~float64

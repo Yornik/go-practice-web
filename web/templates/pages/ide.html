@@ -1,0 +1,126 @@
+{{define "content"}}
+{{- with .Data}}
+{{- $ex := .Exercise}}
+<div class="ide" data-exercise="{{$ex.Slug}}" data-go-version="{{.GoVersion}}">
+  <header class="ide-header">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="/learn">Learn</a> <span aria-hidden="true">/</span> <span>Tier {{$ex.Tier}}</span>
+    </nav>
+    <h1>{{pad2 $ex.Number}} · {{$ex.Title}}</h1>
+    <p class="ide-meta"><span>{{$ex.Time}}</span> <span class="badge" data-progress-status>…</span></p>
+    <nav class="ide-neighbours" aria-label="Other exercises">
+      {{- with .Prev}}<a href="/learn/{{.Slug}}" rel="prev">← {{pad2 .Number}}</a>{{end}}
+      {{- with .Next}}<a href="/learn/{{.Slug}}" rel="next">{{pad2 .Number}} →</a>{{end}}
+    </nav>
+  </header>
+
+  <div class="ide-body">
+    <aside class="ide-side" aria-label="Exercise">
+      <div class="tabs" role="tablist" aria-label="Exercise panels" data-tabs="side">
+        <button type="button" role="tab" id="side-tab-spec" aria-controls="side-spec" aria-selected="true">Spec</button>
+        <button type="button" role="tab" id="side-tab-steps" aria-controls="side-steps" aria-selected="false" tabindex="-1">Steps</button>
+        <button type="button" role="tab" id="side-tab-hints" aria-controls="side-hints" aria-selected="false" tabindex="-1">Hints</button>
+        <button type="button" role="tab" id="side-tab-notes" aria-controls="side-notes" aria-selected="false" tabindex="-1">Notes</button>
+      </div>
+      <section id="side-spec" role="tabpanel" aria-labelledby="side-tab-spec" class="tab-panel prose spec" tabindex="0">
+        <div class="spec-intro">{{$ex.Intro}}</div>
+        <p class="spec-topics">{{$ex.Topics}}</p>
+        {{- range $ex.SpecSections}}
+        <section aria-labelledby="spec-{{.ID}}">
+          <h2 id="spec-{{.ID}}">{{.Title}}</h2>
+          {{.HTML}}
+        </section>
+        {{- end}}
+      </section>
+      <section id="side-steps" role="tabpanel" aria-labelledby="side-tab-steps" class="tab-panel" hidden tabindex="0">
+        <p class="muted">Each step runs the tests of 1 part of the task. "All tests" with -race passes the exercise.</p>
+        <ol class="step-list">
+          {{- range $ex.Steps}}
+          <li>
+            <button type="button" class="step-run" data-step="{{.ID}}">{{.Title}}</button>
+            <code class="step-command">{{.Command}}</code>
+          </li>
+          {{- end}}
+        </ol>
+      </section>
+      <section id="side-hints" role="tabpanel" aria-labelledby="side-tab-hints" class="tab-panel" hidden tabindex="0">
+        <p class="muted">Reveal 1 level at a time. The course asks for 25 minutes of trying before hint 1 and 10 minutes between hints.</p>
+        <ol class="hint-ladder" data-hint-ladder>
+          {{- range .Levels}}
+          <li class="hint-level" data-level="{{int .}}">
+            <h3>{{.}}</h3>
+            <div class="hint-body prose" data-hint-body></div>
+            <button type="button" class="button" data-reveal="{{int .}}" hidden>Reveal {{.}}</button>
+          </li>
+          {{- end}}
+        </ol>
+        <div class="gate-dialog notice" role="alertdialog" aria-labelledby="gate-title" aria-describedby="gate-text" hidden data-gate>
+          <h3 id="gate-title">Are you sure?</h3>
+          <p id="gate-text" data-gate-text></p>
+          <p class="button-row">
+            <button type="button" class="button button-primary" data-gate-confirm>Reveal anyway</button>
+            <button type="button" class="button" data-gate-cancel>Keep trying</button>
+          </p>
+        </div>
+      </section>
+      <section id="side-notes" role="tabpanel" aria-labelledby="side-tab-notes" class="tab-panel" hidden tabindex="0">
+        <label for="notes">Your notes on this exercise</label>
+        <textarea id="notes" rows="16" data-notes placeholder="What did you try? What surprised you?"></textarea>
+        <p class="muted" role="status" data-notes-status></p>
+      </section>
+    </aside>
+    <div class="splitter splitter-vertical" role="separator" aria-orientation="vertical" aria-label="Resize the side panel" tabindex="0" data-splitter="side"></div>
+
+    <div class="ide-main">
+      <div class="file-bar">
+        <div class="file-tabs" role="tablist" aria-label="Files" data-file-tabs></div>
+        <div class="file-actions">
+          <button type="button" class="button-ghost" data-format title="Shift+Alt+F">Format</button>
+          <button type="button" class="button-ghost" data-reset>Reset file</button>
+        </div>
+      </div>
+      <div class="editor" data-editor aria-label="Code editor"><p class="editor-loading">Loading the editor…</p></div>
+      <div class="splitter splitter-horizontal" role="separator" aria-orientation="horizontal" aria-label="Resize the bottom panel" tabindex="0" data-splitter="bottom"></div>
+      <section class="ide-bottom" aria-label="Results">
+        <div class="run-bar">
+          <div class="tabs" role="tablist" aria-label="Result panels" data-tabs="bottom">
+            <button type="button" role="tab" id="bottom-tab-tests" aria-controls="bottom-tests" aria-selected="true">Tests</button>
+            <button type="button" role="tab" id="bottom-tab-problems" aria-controls="bottom-problems" aria-selected="false" tabindex="-1">Problems <span class="count" data-problem-count>0</span></button>
+            <button type="button" role="tab" id="bottom-tab-output" aria-controls="bottom-output" aria-selected="false" tabindex="-1">Output</button>
+          </div>
+          <div class="run-controls">
+            <label for="step-select" class="visually-hidden">Step</label>
+            <select id="step-select" data-step-select>
+              {{- range $ex.Steps}}
+              <option value="{{.ID}}"{{if .IsAll}} selected{{end}}>{{.Title}}</option>
+              {{- end}}
+            </select>
+            <label class="check"><input type="checkbox" data-race checked> -race</label>
+            <button type="button" class="button button-primary" data-run title="Ctrl+Enter">Run</button>
+            <button type="button" class="button" data-stop hidden>Stop</button>
+          </div>
+        </div>
+        <div id="bottom-tests" role="tabpanel" aria-labelledby="bottom-tab-tests" class="tab-panel results" tabindex="0">
+          <p class="run-summary" role="status" aria-live="polite" data-run-summary>Run the tests to see results here.</p>
+          <ul class="test-tree" data-test-tree></ul>
+          <div class="explanations" data-explanations></div>
+        </div>
+        <div id="bottom-problems" role="tabpanel" aria-labelledby="bottom-tab-problems" class="tab-panel results" hidden tabindex="0">
+          <ul class="problem-list" data-problems><li class="muted">No problems found.</li></ul>
+        </div>
+        <div id="bottom-output" role="tabpanel" aria-labelledby="bottom-tab-output" class="tab-panel results" hidden tabindex="0">
+          <pre class="output" data-output></pre>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="status-bar">
+    <span data-save-status>Saved</span>
+    <span data-lint-status>Checks idle</span>
+    {{- with .GoVersion}}<span>{{.}}</span>{{end}}
+    <span class="status-keys">Ctrl+S save · Ctrl+Enter run · Shift+Alt+F format</span>
+  </footer>
+</div>
+{{- end}}
+{{end}}

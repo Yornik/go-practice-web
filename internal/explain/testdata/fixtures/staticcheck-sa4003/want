@@ -1,0 +1,5 @@
+id: staticcheck-sa4003
+command: staticcheck
+file: x.go
+line: 4
+capture: type=uint32

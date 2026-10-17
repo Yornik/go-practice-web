@@ -1,0 +1,10 @@
+id: race-data-race
+command: test -race
+file: x.go
+line: 13
+test: TestProbe
+capture: access=read
+capture: prev_access=write
+capture: func=Probe
+capture: prev_func=Probe.func1
+capture: prev_line=10

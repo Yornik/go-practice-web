@@ -1,0 +1,89 @@
+{{define "content"}}
+<h1>Admin</h1>
+<section class="card" aria-labelledby="invite-title">
+  <h2 id="invite-title">Invite someone</h2>
+  <form id="invite-form" class="stack" novalidate>
+    <div class="field">
+      <label for="invite-email">Email address (optional)</label>
+      <input id="invite-email" name="email" type="email" maxlength="254" aria-describedby="invite-email-hint">
+      <p class="hint" id="invite-email-hint">With an address, the site emails the link. Without one, copy it yourself.</p>
+    </div>
+    <div class="field">
+      <label for="invite-note">Note (optional)</label>
+      <input id="invite-note" name="note" maxlength="500">
+    </div>
+    <div class="field">
+      <label for="invite-days">Valid for (days)</label>
+      <input id="invite-days" name="days" type="number" min="1" max="30" value="7" required>
+    </div>
+    <button type="submit" class="button button-primary">Create the invite</button>
+  </form>
+  <div class="invite-result" data-invite-result hidden>
+    <label for="invite-link">Invite link</label>
+    <div class="copy-row">
+      <input id="invite-link" readonly data-invite-link>
+      <button type="button" class="button" data-copy>Copy</button>
+    </div>
+  </div>
+  <p class="form-status" role="status" aria-live="polite" data-status="invite"></p>
+</section>
+
+<section class="card" aria-labelledby="invites-title">
+  <h2 id="invites-title">Invites</h2>
+  {{- if .Data.Invites}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Created</th><th scope="col">Sent to</th><th scope="col">Note</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+        {{- range .Data.Invites}}
+        <tr data-invite="{{hex .TokenHash}}">
+          <td><time datetime="{{iso .CreatedAt}}">{{date .CreatedAt}}</time></td>
+          <td>{{or .Email "–"}}</td>
+          <td>{{or .Note "–"}}</td>
+          <td>
+            {{- if .Used}}Used by {{index $.Data.Names .UsedBy}} on {{date .UsedAt}}
+            {{- else if .Expired $.Data.Now}}Expired on {{date .ExpiresAt}}
+            {{- else}}Open until {{date .ExpiresAt}}{{end}}
+          </td>
+          <td class="actions">{{if not .Used}}<button type="button" class="button-ghost button-danger" data-revoke>Revoke</button>{{end}}</td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
+  </div>
+  {{- else}}
+  <p class="muted">No invites yet.</p>
+  {{- end}}
+</section>
+
+<section class="card" aria-labelledby="users-title">
+  <h2 id="users-title">Learners</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">User</th><th scope="col">Email</th><th scope="col">Passed</th><th scope="col">Started</th><th scope="col">Time</th><th scope="col">Runs</th><th scope="col">Reveals</th><th scope="col">Last run</th><th scope="col">Status</th></tr>
+      </thead>
+      <tbody>
+        {{- range .Data.Users}}
+        <tr data-user="{{.ID}}">
+          <th scope="row">{{.DisplayName}} <span class="muted">@{{.Username}}</span>{{if .IsAdmin}} <span class="badge">admin</span>{{end}}</th>
+          <td>{{or .Email "–"}}{{if and .Email (not .EmailVerified)}} <span class="muted">(unverified)</span>{{end}}</td>
+          <td>{{.Passed}}</td>
+          <td>{{.Started}}</td>
+          <td>{{duration .ActiveSeconds}}</td>
+          <td>{{.Runs}}</td>
+          <td>{{.Reveals}}</td>
+          <td>{{if .LastActive.IsZero}}–{{else}}{{date .LastActive}}{{end}}</td>
+          <td>
+            {{- if eq .ID $.User.ID}}You
+            {{- else if .Disabled}}<button type="button" class="button-ghost" data-enable>Enable</button> <span class="badge badge-warning">disabled</span>
+            {{- else}}<button type="button" class="button-ghost button-danger" data-disable>Disable</button>{{end}}
+          </td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
+  </div>
+  <p class="form-status" role="status" aria-live="polite" data-status="users"></p>
+</section>
+{{end}}

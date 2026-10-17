@@ -1,0 +1,6 @@
+id: compile-range-func-signature
+command: build
+file: x.go
+line: 13
+capture: expr=Evens(limit)
+capture: reason=yield func does not return bool

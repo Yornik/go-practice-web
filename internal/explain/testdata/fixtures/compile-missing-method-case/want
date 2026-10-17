@@ -1,0 +1,7 @@
+id: compile-missing-method
+command: build
+file: x.go
+line: 10
+capture: iface=fmt.Stringer
+capture: type=Code
+capture: method=String

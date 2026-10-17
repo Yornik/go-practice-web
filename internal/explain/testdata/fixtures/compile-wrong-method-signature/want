@@ -1,0 +1,9 @@
+id: compile-wrong-method-signature
+command: build
+file: x.go
+line: 13
+capture: iface=io.Writer
+capture: type=*Tally
+capture: method=Write
+capture: have=Write([]byte) int
+capture: want=Write([]byte) (int, error)

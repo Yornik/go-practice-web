@@ -1,0 +1,6 @@
+id: vet-stdmethods
+command: vet
+file: x.go
+line: 12
+capture: have=Unwrap()
+capture: want=Unwrap() error or Unwrap() []error

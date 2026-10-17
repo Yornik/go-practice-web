@@ -1,0 +1,5 @@
+id: compile-shadowed-err
+command: build
+file: x.go
+line: 11
+capture: name=err

@@ -1,0 +1,7 @@
+id: compile-mismatched-types
+command: build
+file: x.go
+line: 6
+capture: expr=time.Second * retries
+capture: left=time.Duration
+capture: right=int

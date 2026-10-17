@@ -1,0 +1,5 @@
+id: vet-copylocks
+command: vet
+file: x.go
+line: 12
+capture: code=copylocks

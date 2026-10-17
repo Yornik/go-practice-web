@@ -1,0 +1,4 @@
+id: staticcheck-sa1032
+command: staticcheck
+file: x.go
+line: 9

@@ -1,0 +1,5 @@
+id: compile-break-outside-loop
+command: vet
+file: x.go
+line: 9
+capture: stmt=break

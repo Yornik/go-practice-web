@@ -1,0 +1,12 @@
+{{define "subject"}}Recover your Go Practice account{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+Someone asked to recover the Go Practice account for {{.To}}. If that was you, open this link and create a new passkey:
+
+{{.E.Link}}
+
+The link works once and expires in {{duration .E.ValidFor}}. On the same page you can remove your old passkeys.
+
+If you did not ask for this, ignore this email. Without this link, nobody can add a passkey to your account.
+{{end}}

@@ -1,0 +1,8 @@
+id: runtime-reflect-wrong-kind
+command: test
+file: x.go
+line: 17
+test: TestSum
+capture: func=Sum
+capture: method=Int
+capture: kind=string

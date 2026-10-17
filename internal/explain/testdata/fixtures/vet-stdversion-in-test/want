@@ -1,0 +1,5 @@
+id: vet-stdversion
+command: test
+file: x.go
+line: 8
+capture: need=go1.25

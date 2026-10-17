@@ -1,0 +1,7 @@
+id: runtime-reflect-unexported
+command: test
+file: x.go
+line: 15
+test: TestClear
+capture: func=Clear
+capture: method=SetString

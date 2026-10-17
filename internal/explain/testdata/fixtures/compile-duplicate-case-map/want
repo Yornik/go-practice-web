@@ -1,0 +1,6 @@
+id: compile-duplicate-case
+command: build
+file: x.go
+line: 6
+capture: value="http"
+capture: kind=map literal

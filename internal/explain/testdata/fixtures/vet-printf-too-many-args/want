@@ -1,0 +1,7 @@
+id: vet-printf-too-many-args
+command: vet
+file: x.go
+line: 9
+capture: call=log.Printf
+capture: want=2
+capture: have=3

@@ -1,0 +1,6 @@
+id: compile-cannot-indirect
+command: build
+file: x.go
+line: 6
+capture: expr=Point{…}
+capture: what=value of struct type Point

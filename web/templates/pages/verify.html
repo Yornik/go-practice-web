@@ -1,0 +1,60 @@
+{{define "content"}}
+{{- with .Data}}
+<section class="card verify" aria-labelledby="verify-title">
+  {{- if eq .Status "lookup"}}
+  <h1 id="verify-title">Verify a certificate</h1>
+  <p>Enter the ID printed on the certificate, for example <code>GP-7Q2M-K9XD-3HFA</code>.</p>
+  <form method="get" action="/verify" class="stack">
+    <div class="field">
+      <label for="verify-id">Certificate ID</label>
+      <input id="verify-id" name="id" required autocapitalize="characters" spellcheck="false"{{with .Error}} aria-invalid="true" aria-describedby="verify-error"{{end}}>
+      {{- with .Error}}<p class="hint hint-error" id="verify-error">{{.}}</p>{{end}}
+    </div>
+    <button type="submit" class="button button-primary">Verify</button>
+  </form>
+  {{- else if eq .Status "unknown"}}
+  <h1 id="verify-title">Unknown certificate</h1>
+  <p class="notice notice-error">No certificate has the ID <code>{{.ID}}</code>. Check the ID on the document.</p>
+  <p><a href="/verify">Try another ID</a></p>
+  {{- else if eq .Status "invalid"}}
+  <h1 id="verify-title">Certificate {{.ID}}</h1>
+  <p class="notice notice-error">The signature of this certificate does not match. Do not trust it.</p>
+  {{- else}}
+  <p class="verify-status verify-{{.Status}}" role="status">
+    {{- if eq .Status "valid"}}Valid certificate: the signature matches.
+    {{- else}}Revoked on {{date .RevokedAt}}.{{with .ReplacedBy}} It was replaced by <a href="/verify/{{.}}">{{.}}</a>.{{end}}{{end}}
+  </p>
+  <h1 id="verify-title">{{.Name}}</h1>
+  <p class="verify-kind">completed <strong>{{.Title}}</strong> of Go Practice on <time datetime="{{iso .IssuedAt}}">{{date .IssuedAt}}</time>.</p>
+  <h2>Exercises</h2>
+  <ol class="verify-exercises">
+    {{- range $e := .Exercises}}
+    <li>
+      <span class="exercise-number">{{pad2 $e.Number}}</span> {{$e.Title}}
+      {{- if $.Data.Stats}}{{with index $.Data.StatsBySlug $e.Slug}}
+      <span class="muted">· {{duration .ActiveSeconds}} · {{.Runs}} runs · {{.Hints}} hints{{if .Explanation}} · explanation{{end}}{{if .Walkthrough}} · walkthrough{{end}}{{if .Solution}} · solution{{end}}</span>
+      {{- end}}{{end}}
+    </li>
+    {{- end}}
+  </ol>
+  {{- with .Stats}}
+  <h2>Statistics</h2>
+  <dl class="stats">
+    <div><dt>Active time</dt><dd>{{duration .ActiveSeconds}}</dd></div>
+    <div><dt>Test runs</dt><dd>{{.Runs}}</dd></div>
+    <div><dt>Hints revealed</dt><dd>{{.Hints}}</dd></div>
+    <div><dt>Explanations</dt><dd>{{.Explanations}}</dd></div>
+    <div><dt>Walkthroughs</dt><dd>{{.Walkthroughs}}</dd></div>
+    <div><dt>Solutions</dt><dd>{{.Solutions}}</dd></div>
+  </dl>
+  {{- end}}
+  <dl class="verify-facts">
+    <div><dt>Certificate ID</dt><dd><code>{{.ID}}</code></dd></div>
+    <div><dt>Link</dt><dd><a href="{{.URL}}">{{.URL}}</a></dd></div>
+    <div><dt>Signature</dt><dd>Ed25519, key fingerprint <code>{{.Fingerprint}}</code> (<a href="/.well-known/go-practice-certificates.pub">public key</a>)</dd></div>
+  </dl>
+  <p><a class="button" href="{{.PDF}}">Download the PDF</a></p>
+  {{- end}}
+</section>
+{{- end}}
+{{end}}

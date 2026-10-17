@@ -1,0 +1,5 @@
+id: staticcheck-sa1004
+command: staticcheck
+file: x.go
+line: 6
+capture: n=100

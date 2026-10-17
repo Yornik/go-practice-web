@@ -1,0 +1,36 @@
+{{define "content"}}
+<h1>Certificates</h1>
+<p>Pass every exercise of a tier to claim its certificate, and all {{len .Course.Exercises}} for the course certificate. Each one is a signed PDF with a public verify page. Claim again to change the name or the statistics; the old one is then revoked.</p>
+<ul class="cert-list">
+  {{- range .Data.Kinds}}
+  <li class="card cert-card" data-kind="{{.Kind}}">
+    <h2>{{.Title}}</h2>
+    <div class="progress" role="progressbar" aria-label="{{.Title}}: exercises passed" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Passed}}">
+      <span style="width: {{pct .Passed .Total}}%"></span>
+    </div>
+    <p class="muted">{{.Passed}} of {{.Total}} exercises passed.</p>
+    {{- with .Certificate}}
+    <p class="notice notice-success">
+      Issued to <strong>{{.Name}}</strong> on {{date .IssuedAt}}.
+      <a href="{{.URL}}">Verify page</a> · <a href="{{.PDF}}">PDF</a> · ID <code>{{.ID}}</code>
+    </p>
+    {{- end}}
+    {{- if .Eligible}}
+    <form class="stack claim-form" data-claim="{{.Kind}}" novalidate>
+      <div class="field">
+        <label for="name-{{.Kind}}">Name on the certificate</label>
+        <input id="name-{{.Kind}}" name="name" maxlength="70" value="{{with .Certificate}}{{.Name}}{{else}}{{$.User.DisplayName}}{{end}}" required>
+      </div>
+      <div class="field field-check">
+        <input id="stats-{{.Kind}}" name="showStats" type="checkbox"{{with .Certificate}}{{if .ShowStats}} checked{{end}}{{end}}>
+        <label for="stats-{{.Kind}}">Show my statistics: active time, test runs, hints, explanations, walkthroughs and solutions I revealed</label>
+      </div>
+      <button type="submit" class="button button-primary">{{if .Certificate}}Issue again{{else}}Claim the certificate{{end}}</button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+    </form>
+    {{- end}}
+  </li>
+  {{- end}}
+</ul>
+<p class="muted">Signing key fingerprint: <code>{{.Data.Fingerprint}}</code>. The public key is at <a href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a>.</p>
+{{end}}

@@ -1,0 +1,4 @@
+id: vet-appends
+command: vet
+file: x.go
+line: 7

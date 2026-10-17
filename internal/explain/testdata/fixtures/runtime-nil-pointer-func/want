@@ -1,0 +1,6 @@
+id: runtime-nil-pointer
+command: test
+file: x.go
+line: 11
+test: TestChange
+capture: func=(*Watcher).Change

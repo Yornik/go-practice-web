@@ -1,0 +1,4 @@
+id: vet-unreachable
+command: vet
+file: x.go
+line: 12

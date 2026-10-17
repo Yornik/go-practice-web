@@ -1,0 +1,9 @@
+{{define "heading"}}Verify your email address{{end}}
+{{define "content"}}
+<p style="{{template "p"}}">Hello {{.E.Name}},</p>
+<p style="{{template "p"}}">Confirm that <strong>{{.To}}</strong> is your email address for Go Practice.</p>
+<p style="margin:0 0 20px 0;"><a href="{{.E.Link}}" style="{{template "button"}}">Verify my address</a></p>
+<p style="{{template "p"}}">The link works once and expires in {{duration .E.ValidFor}}. With a verified address you can recover your account if you lose your passkeys.</p>
+<p style="{{template "small"}}">If the button does not work, copy this link into your browser:<br><a href="{{.E.Link}}" style="{{template "link"}}">{{.E.Link}}</a></p>
+<p style="{{template "small"}}">If you did not ask for this, ignore this email. Nothing changes.</p>
+{{end}}

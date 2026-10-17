@@ -1,0 +1,7 @@
+id: vet-stdversion
+command: vet
+file: x.go
+line: 8
+capture: symbol=sync.(*WaitGroup).Go
+capture: need=go1.25
+capture: have=go1.24

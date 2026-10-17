@@ -1,0 +1,6 @@
+id: compile-value-not-used
+command: build
+file: x.go
+line: 4
+capture: expr=append(hits, path)
+capture: what=value of type []string

@@ -1,0 +1,9 @@
+{{define "heading"}}Your email address is changing{{end}}
+{{define "content"}}
+<p style="{{template "p"}}">Hello {{.E.Name}},</p>
+<p style="{{template "p"}}">On {{when .E.When}}, someone changed the email address of your Go Practice account from <strong>{{.E.Old}}</strong> to <strong>{{.E.New}}</strong>.</p>
+{{if .E.Pending}}<p style="{{template "p"}}">The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.</p>
+{{else}}<p style="{{template "p"}}">From now on, security notices and recovery links go to {{.E.New}}.</p>
+{{end}}<p style="{{template "p"}}">If you did not do this, sign in and check your account page.</p>
+<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Open my account</a></p>
+{{end}}

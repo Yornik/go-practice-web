@@ -1,0 +1,5 @@
+id: compile-cannot-compare
+command: build
+file: x.go
+line: 4
+capture: reason=slice can only be compared to nil

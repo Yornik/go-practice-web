@@ -1,0 +1,6 @@
+id: vet-printf-func-value
+command: vet
+file: x.go
+line: 6
+capture: call=fmt.Sprintf
+capture: arg=err.Error

@@ -1,0 +1,5 @@
+id: compile-redeclared
+command: build
+file: x.go
+line: 7
+capture: name=Stack.Len

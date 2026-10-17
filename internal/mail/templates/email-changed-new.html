@@ -1,0 +1,7 @@
+{{define "heading"}}Your new email address{{end}}
+{{define "content"}}
+<p style="{{template "p"}}">Hello {{.E.Name}},</p>
+<p style="{{template "p"}}"><strong>{{.E.New}}</strong> is now the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.</p>
+<p style="{{template "p"}}">If you did not do this, sign in and check your account page.</p>
+<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Open my account</a></p>
+{{end}}

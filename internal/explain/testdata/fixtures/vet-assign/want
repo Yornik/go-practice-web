@@ -1,0 +1,5 @@
+id: vet-assign
+command: vet
+file: x.go
+line: 8
+capture: expr=limit

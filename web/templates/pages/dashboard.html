@@ -1,0 +1,67 @@
+{{define "content"}}
+{{- with .Data}}
+<section class="dashboard-head">
+  <h1>Your progress</h1>
+  <dl class="stats">
+    <div><dt>Passed</dt><dd><span data-stat="passed">{{.Passed}}</span> of {{.Total}}</dd></div>
+    <div><dt>Active time</dt><dd>{{duration .ActiveSeconds}}</dd></div>
+    <div><dt>Test runs</dt><dd>{{.Runs}}</dd></div>
+    <div><dt>Hints used</dt><dd>{{.Hints}}</dd></div>
+  </dl>
+  <div class="progress" role="progressbar" aria-label="Exercises passed" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Passed}}">
+    <span style="width: {{pct .Passed .Total}}%"></span>
+  </div>
+  {{- with .Next}}
+  <p><a class="button button-primary" href="/learn/{{.Slug}}">{{if $.Data.Started}}Continue with{{else}}Start with{{end}} {{pad2 .Number}} · {{.Title}}</a></p>
+  {{- else}}
+  <p class="notice notice-success">You passed every exercise. <a href="/certificates">Claim your course certificate</a>.</p>
+  {{- end}}
+</section>
+
+{{- range .Tiers}}
+<section class="tier" aria-labelledby="tier-{{.N}}">
+  <h2 id="tier-{{.N}}">{{.Title}}: {{.Theme}} <span class="muted">{{.Passed}}/{{len .Exercises}} passed</span></h2>
+  <ul class="exercise-grid">
+    {{- range .Exercises}}
+    <li class="exercise-card" data-status="{{if .Status}}{{.Status}}{{else}}new{{end}}">
+      <a href="/learn/{{.Slug}}">
+        <span class="exercise-number">{{pad2 .Number}}</span>
+        <span class="exercise-title">{{.Title}}</span>
+      </a>
+      <p class="exercise-meta">
+        <span class="badge badge-{{if .Status}}{{.Status}}{{else}}new{{end}}">{{if eq .Status "passed"}}Passed{{else if eq .Status "started"}}Started{{else}}Not started{{end}}</span>
+        <span>{{.Time}}</span>
+        {{- if .ActiveSeconds}}<span>{{duration .ActiveSeconds}} spent</span>{{end}}
+        {{- if .Hints}}<span>{{.Hints}} {{if eq .Hints 1}}hint{{else}}hints{{end}}</span>{{end}}
+      </p>
+    </li>
+    {{- end}}
+  </ul>
+</section>
+{{- end}}
+
+<section class="learning-log" aria-labelledby="log-title">
+  <h2 id="log-title">Learning log</h2>
+  <p class="muted">Step 10 of the course asks you to keep this log. The site keeps it for you.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">Exercise</th><th scope="col">Time</th><th scope="col">Runs</th><th scope="col">Hints</th><th scope="col">Furthest level</th><th scope="col">Passed</th></tr>
+      </thead>
+      <tbody>
+        {{- range .Rows}}
+        <tr>
+          <th scope="row"><a href="/learn/{{.Slug}}">{{pad2 .Number}} · {{.Title}}</a></th>
+          <td>{{if .ActiveSeconds}}{{duration .ActiveSeconds}}{{else}}–{{end}}</td>
+          <td>{{.Runs}}</td>
+          <td>{{.Hints}}</td>
+          <td>{{if .Levels}}{{level .Levels}}{{else}}–{{end}}</td>
+          <td>{{if .PassedAt.IsZero}}–{{else}}<time datetime="{{iso .PassedAt}}">{{date .PassedAt}}</time>{{end}}</td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{- end}}
+{{end}}

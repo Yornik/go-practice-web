@@ -1,0 +1,4 @@
+id: vet-atomic
+command: vet
+file: x.go
+line: 8

@@ -1,0 +1,4 @@
+id: compile-syntax-else-newline
+command: build
+file: x.go
+line: 7

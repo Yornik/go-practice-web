@@ -1,0 +1,7 @@
+id: staticcheck-sa9002
+command: staticcheck
+file: x.go
+line: 6
+capture: mode=644
+capture: octal=01204
+capture: want=0644

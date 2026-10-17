@@ -1,0 +1,7 @@
+id: compile-mismatched-untyped
+command: build
+file: x.go
+line: 5
+capture: expr=line[i] == "="
+capture: left=byte
+capture: right=untyped string

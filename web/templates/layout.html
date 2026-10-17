@@ -1,0 +1,68 @@
+{{define "layout" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{.Title}} · Go Practice</title>
+<link rel="icon" href="{{static "img/favicon.svg"}}" type="image/svg+xml">
+<link rel="stylesheet" href="{{static "css/site.css"}}">
+<link rel="stylesheet" href="/highlight.css?v={{.Course.Version}}">
+{{- block "head" .}}{{end}}
+{{/* A classic script, not a module: it must set the theme before the first paint. */}}
+<script src="{{static "js/theme-init.js"}}"></script>
+<script type="module" src="{{static "js/site.js"}}"></script>
+{{- with .Script}}
+<script type="module" src="{{static (printf "js/%s" .)}}"></script>
+{{- end}}
+</head>
+<body{{if .Wide}} class="layout-wide"{{end}}>
+<a class="skip-link" href="#main">Skip to the content</a>
+<header class="site-header">
+  <a class="brand" href="{{if .User}}/learn{{else}}/{{end}}">
+    <img src="{{static "img/favicon.svg"}}" alt="" width="28" height="28">
+    <span>Go Practice</span>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <ul>
+      {{- if .User}}
+      <li><a href="/learn"{{if eq .Nav "learn"}} aria-current="page"{{end}}>Learn</a></li>
+      {{- end}}
+      <li><a href="/guide"{{if eq .Nav "guide"}} aria-current="page"{{end}}>Guide</a></li>
+      {{- if .User}}
+      <li><a href="/certificates"{{if eq .Nav "certificates"}} aria-current="page"{{end}}>Certificates</a></li>
+      <li><a href="/account"{{if eq .Nav "account"}} aria-current="page"{{end}}>Account</a></li>
+      {{- if .User.IsAdmin}}
+      <li><a href="/admin"{{if eq .Nav "admin"}} aria-current="page"{{end}}>Admin</a></li>
+      {{- end}}
+      {{- end}}
+    </ul>
+  </nav>
+  <div class="header-actions">
+    <button type="button" class="button-ghost theme-toggle" data-theme-toggle aria-pressed="false">
+      <span class="visually-hidden">Dark theme</span><span aria-hidden="true">◐</span>
+    </button>
+    {{- if .User}}
+    <span class="header-user" title="Signed in as {{.User.Username}}">{{.User.DisplayName}}</span>
+    <button type="button" class="button-ghost" data-logout>Sign out</button>
+    {{- else if ne .Nav "login"}}
+    <a class="button" href="/login">Sign in</a>
+    {{- end}}
+  </div>
+</header>
+<main id="main" tabindex="-1">
+{{template "content" .}}
+</main>
+{{- if not .Wide}}
+<footer class="site-footer">
+  <p>
+    Go Practice: {{len .Course.Exercises}} exercises for reliability engineers.
+    Course <a href="https://github.com/Yornik/go-practice">github.com/Yornik/go-practice</a> at {{.Course.Version}}.
+    <a href="/verify">Verify a certificate</a>.
+  </p>
+</footer>
+{{- end}}
+</body>
+</html>
+{{- end}}

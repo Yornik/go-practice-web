@@ -1,0 +1,5 @@
+id: compile-range-iteration-variables
+command: build
+file: x.go
+line: 5
+capture: expr=n

@@ -1,0 +1,8 @@
+id: compile-cannot-use
+command: build
+file: x.go
+line: 8
+capture: expr=p
+capture: what=variable of struct type Point
+capture: want=*Point
+capture: context=argument to Move

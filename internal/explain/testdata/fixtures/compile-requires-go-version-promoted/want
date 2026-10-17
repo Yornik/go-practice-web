@@ -1,0 +1,5 @@
+id: compile-requires-go-version
+command: build
+file: x.go
+line: 11
+capture: version=go1.27

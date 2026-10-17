@@ -1,0 +1,5 @@
+id: compile-syntax-missing-comma
+command: gofmt
+file: x.go
+line: 9
+capture: where=argument list

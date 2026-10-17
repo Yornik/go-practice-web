@@ -1,0 +1,5 @@
+id: vet-composites
+command: vet
+file: x.go
+line: 6
+capture: type=net.TCPAddr

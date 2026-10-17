@@ -1,0 +1,14 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="recover-title">
+  <h1 id="recover-title">Recover your account</h1>
+  <p>Enter the verified email address of your account. If it has one, you get a link that lets you add a new passkey. The link works for 15 minutes.</p>
+  <form id="recover-form" class="stack" novalidate>
+    <div class="field">
+      <label for="recover-email">Email address</label>
+      <input id="recover-email" name="email" type="email" required autocomplete="email">
+    </div>
+    <button type="submit" class="button button-primary">Send a recovery link</button>
+  </form>
+  <p class="form-status" role="status" aria-live="polite"></p>
+</section>
+{{end}}

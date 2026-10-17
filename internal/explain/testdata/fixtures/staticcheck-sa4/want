@@ -1,0 +1,5 @@
+id: staticcheck-sa4
+command: staticcheck
+file: x.go
+line: 4
+capture: code=SA4000

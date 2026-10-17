@@ -1,0 +1,5 @@
+# github.com/yornik/go-practice/exercises/99-demo
+# [github.com/yornik/go-practice/exercises/99-demo]
+./z.go:6:22: fmt.Sprintf format %d has arg s of wrong type string
+FAIL	github.com/yornik/go-practice/exercises/99-demo [build failed]
+FAIL

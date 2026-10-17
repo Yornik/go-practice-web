@@ -1,0 +1,4 @@
+id: compile-syntax-brace-newline
+command: gofmt
+file: x.go
+line: 4

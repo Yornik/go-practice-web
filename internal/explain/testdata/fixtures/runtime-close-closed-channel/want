@@ -1,0 +1,6 @@
+id: runtime-close-closed-channel
+command: test
+file: x.go
+line: 15
+test: TestStopTwice
+capture: func=(*Poller).Stop

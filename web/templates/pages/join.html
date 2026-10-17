@@ -1,0 +1,41 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="join-title">
+  {{- with .Data}}
+  <h1 id="join-title">{{if .Setup}}Set up Go Practice{{else}}Join Go Practice{{end}}</h1>
+  {{- if .Error}}
+  <p class="notice notice-error" role="alert">{{.Error}}</p>
+  {{- if .Setup}}
+  <p>Restart the web server to log a new setup link.</p>
+  {{- else}}
+  <p>Ask the person who invited you for a new link.</p>
+  {{- end}}
+  {{- else}}
+  {{- if .Setup}}
+  <p>This link creates the first account. It becomes the admin, who invites everyone else.</p>
+  {{- else}}
+  <p>{{if .InvitedBy}}{{.InvitedBy}} invited you.{{else}}You are invited.{{end}} The invite works once{{if not .Expires.IsZero}} and expires on {{date .Expires}}{{end}}.</p>
+  {{- with .Note}}<blockquote class="invite-note">{{.}}</blockquote>{{end}}
+  {{- end}}
+  <form id="join-form" class="stack" data-mode="{{if .Setup}}setup{{else}}invite{{end}}" data-token="{{.Token}}" novalidate>
+    <div class="field">
+      <label for="join-username">Username</label>
+      <input id="join-username" name="username" required minlength="3" maxlength="32" pattern="[a-z0-9_\-]{3,32}"
+             autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="join-username-hint">
+      <p class="hint" id="join-username-hint">3 to 32 characters: lowercase letters, digits, - and _.</p>
+    </div>
+    <div class="field">
+      <label for="join-name">Your name</label>
+      <input id="join-name" name="displayName" required maxlength="64" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="join-email">Email address</label>
+      <input id="join-email" name="email" type="email" maxlength="254" autocomplete="email" value="{{.Email}}" aria-describedby="join-email-hint">
+      <p class="hint" id="join-email-hint">You get a link to verify it. A verified address is the only way to recover your account if you lose your passkeys.</p>
+    </div>
+    <button type="submit" class="button button-primary">Create a passkey and join</button>
+  </form>
+  <p class="form-status" role="status" aria-live="polite"></p>
+  {{- end}}
+  {{- end}}
+</section>
+{{end}}

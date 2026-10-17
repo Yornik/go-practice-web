@@ -1,0 +1,7 @@
+id: compile-undefined-field-or-method
+command: test
+file: x_test.go
+line: 11
+capture: name=Msg
+capture: type=fixture.Message
+capture: have=msg

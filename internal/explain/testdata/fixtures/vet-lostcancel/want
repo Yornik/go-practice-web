@@ -1,0 +1,5 @@
+id: vet-lostcancel
+command: vet
+file: x.go
+line: 9
+capture: code=lostcancel

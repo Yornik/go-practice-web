@@ -1,0 +1,5 @@
+id: runtime-stack-overflow
+command: test
+file: x.go
+capture: func=Reach
+test: TestReachCycle

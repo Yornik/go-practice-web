@@ -1,0 +1,16 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="login-title">
+  <h1 id="login-title">Sign in</h1>
+  <p>Use the passkey you made when you joined. Your browser or phone shows the passkeys it has for this site.</p>
+  <form id="login-form" class="stack" data-next="{{.Data.Next}}" novalidate>
+    <div class="field">
+      <label for="login-username">Username</label>
+      <input id="login-username" name="username" autocomplete="username webauthn" autocapitalize="none" spellcheck="false">
+      <p class="hint">Optional. Focus this field to pick a passkey from the autofill list.</p>
+    </div>
+    <button type="submit" class="button button-primary">Sign in with a passkey</button>
+  </form>
+  <p class="form-status" role="status" aria-live="polite"></p>
+  <p class="muted">Lost your passkeys? <a href="/recover">Recover your account</a> with your verified email address.</p>
+</section>
+{{end}}

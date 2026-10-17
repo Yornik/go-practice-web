@@ -1,0 +1,5 @@
+id: compile-type-not-expression
+command: build
+file: x.go
+line: 6
+capture: name=Limits

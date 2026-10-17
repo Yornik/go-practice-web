@@ -1,0 +1,6 @@
+id: runtime-nil-pointer
+command: test
+file: x.go
+line: 15
+test: TestPort
+capture: func=(*Server).Port

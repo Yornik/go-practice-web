@@ -1,0 +1,7 @@
+id: compile-mismatched-types
+command: build
+file: x.go
+line: 5
+capture: expr=limit
+capture: left=float64
+capture: right=int

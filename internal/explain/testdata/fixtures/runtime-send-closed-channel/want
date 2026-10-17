@@ -1,0 +1,6 @@
+id: runtime-send-closed-channel
+command: test
+file: x.go
+line: 15
+test: TestPushAfterClose
+capture: func=(*Queue).Push

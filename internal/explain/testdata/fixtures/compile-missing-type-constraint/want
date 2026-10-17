@@ -1,0 +1,4 @@
+id: compile-missing-type-constraint
+command: build
+file: x.go
+line: 3

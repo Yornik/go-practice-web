@@ -1,0 +1,6 @@
+id: compile-does-not-satisfy
+command: build
+file: x.go
+line: 9
+capture: type=[]byte
+capture: constraint=comparable

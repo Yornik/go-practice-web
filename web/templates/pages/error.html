@@ -1,0 +1,7 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="error-title">
+  <h1 id="error-title">{{.Title}}</h1>
+  <p>{{.Data.Message}}</p>
+  <p><a href="{{if .User}}/learn{{else}}/{{end}}">Back to the start</a></p>
+</section>
+{{end}}

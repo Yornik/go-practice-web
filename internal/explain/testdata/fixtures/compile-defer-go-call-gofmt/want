@@ -1,0 +1,5 @@
+id: compile-defer-go-call
+command: gofmt
+file: x.go
+line: 12
+capture: stmt=defer

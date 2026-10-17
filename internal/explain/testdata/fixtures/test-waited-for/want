@@ -1,0 +1,7 @@
+id: test-waited-for
+command: test
+file: x_test.go
+line: 34
+test: TestRunAllConcurrent
+capture: limit=100ms
+capture: what=2 functions run at the same time

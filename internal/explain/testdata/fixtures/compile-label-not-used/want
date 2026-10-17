@@ -1,0 +1,5 @@
+id: compile-label-not-used
+command: build
+file: x.go
+line: 5
+capture: label=search

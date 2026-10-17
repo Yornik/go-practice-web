@@ -1,0 +1,10 @@
+{{define "subject"}}This is now your Go Practice email address{{end}}
+{{define "content"}}
+Hello {{.E.Name}},
+
+{{.E.New}} is now the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.
+
+If you did not do this, sign in and check your account page:
+
+{{.SiteURL}}/account
+{{end}}

@@ -1,0 +1,5 @@
+id: compile-redeclared
+command: build
+file: y.go
+line: 5
+capture: name=clean

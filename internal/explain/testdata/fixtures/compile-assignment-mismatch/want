@@ -1,0 +1,7 @@
+id: compile-assignment-mismatch
+command: build
+file: x.go
+line: 6
+capture: vars=1
+capture: call=strconv.Atoi
+capture: values=2

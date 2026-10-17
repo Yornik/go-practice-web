@@ -1,0 +1,4 @@
+id: compile-syntax-non-declaration
+command: gofmt
+file: x.go
+line: 3

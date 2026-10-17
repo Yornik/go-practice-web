@@ -1,0 +1,4 @@
+id: vet-waitgroup
+command: vet
+file: x.go
+line: 9

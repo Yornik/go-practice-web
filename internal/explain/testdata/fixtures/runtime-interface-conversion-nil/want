@@ -1,0 +1,6 @@
+id: runtime-interface-conversion
+command: test
+file: x.go
+line: 5
+test: TestPortMissing
+capture: detail=interface {} is nil, not int

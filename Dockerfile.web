@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+
+# The web image: 1 static binary with the templates, static files and
+# Monaco embedded, and the course (hidden material included: the web server
+# renders it on reveal). No shell, no package manager. See "Build and
+# release" in docs/DESIGN.md.
+#
+# Build from the repository root with the course submodule checked out:
+#   docker build -f Dockerfile.web -t go-practice-web .
+
+ARG GO_IMAGE=golang:1.27-bookworm
+
+FROM ${GO_IMAGE} AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+# Monaco comes from the npm registry, checked against a pinned SHA-256, so
+# the build needs no Node. It lands in web/static/vendor/ before go build
+# embeds web/static.
+COPY scripts/fetch-monaco.sh scripts/
+RUN scripts/fetch-monaco.sh
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY web/web.go web/
+COPY web/templates/ web/templates/
+COPY web/static/css/ web/static/css/
+COPY web/static/js/ web/static/js/
+COPY web/static/img/ web/static/img/
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/web ./cmd/web
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/web /usr/local/bin/web
+# The whole course: READMEs, exercises and the ROT13 solutions. The web
+# server is the only place hidden material may live; the runner image
+# leaves solutions/ out.
+COPY course/README.md /course/README.md
+COPY course/go.mod /course/go.mod
+COPY course/exercises/ /course/exercises/
+COPY course/solutions/ /course/solutions/
+# /data is the PVC with the database and its backups.
+VOLUME ["/data"]
+EXPOSE 8080 9090
+USER nonroot:nonroot
+ENTRYPOINT ["/usr/local/bin/web"]

@@ -1,0 +1,5 @@
+id: compile-imported-and-not-used
+command: build
+file: x.go
+line: 4
+capture: path=fmt

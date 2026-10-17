@@ -1,0 +1,4 @@
+id: compile-syntax-unterminated-string
+command: build
+file: x.go
+line: 3

@@ -1,0 +1,7 @@
+id: runtime-reflect-unaddressable
+command: test
+file: x.go
+line: 15
+test: TestDefault
+capture: func=Default
+capture: method=SetString

@@ -1,0 +1,5 @@
+id: compile-impossible-type-assertion
+command: build
+file: x.go
+line: 9
+capture: expr=NotFoundError

@@ -1,0 +1,19 @@
+{{define "content"}}
+<article class="prose guide">
+  <h1>How the course works</h1>
+  <div class="lead">{{.Course.Intro}}</div>
+  <nav class="toc" aria-label="On this page">
+    <ul>
+      {{- range .Course.Guide}}
+      <li><a href="#{{.ID}}">{{.Title}}</a></li>
+      {{- end}}
+    </ul>
+  </nav>
+  {{- range .Course.Guide}}
+  <section aria-labelledby="{{.ID}}">
+    <h2 id="{{.ID}}">{{.Title}}</h2>
+    {{.HTML}}
+  </section>
+  {{- end}}
+</article>
+{{end}}

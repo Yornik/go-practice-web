@@ -1,0 +1,8 @@
+id: test-got-want
+command: test
+file: x_test.go
+line: 17
+test: TestMean/two_values
+capture: call=Mean([1 3])
+capture: got=1.3333333333333333
+capture: want=2

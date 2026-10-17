@@ -1,0 +1,5 @@
+id: vet-printf-redundant-newline
+command: vet
+file: x.go
+line: 9
+capture: call=fmt.Fprintln

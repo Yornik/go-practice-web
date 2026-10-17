@@ -1,0 +1,4 @@
+id: compile-syntax-else-newline
+command: gofmt
+file: x.go
+line: 7

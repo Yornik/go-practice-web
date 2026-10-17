@@ -1,0 +1,5 @@
+id: vet-printf-no-directives
+command: vet
+file: x.go
+line: 11
+capture: call=fmt.Errorf

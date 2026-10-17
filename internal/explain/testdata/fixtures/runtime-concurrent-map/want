@@ -1,0 +1,7 @@
+id: runtime-concurrent-map
+command: test -timeout=60s
+file: x.go
+line: 13
+capture: func=Count.func1
+capture: op=writes
+test: TestCount

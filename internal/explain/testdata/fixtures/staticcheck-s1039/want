@@ -1,0 +1,5 @@
+id: staticcheck-s1039
+command: staticcheck
+file: x.go
+line: 6
+capture: func=Sprintf

@@ -1,0 +1,10 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="verify-title">
+  <h1 id="verify-title">Verify your email address</h1>
+  <p>Confirm that this address belongs to you. You can then use it to recover your account.</p>
+  <form id="verify-email-form" class="stack" data-token="{{.Data.Token}}">
+    <button type="submit" class="button button-primary">Confirm my address</button>
+  </form>
+  <p class="form-status" role="status" aria-live="polite"></p>
+</section>
+{{end}}

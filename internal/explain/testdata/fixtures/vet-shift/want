@@ -1,0 +1,7 @@
+id: vet-shift
+command: vet
+file: x.go
+line: 4
+capture: expr=b[0]
+capture: bits=8
+capture: shift=8

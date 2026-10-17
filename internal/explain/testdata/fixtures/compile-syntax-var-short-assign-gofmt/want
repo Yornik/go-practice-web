@@ -1,0 +1,4 @@
+id: compile-syntax-var-short-assign
+command: gofmt
+file: x.go
+line: 4

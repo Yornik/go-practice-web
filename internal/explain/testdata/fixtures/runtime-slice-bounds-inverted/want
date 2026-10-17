@@ -1,0 +1,7 @@
+id: runtime-slice-bounds
+command: test
+file: x.go
+line: 9
+test: TestBetween
+capture: func=Between
+capture: bounds=4:1

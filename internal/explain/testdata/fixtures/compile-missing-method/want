@@ -1,0 +1,7 @@
+id: compile-missing-method
+command: build
+file: x.go
+line: 8
+capture: iface=io.Reader
+capture: type=Blank
+capture: method=Read

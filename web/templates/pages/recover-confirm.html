@@ -1,0 +1,21 @@
+{{define "content"}}
+<section class="card auth-card" aria-labelledby="recover-title">
+  <h1 id="recover-title">Add a new passkey</h1>
+  {{- with .Data}}
+  {{- if .Error}}
+  <p class="notice notice-error" role="alert">{{.Error}}</p>
+  <p><a href="/recover">Ask for a new recovery link</a>.</p>
+  {{- else}}
+  <p>Hello {{.Name}}. Create a new passkey for <strong>{{.Username}}</strong> on this device.</p>
+  <form id="recover-confirm-form" class="stack" data-token="{{.Token}}">
+    <div class="field field-check">
+      <input id="recover-remove" name="removeOthers" type="checkbox">
+      <label for="recover-remove">Remove all my other passkeys and sign out everywhere. Choose this if a device was lost or stolen.</label>
+    </div>
+    <button type="submit" class="button button-primary">Create a passkey</button>
+  </form>
+  <p class="form-status" role="status" aria-live="polite"></p>
+  {{- end}}
+  {{- end}}
+</section>
+{{end}}

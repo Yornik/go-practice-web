@@ -1,0 +1,512 @@
+package explain
+
+import (
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/yornik/go-practice-web/internal/runnerapi"
+)
+
+var (
+	// posRE is a compiler or vet line: "./x.go:12:5: message". go vet
+	// prefixes type errors with "vet: ".
+	posRE = regexp.MustCompile(`^(vet: )?((?:[A-Za-z]:)?[^\s:]*\.go):(\d+)(?::(\d+))?: (.*)$`)
+	// locRE is the location line of a stack frame: "\t/path/x.go:12 +0x1d".
+	// A fatal error such as a stack overflow adds " fp=0x.. sp=0x.. pc=0x..".
+	locRE = regexp.MustCompile(`^\s+(\S+\.go):(\d+)(?:\s+\+0x[0-9a-f]+)?(?:\s+fp=\S+ sp=\S+ pc=\S+)?\s*$`)
+	// refRE finds file:line references anywhere in output. Group 1 is the
+	// path, 2 the base name, 3 the line, 4 the column.
+	refRE = regexp.MustCompile(`(?m)(?:^|[\s(])((?:[A-Za-z]:)?(?:[^\s:()]*/)?([A-Za-z0-9_.+-]+\.go)):(\d+)(?::(\d+))?\b`)
+
+	// assertRE is a line that a test reported with t.Errorf and friends:
+	// "    retry_test.go:42: message". A helper that calls t.Helper() and
+	// recovers a panic reports the line of the panic itself, in a stub
+	// file: "    slo.go:76: panicked: TODO: implement".
+	assertRE      = regexp.MustCompile(`^(\s+)([A-Za-z0-9_.+-]+\.go):(\d+): ?(.*)$`)
+	testLineRE    = regexp.MustCompile(`^\s*(?:=== (?:RUN|CONT|PAUSE|NAME)\s+|--- (?:FAIL|PASS|SKIP): )(\S+)`)
+	failLineRE    = regexp.MustCompile(`^\s*--- FAIL: (\S+)`)
+	runLineRE     = regexp.MustCompile(`^=== (?:RUN|CONT|NAME)\s+(\S+)`)
+	buildFailRE   = regexp.MustCompile(`(?m)^FAIL\s+\S+ \[(?:build|setup) failed\]$`)
+	buildHeadRE   = regexp.MustCompile(`(?m)^# \S.*\n(?:vet: )?\S+\.go:\d+`)
+	recoveredRE   = regexp.MustCompile(`\s*\[recovered[^\]]*\]\s*$`)
+	raceAccessRE  = regexp.MustCompile(`^(Previous )?([A-Za-z ]+?) at 0x[0-9a-f]+ by (?:main goroutine|goroutine \d+):$`)
+	timeoutRE     = regexp.MustCompile(`^panic: test timed out after \S+`)
+	runningTestRE = regexp.MustCompile(`^\t\t(\S+) \(`)
+	raceSeparator = "=================="
+)
+
+// parseBuildOutput turns compiler and go command output into diagnostics.
+// A "# [pkg]" header starts the go vet findings that go test reports;
+// any other "# pkg" header starts compiler output. Lines that start with a
+// tab or "note: " continue the previous message.
+func parseBuildOutput(out string) []runnerapi.Diagnostic {
+	var diags []runnerapi.Diagnostic
+	source := SourceCompile
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "":
+			continue
+		case strings.HasPrefix(line, "# "):
+			source = SourceCompile
+			if strings.HasPrefix(line, "# [") {
+				source = SourceVet
+			}
+			continue
+		case isSummaryLine(line):
+			continue
+		case (strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "note: ")) && len(diags) > 0:
+			diags[len(diags)-1].Message += "\n" + line
+			continue
+		}
+		d := runnerapi.Diagnostic{Severity: runnerapi.SeverityError, Source: source, Message: trimmed}
+		if m := posRE.FindStringSubmatch(line); m != nil {
+			if m[5] == "too many errors" {
+				// The compiler stopped after 10 errors; not a problem of its own.
+				continue
+			}
+			d.File = path.Base(m[2])
+			d.Line = atoi(m[3])
+			d.Column = atoi(m[4])
+			d.Message = m[5]
+			if m[1] != "" {
+				// go vet could not type-check the package: a compile error.
+				d.Source = SourceCompile
+			}
+		} else {
+			d.Source = SourceCompile
+		}
+		diags = append(diags, d)
+	}
+	return diags
+}
+
+func isSummaryLine(line string) bool {
+	return strings.HasPrefix(line, "FAIL") || strings.HasPrefix(line, "ok ") ||
+		strings.HasPrefix(line, "ok\t") || line == "too many errors" ||
+		strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "=== ")
+}
+
+// frame is one function call in a stack trace or race report.
+type frame struct {
+	fn   string // as printed, for example "example.com/x.Parse(...)"
+	path string
+	line int
+}
+
+// parseFrames reads the frames of a goroutine dump or a race report: a
+// function line followed by an indented "path.go:NN +0x1f" line.
+func parseFrames(lines []string) []frame {
+	var frames []frame
+	for i, l := range lines {
+		m := locRE.FindStringSubmatch(l)
+		if m == nil || i == 0 {
+			continue
+		}
+		fn := strings.TrimSpace(lines[i-1])
+		fn = strings.TrimPrefix(fn, "created by ")
+		if before, _, ok := strings.Cut(fn, " in goroutine "); ok {
+			fn = before
+		}
+		frames = append(frames, frame{fn: fn, path: m[1], line: atoi(m[2])})
+	}
+	return frames
+}
+
+// user reports whether the frame is in the learner's or the exercise's
+// code, not in the standard library or the generated test main.
+func (f frame) user() bool {
+	if isStdPath(f.path) || path.Base(f.path) == "_testmain.go" {
+		return false
+	}
+	pkg := funcPackage(f.fn)
+	if pkg == "main" {
+		return true
+	}
+	first, _, _ := strings.Cut(pkg, "/")
+	// Standard library import paths have no dot in their first element.
+	return strings.Contains(first, ".")
+}
+
+func firstUserFrame(frames []frame) (frame, bool) {
+	for _, f := range frames {
+		if f.user() {
+			return f, true
+		}
+	}
+	return frame{}, false
+}
+
+// funcPackage returns the import path of a frame's function:
+// "example.com/x" for "example.com/x.(*T).M(0x1)".
+func funcPackage(fn string) string {
+	slash := strings.LastIndex(fn, "/")
+	dot := strings.Index(fn[slash+1:], ".")
+	if dot < 0 {
+		return ""
+	}
+	return fn[:slash+1+dot]
+}
+
+// shortFunc returns the function name without the import path and the
+// arguments: "(*SyntaxError).Error" for
+// "example.com/x.(*SyntaxError).Error(0xc000010000)".
+func shortFunc(fn string) string {
+	pkg := funcPackage(fn)
+	name := strings.TrimPrefix(fn[len(pkg):], ".")
+	if strings.HasSuffix(name, ")") {
+		depth := 0
+		for i := len(name) - 1; i >= 0; i-- {
+			switch name[i] {
+			case ')':
+				depth++
+			case '(':
+				depth--
+				if depth == 0 {
+					return name[:i]
+				}
+			}
+		}
+	}
+	return name
+}
+
+// isStdPath reports paths in GOROOT or the module cache: the toolchain
+// lives in /usr/local/go/src or in the module cache as golang.org/toolchain.
+func isStdPath(p string) bool {
+	return strings.Contains(p, "/pkg/mod/") || strings.Contains(p, "/go/src/") ||
+		strings.Contains(p, "/toolchain@") || strings.HasPrefix(p, "$GOROOT")
+}
+
+// scanTestOutput finds everything worth explaining in the output of 1 test,
+// most important first.
+func scanTestOutput(test, out string) []finding {
+	if strings.TrimSpace(out) == "" {
+		return nil
+	}
+	lines := strings.Split(out, "\n")
+	var fs []finding
+	fs = append(fs, buildFindings(out)...)
+	fs = append(fs, crashFindings(test, lines)...)
+	fs = append(fs, raceFindings(test, lines)...)
+	fs = append(fs, exampleFindings(test, lines)...)
+	fs = append(fs, assertFindings(test, lines)...)
+	if len(fs) == 0 {
+		name := test
+		for _, l := range lines {
+			if m := failLineRE.FindStringSubmatch(l); m != nil {
+				if name == "" {
+					name = m[1]
+				}
+				fs = append(fs, finding{
+					source: SourceTest,
+					guide:  GuideFailingTest,
+					raw:    Raw{Source: SourceTest, Test: name, Message: strings.TrimSpace(l)},
+				})
+				break
+			}
+		}
+	}
+	return fs
+}
+
+// buildFindings explains a build failure printed inside test output.
+func buildFindings(out string) []finding {
+	if !buildFailRE.MatchString(out) && !buildHeadRE.MatchString(out) {
+		return nil
+	}
+	// Keep only the build part: headers, positioned lines, go command
+	// errors and their continuation lines.
+	var keep []string
+	inBuild := false
+	for _, l := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(l, "# "), strings.HasPrefix(l, "go: "):
+			inBuild = true
+		case strings.TrimSpace(l) == "", isSummaryLine(l):
+			inBuild = false
+			continue
+		}
+		if inBuild {
+			keep = append(keep, l)
+		}
+	}
+	var fs []finding
+	for _, d := range parseBuildOutput(strings.Join(keep, "\n")) {
+		source, code, msg := normalizeDiagnostic(d)
+		fs = append(fs, finding{
+			source: source,
+			code:   code,
+			guide:  GuideErrorMessage,
+			raw: Raw{Source: source, File: d.File, Line: d.Line, Column: d.Column,
+				Code: code, Message: msg},
+			builtins: map[string]string{"file": d.File, "line": itoa(d.Line), "column": itoa(d.Column), "code": code},
+		})
+	}
+	return fs
+}
+
+// crashFindings finds the 1 event that stops a test binary: a test timeout,
+// a fatal runtime error (such as a deadlock) or a panic.
+func crashFindings(test string, lines []string) []finding {
+	for i, l := range lines {
+		switch {
+		case timeoutRE.MatchString(l):
+			name := test
+			for _, r := range lines[i+1:] {
+				if m := runningTestRE.FindStringSubmatch(r); m != nil {
+					if name == "" {
+						name = m[1]
+					}
+					break
+				}
+			}
+			f := stackFinding(SourceTest, GuideStackTrace, name, strings.TrimSpace(l), lines[i+1:])
+			delete(f.builtins, "func")
+			return []finding{f}
+		case strings.HasPrefix(l, "fatal error: "):
+			return []finding{stackFinding(SourceRuntime, GuideStackTrace, contextTest(test, lines, i, -1), strings.TrimSpace(l), lines[i+1:])}
+		case strings.HasPrefix(l, "panic: "):
+			msg := panicMessage(lines[i:])
+			return []finding{stackFinding(SourceRuntime, GuideStackTrace, contextTest(test, lines, i, -1), msg, lines[i+1:])}
+		}
+	}
+	return nil
+}
+
+// panicMessage returns the panic value: from "panic: " up to the stack,
+// without the "[recovered]" marks the testing package adds.
+func panicMessage(lines []string) string {
+	var msg []string
+	for i, l := range lines {
+		if i > 0 && (strings.TrimSpace(l) == "" || strings.HasPrefix(l, "\tpanic: ") ||
+			strings.HasPrefix(l, "[signal ") || strings.HasPrefix(l, "goroutine ")) {
+			break
+		}
+		msg = append(msg, l)
+	}
+	return recoveredRE.ReplaceAllString(strings.Join(msg, "\n"), "")
+}
+
+func stackFinding(source, guide, test, msg string, after []string) finding {
+	f := finding{
+		source:   source,
+		guide:    guide,
+		raw:      Raw{Source: source, Test: test, Message: msg},
+		builtins: map[string]string{"test": test},
+	}
+	if fr, ok := firstUserFrame(parseFrames(after)); ok {
+		f.raw.File, f.raw.Line = path.Base(fr.path), fr.line
+		f.builtins["func"] = shortFunc(fr.fn)
+		f.builtins["file"] = f.raw.File
+		f.builtins["line"] = itoa(fr.line)
+	}
+	return f
+}
+
+// raceFindings returns 1 finding per race report.
+func raceFindings(test string, lines []string) []finding {
+	var fs []finding
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "WARNING: DATA RACE" {
+			continue
+		}
+		end := i + 1
+		for end < len(lines) && strings.TrimSpace(lines[end]) != raceSeparator {
+			end++
+		}
+		fs = append(fs, raceFinding(contextTest(test, lines, i, -1), lines[i:end]))
+		i = end
+	}
+	return fs
+}
+
+// raceFinding reads 1 report: the access that was caught, the previous
+// access it conflicts with, and where both goroutines were created.
+func raceFinding(test string, report []string) finding {
+	f := finding{
+		source:   SourceRace,
+		guide:    GuideRaceReport,
+		builtins: map[string]string{"test": test},
+	}
+	header := []string{strings.TrimSpace(report[0])}
+	var sections [][]string
+	for _, l := range report[1:] {
+		if m := raceAccessRE.FindStringSubmatch(l); m != nil && len(sections) < 2 {
+			header = append(header, l)
+			prefix := ""
+			if m[1] != "" {
+				prefix = "prev_"
+			}
+			f.builtins[prefix+"access"] = strings.ToLower(m[2])
+			sections = append(sections, nil)
+			continue
+		}
+		if !strings.HasPrefix(l, " ") && strings.TrimSpace(l) != "" {
+			// "Goroutine 7 (running) created at:" ends the access blocks.
+			if len(sections) == 2 {
+				sections = append(sections, nil)
+			}
+		}
+		if n := len(sections); n > 0 && n <= 2 {
+			sections[n-1] = append(sections[n-1], l)
+		}
+	}
+	for i, prefix := range []string{"", "prev_"} {
+		if i >= len(sections) {
+			break
+		}
+		fr, ok := firstUserFrame(parseFrames(sections[i]))
+		if !ok {
+			continue
+		}
+		f.builtins[prefix+"func"] = shortFunc(fr.fn)
+		f.builtins[prefix+"file"] = path.Base(fr.path)
+		f.builtins[prefix+"line"] = itoa(fr.line)
+	}
+	f.raw = Raw{
+		Source:  SourceRace,
+		File:    f.builtins["file"],
+		Line:    atoi(f.builtins["line"]),
+		Test:    test,
+		Message: strings.Join(header, "\n"),
+	}
+	if f.raw.File == "" {
+		f.raw.File, f.raw.Line = f.builtins["prev_file"], atoi(f.builtins["prev_line"])
+	}
+	// The patterns run against the whole report, so an entry can match on
+	// a frame (for example a map access); Raw keeps only the headline.
+	f.text = strings.Join(report, "\n")
+	return f
+}
+
+// exampleFindings finds an Example whose output differs: the testing
+// package prints "got:" and "want:" blocks.
+func exampleFindings(test string, lines []string) []finding {
+	name := test
+	isExample := strings.HasPrefix(test, "Example")
+	for i, l := range lines {
+		if m := failLineRE.FindStringSubmatch(l); m != nil && strings.HasPrefix(m[1], "Example") {
+			isExample = true
+			if name == "" || !strings.HasPrefix(name, "Example") {
+				name = m[1]
+			}
+		}
+		if !isExample || l != "got:" {
+			continue
+		}
+		var block []string
+		hasWant := false
+		for _, r := range lines[i:] {
+			if r == "want:" {
+				hasWant = true
+			} else if hasWant && (strings.HasPrefix(r, "FAIL") || strings.HasPrefix(r, "--- ") ||
+				strings.HasPrefix(r, "=== ") || strings.HasPrefix(r, "ok ")) {
+				break
+			}
+			block = append(block, r)
+		}
+		if !hasWant {
+			continue
+		}
+		msg := strings.TrimRight(strings.Join(block, "\n"), "\n")
+		return []finding{{
+			source:   SourceTest,
+			guide:    GuideFailingTest,
+			raw:      Raw{Source: SourceTest, Test: name, Message: msg},
+			builtins: map[string]string{"test": name},
+		}}
+	}
+	return nil
+}
+
+// assertFindings returns 1 finding per "file_test.go:NN: message" line,
+// or "file.go:NN: message" from a helper, with its more deeply indented
+// continuation lines.
+func assertFindings(test string, lines []string) []finding {
+	var fs []finding
+	for i := 0; i < len(lines); i++ {
+		m := assertRE.FindStringSubmatch(lines[i])
+		// The testing package reports its own problems from testing.go,
+		// such as "race detected during execution of test"; the race
+		// report itself is explained already.
+		if m == nil || m[2] == "testing.go" {
+			continue
+		}
+		indent := len(m[1])
+		msg := []string{m[4]}
+		j := i + 1
+		for ; j < len(lines); j++ {
+			l := lines[j]
+			if strings.TrimSpace(l) == "" || assertRE.MatchString(l) || testLineRE.MatchString(l) ||
+				indentOf(l) <= indent {
+				break
+			}
+			msg = append(msg, strings.TrimSpace(l))
+		}
+		name := contextTest(test, lines, i, indent)
+		fs = append(fs, finding{
+			source: SourceTest,
+			guide:  GuideFailingTest,
+			raw: Raw{Source: SourceTest, File: m[2], Line: atoi(m[3]), Test: name,
+				Message: strings.Join(msg, "\n")},
+			builtins: map[string]string{"file": m[2], "line": m[3], "test": name},
+		})
+		i = j - 1
+	}
+	return fs
+}
+
+// contextTest names the test that printed line i: the caller's test name
+// when there is one. In plain go test output the testing package prints a
+// test's logs after its "--- FAIL:" line, indented 4 spaces deeper; with -v
+// it prints them after the test's "=== RUN" line. indent is the
+// indentation of line i, or -1 for a line that belongs to the nearest test
+// above it (a panic).
+func contextTest(test string, lines []string, i, indent int) string {
+	if test != "" {
+		return test
+	}
+	if indent >= 4 {
+		for j := i - 1; j >= 0; j-- {
+			// With -v the logs follow the test's "=== RUN" line.
+			if m := runLineRE.FindStringSubmatch(lines[j]); m != nil {
+				return m[1]
+			}
+			if m := failLineRE.FindStringSubmatch(lines[j]); m != nil && indentOf(lines[j]) == indent-4 {
+				return m[1]
+			}
+		}
+	}
+	for j := i; j >= 0; j-- {
+		if m := testLineRE.FindStringSubmatch(lines[j]); m != nil {
+			return m[1]
+		}
+	}
+	return ""
+}
+
+func indentOf(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
+}
+
+func normalizeNewlines(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
+}
+
+func atoi(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return strconv.Itoa(n)
+}

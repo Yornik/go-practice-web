@@ -1,0 +1,7 @@
+id: compile-cannot-convert
+command: build
+file: x.go
+line: 4
+capture: expr=s
+capture: what=variable of type string
+capture: type=int

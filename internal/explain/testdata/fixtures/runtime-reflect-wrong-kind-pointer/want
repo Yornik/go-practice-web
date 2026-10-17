@@ -1,0 +1,8 @@
+id: runtime-reflect-wrong-kind
+command: test
+file: x.go
+line: 13
+test: TestFields
+capture: func=Fields
+capture: method=NumField
+capture: kind=ptr

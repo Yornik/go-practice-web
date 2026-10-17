@@ -1,0 +1,5 @@
+id: staticcheck-sa6
+command: staticcheck
+file: x.go
+line: 8
+capture: code=SA6000

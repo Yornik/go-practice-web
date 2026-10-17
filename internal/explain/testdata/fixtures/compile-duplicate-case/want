@@ -1,0 +1,6 @@
+id: compile-duplicate-case
+command: build
+file: x.go
+line: 9
+capture: value="warn"
+capture: kind=expression switch

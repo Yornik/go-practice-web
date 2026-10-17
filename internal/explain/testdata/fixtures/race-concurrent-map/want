@@ -1,0 +1,9 @@
+id: race-concurrent-map
+command: test -race
+file: x.go
+line: 11
+test: TestStatus
+capture: func=Status.func1
+capture: access=write
+capture: prev_access=write
+capture: prev_func=Status.func1

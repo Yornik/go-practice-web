@@ -1,0 +1,7 @@
+id: test-goroutine-leak
+command: test
+file: x_test.go
+line: 17
+test: TestFirstLeak
+capture: call=First
+capture: wait=100ms

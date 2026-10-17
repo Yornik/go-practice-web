@@ -1,0 +1,9 @@
+--- FAIL: TestGotWant (0.00s)
+    --- FAIL: TestGotWant/case_one (0.00s)
+        y_test.go:29: Add(1, 2) = 3, want 4
+    y_test.go:32: Parse("a")
+         got  ["x"]
+         want ["y"]
+FAIL
+FAIL	github.com/yornik/go-practice/exercises/99-demo	0.010s
+FAIL

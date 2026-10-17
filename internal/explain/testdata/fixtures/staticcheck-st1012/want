@@ -1,0 +1,6 @@
+id: staticcheck-st1012
+command: staticcheck
+file: x.go
+line: 5
+capture: name=NotFound
+capture: form=ErrFoo

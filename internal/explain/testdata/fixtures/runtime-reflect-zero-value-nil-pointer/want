@@ -1,0 +1,7 @@
+id: runtime-reflect-zero-value
+command: test
+file: x.go
+line: 7
+test: TestResetNil
+capture: func=Reset
+capture: method=SetInt

@@ -1,0 +1,3 @@
+id: compile-import-cycle
+command: build
+capture: pkg=example.com/fixture

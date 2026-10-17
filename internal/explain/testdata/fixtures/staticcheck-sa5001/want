@@ -1,0 +1,6 @@
+id: staticcheck-sa5001
+command: staticcheck
+file: x.go
+line: 10
+capture: call=os.Open()
+capture: close=f.Close()

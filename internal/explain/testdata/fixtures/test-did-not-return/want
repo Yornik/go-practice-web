@@ -1,0 +1,8 @@
+id: test-did-not-return
+command: test
+file: x_test.go
+line: 10
+test: TestInc
+capture: call=Inc()
+capture: action=return
+capture: limit=100ms

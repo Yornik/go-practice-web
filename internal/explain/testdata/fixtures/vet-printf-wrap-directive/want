@@ -1,0 +1,5 @@
+id: vet-printf-wrap-directive
+command: vet
+file: x.go
+line: 11
+capture: call=log.Printf

@@ -1,0 +1,5 @@
+id: vet-buildtag
+command: vet
+file: x.go
+line: 3
+capture: code=buildtag

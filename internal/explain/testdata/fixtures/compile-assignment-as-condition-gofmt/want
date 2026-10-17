@@ -1,0 +1,4 @@
+id: compile-assignment-as-condition
+command: gofmt
+file: x.go
+line: 4

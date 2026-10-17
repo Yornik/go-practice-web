@@ -1,0 +1,6 @@
+id: compile-pointer-method-on-value
+command: build
+file: x.go
+line: 8
+capture: method=Inc
+capture: type=Counter

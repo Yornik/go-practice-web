@@ -1,0 +1,33 @@
+{{define "content"}}
+<section class="hero">
+  <h1>Learn Go by solving the problems you meet on call</h1>
+  <div class="hero-intro">{{.Course.Intro}}</div>
+  <p class="hero-meta">{{len .Course.Exercises}} exercises in {{len .Course.Tiers}} tiers, about {{hours .Course.Hours}} in total. Real <code>go test -race</code> runs, a hint ladder and signed certificates.</p>
+  <p class="hero-actions">
+    {{- if .User}}
+    <a class="button button-primary" href="/learn">Continue learning</a>
+    {{- else}}
+    <a class="button button-primary" href="/login">Sign in with a passkey</a>
+    <span class="muted">Sign-up is by invite.</span>
+    {{- end}}
+    <a class="button" href="/guide">How the course works</a>
+  </p>
+</section>
+
+<section class="tiers" aria-labelledby="tiers-title">
+  <h2 id="tiers-title">The tiers</h2>
+  <ol class="tier-list">
+    {{- range .Course.Tiers}}
+    <li class="tier-card">
+      <h3>{{.Title}} <span class="muted">· exercises {{.Range}} · {{hours .Hours}}</span></h3>
+      <p>{{.Theme}}</p>
+      <ul class="exercise-names">
+        {{- range .Exercises}}
+        <li><span class="exercise-number">{{pad2 .Number}}</span> {{.Title}}</li>
+        {{- end}}
+      </ul>
+    </li>
+    {{- end}}
+  </ol>
+</section>
+{{end}}

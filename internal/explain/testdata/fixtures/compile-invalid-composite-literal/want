@@ -1,0 +1,6 @@
+id: compile-invalid-composite-literal
+command: build
+file: x.go
+line: 4
+capture: type=T
+capture: reason=no common underlying type

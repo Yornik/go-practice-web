@@ -1,0 +1,6 @@
+id: compile-nil-value
+command: build
+file: x.go
+line: 15
+capture: type=Host
+capture: context=return statement

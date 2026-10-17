@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+
+# The runner image: the go toolchain with gcc (the race detector needs cgo),
+# staticcheck, the course's tests and a pre-warmed build cache. Learner code
+# runs in this image, so it holds nothing worth stealing: no hidden course
+# material and no credentials. See "Runner" in docs/DESIGN.md.
+#
+# Build from the repository root with the course submodule checked out:
+#   docker build -f Dockerfile.runner -t go-practice-runner .
+
+ARG GO_IMAGE=golang:1.27-bookworm
+
+FROM ${GO_IMAGE} AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY internal/runnerapi/ internal/runnerapi/
+COPY internal/runner/ internal/runner/
+COPY cmd/runner/ cmd/runner/
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/runner ./cmd/runner
+# staticcheck reads the standard library's export data, so it is built by
+# the same Go release that runs it.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GOBIN=/out go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
+
+FROM ${GO_IMAGE}
+
+# tini is PID 1: it passes SIGTERM on to the runner and reaps what reaches
+# it. The runner is a child subreaper, so the processes its runs leave
+# behind become its own children, which it kills and reaps itself.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tini \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /out/runner /out/staticcheck /usr/local/bin/
+
+# Only what a run needs. The course's solutions/ stays out: without the
+# Landlock sandbox (an old node kernel) learner code can read every file in
+# this image.
+COPY course/go.mod /course/go.mod
+COPY course/exercises/ /course/exercises/
+
+# Pre-warm the build cache for the standard library, with and without -race,
+# in the environment the runner gives its children, so that the cache keys
+# match. go vet compiles the dependencies for their export data; go test
+# -race builds every test binary and runs no test. The runner copies this
+# seed into the empty /cache volume at start.
+RUN cd /course \
+ && export GOCACHE=/opt/gocache-seed GOTOOLCHAIN=local GOFLAGS=-mod=mod GOPROXY=off CGO_ENABLED=1 \
+ && go telemetry off \
+ && go vet ./exercises/... \
+ && go test -race -count=1 -run '^$' ./exercises/... \
+ && chmod -R a+rX /opt/gocache-seed /course \
+ && rm -rf /root/.config/go
+
+# The runner writes only to GPR_WORK_DIR (/tmp/runs) and GPR_GOCACHE
+# (/cache/go-build); mount /tmp and /cache as volumes and keep the root
+# filesystem read-only. The GPR_* defaults match this layout.
+USER 65532:65532
+EXPOSE 8081 9091
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/runner"]

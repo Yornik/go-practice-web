@@ -1,0 +1,4 @@
+id: vet-errorsas
+command: vet
+file: x.go
+line: 7

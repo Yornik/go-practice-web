@@ -1,0 +1,7 @@
+id: runtime-ticker-non-positive
+command: test
+file: x.go
+line: 12
+test: TestPollDefault
+capture: func=Poll
+capture: call=NewTicker

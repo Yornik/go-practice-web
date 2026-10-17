@@ -1,0 +1,5 @@
+id: compile-cannot-assign
+command: build
+file: x.go
+line: 7
+capture: expr=s[0]

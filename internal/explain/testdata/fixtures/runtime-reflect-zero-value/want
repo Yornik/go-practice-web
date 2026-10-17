@@ -1,0 +1,7 @@
+id: runtime-reflect-zero-value
+command: test
+file: x.go
+line: 12
+test: TestSetUnknown
+capture: func=Set
+capture: method=SetString

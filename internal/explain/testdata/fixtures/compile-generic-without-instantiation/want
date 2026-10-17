@@ -1,0 +1,6 @@
+id: compile-generic-without-instantiation
+command: build
+file: x.go
+line: 7
+capture: kind=type
+capture: name=Ring[T any]

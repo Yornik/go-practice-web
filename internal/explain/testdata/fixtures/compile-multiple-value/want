@@ -1,0 +1,6 @@
+id: compile-multiple-value
+command: build
+file: x.go
+line: 6
+capture: call=strconv.Atoi(s)
+capture: type=(int, error)

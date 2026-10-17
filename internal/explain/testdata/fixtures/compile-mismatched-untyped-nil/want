@@ -1,0 +1,6 @@
+id: compile-mismatched-untyped
+command: build
+file: x.go
+line: 6
+capture: left=Point
+capture: right=untyped nil

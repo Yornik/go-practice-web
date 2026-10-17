@@ -1,0 +1,6 @@
+{{define "layout"}}{{template "content" .}}
+
+--
+Go Practice sent this email automatically. Nobody reads replies.
+{{.SiteURL}}/
+{{end}}

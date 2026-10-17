@@ -1,0 +1,5 @@
+id: vet-lostcancel-discarded
+command: vet
+file: x.go
+line: 10
+capture: call=context.WithTimeout

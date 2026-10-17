@@ -1,0 +1,6 @@
+id: staticcheck-s1030
+command: staticcheck
+file: x.go
+line: 11
+capture: want=buf.String()
+capture: have=string(buf.Bytes())

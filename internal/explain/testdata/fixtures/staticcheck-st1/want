@@ -1,0 +1,5 @@
+id: staticcheck-st1
+command: staticcheck
+file: x.go
+line: 5
+capture: code=ST1011

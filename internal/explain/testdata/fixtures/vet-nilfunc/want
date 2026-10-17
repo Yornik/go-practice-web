@@ -1,0 +1,6 @@
+id: vet-nilfunc
+command: vet
+file: x.go
+line: 8
+capture: name=defaultLog
+capture: result=true

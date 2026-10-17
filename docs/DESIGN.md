@@ -23,6 +23,7 @@ This file is the contract between the components. If code and this file disagree
 ```text
 cmd/web/                The web server (main package only: config, wiring).
 cmd/runner/             The runner server (main package only).
+cmd/gendocs/            Build step: indexes the standard library docs of the runner's Go release for the editor.
 internal/runnerapi/     Request and response types shared by web and runner. The wire contract.
 internal/runner/        Runner side: workspace preparation, sandboxed exec, go test -json parsing.
 internal/course/        Loads the course from course/: exercises, steps, files, rendered READMEs, hidden material.
@@ -30,6 +31,7 @@ internal/store/         SQLite access, migrations (embedded SQL), backups.
 internal/auth/          Passkeys (go-webauthn), sessions, invites, setup token, email tokens, rate limits.
 internal/mail/          SMTP sender and the email templates. A log-only sender when SMTP is not configured.
 internal/cert/          Certificate eligibility, signing, PDF rendering (signintech/gopdf), QR (rsc.io/qr).
+internal/godoc/         The embedded standard library docs index (data/stdlib.json.gz), lookups and the /api/docs handler.
 internal/web/           HTTP handlers, middleware (CSRF, CSP, sessions), template rendering, API.
 web/templates/          html/template pages and partials.
 web/static/             CSS, JS modules, fonts, images. Monaco is copied to web/static/vendor/monaco/ at build time.
@@ -52,14 +54,14 @@ All configuration is environment variables. Unknown or invalid values stop the p
 |---|---|---|
 | `GPW_ADDR` | `:8080` | HTTP listen address for the site. |
 | `GPW_METRICS_ADDR` | `:9090` | Prometheus `/metrics`. Not routed publicly. |
-| `GPW_PUBLIC_URL` | (required) | `https://go-learn.party`. Origin for WebAuthn, links in emails and certificates. |
+| `GPW_PUBLIC_URL` | (required) | `https://go-learn.party`. Origin for WebAuthn, links in emails and certificates. An origin only (no path or query); `https` unless `GPW_DEV`. |
 | `GPW_DB_PATH` | `/data/go-practice.db` | SQLite file. Backups go to `<dir>/backups/`. |
 | `GPW_COURSE_DIR` | `/course` | Checkout of go-practice. |
 | `GPW_RUNNER_URL` | (required) | For example `http://runner.go-practice-runner.svc:8081`. |
-| `GPW_RUNNER_TOKEN` | (required) | Bearer token for the runner. |
+| `GPW_RUNNER_TOKEN` | (required) | Bearer token for the runner, at least 32 characters; equal to `GPR_TOKEN`. |
 | `GPW_SMTP_HOST`, `GPW_SMTP_PORT`, `GPW_SMTP_USER`, `GPW_SMTP_PASSWORD` | empty | When the host or the password is empty or `REPLACE_ME`, mail is logged instead of sent. |
 | `GPW_MAIL_FROM` | `Go Practice <go-practice@yornik.eu>` | Sender. |
-| `GPW_TRUSTED_PROXIES` | `10.244.0.0/16` | CIDRs whose `X-Forwarded-For` is trusted for client IPs. |
+| `GPW_TRUSTED_PROXIES` | `10.244.0.0/16` | CIDRs whose `X-Forwarded-For` is trusted for client IPs, separated by commas or spaces; empty trusts none. It must cover the Traefik pods (the cluster's pod CIDR; k3s uses `10.42.0.0/16`): otherwise every client counts as Traefik's address, and 1 client can use up the sign-in limits for everyone. Only trusted proxies may reach the web pods (NetworkPolicy), or a pod could forge `X-Forwarded-For`. |
 | `GPW_DEV` | `false` | Local development: allows `http://localhost`, drops the `__Host-` cookie prefix and `Secure`. |
 
 ### Runner (`GPR_`)
@@ -68,14 +70,14 @@ All configuration is environment variables. Unknown or invalid values stop the p
 |---|---|---|
 | `GPR_ADDR` | `:8081` | Listen address. |
 | `GPR_METRICS_ADDR` | `:9091` | Prometheus `/metrics`. |
-| `GPR_TOKEN` | (required) | Expected bearer token. |
+| `GPR_TOKEN` | (required) | Expected bearer token, at least 32 characters (`openssl rand -hex 32`). |
 | `GPR_COURSE_DIR` | `/course` | Checkout of go-practice (tests, testdata, go.mod). |
 | `GPR_WORK_DIR` | `/tmp/runs` | Per-run directories. |
 | `GPR_GOCACHE` | `/cache/go-build` | Shared build cache. Seeded at start from `GPR_GOCACHE_SEED` if empty. |
 | `GPR_GOCACHE_SEED` | `/opt/gocache-seed` | Pre-warmed cache baked into the image. |
 | `GPR_MAX_CONCURRENT` | `2` | Concurrent `go` invocations. More requests queue up to `GPR_MAX_QUEUE`. |
 | `GPR_MAX_QUEUE` | `8` | Queue length. When full: HTTP 429 with `Retry-After`. |
-| `GPR_TEST_TIMEOUT` | `45s` | Wall clock for `go test`. Under the 60 s Traefik timeout. |
+| `GPR_TEST_TIMEOUT` | `45s` | Wall clock for `go test`. Under the 60 s Traefik timeout. After SIGTERM the runner lets running jobs finish for this long plus 5 s, then kills them; set `terminationGracePeriodSeconds` to at least this plus 15 s. |
 | `GPR_CHECK_TIMEOUT` | `20s` | Wall clock for vet, staticcheck and gofmt together. |
 
 ## Runner
@@ -120,23 +122,55 @@ Response: `Content-Type: application/x-ndjson`, streamed. Each line is an event:
 
 `GET /healthz` (process alive) and `GET /readyz` (course loaded, `go version` works, work dir writable).
 
+Details the runner fixes beyond the wire types:
+
+- **Errors.** 400 for an unknown exercise, a file name that is not a stub, a missing stub (`missing_file`), a file or total over the limit or an invalid `run` regular expression; 413 for a body over 6 MiB + 64 KiB (JSON escaping can grow 1 MiB of content up to 6 times); 429 `queue_full` with `Retry-After: 5`; 503 `shutting_down` while draining; 504 `timeout` when `go vet` runs out of `GPR_CHECK_TIMEOUT` (a `staticcheck` that runs out is skipped and the vet results are returned).
+- **Check.** A file that does not parse returns only the `gofmt` diagnostics and skips the tools. Columns are byte columns, as the Go tools count them. `staticcheck` runs only when vet found no compile error, and only its findings in stub files are returned: the course's test files are not the learner's to fix. Its cache lives next to `GPR_GOCACHE` (`/cache/staticcheck`).
+- **Queue position.** `position` counts every request ahead, the running ones included, so it is at least 1. It is sent again whenever it changes.
+- **Counts.** `passed`, `failed` and `skipped` count leaf tests, so 1 failing subtest is 1 failure, not 2. A parent test that fails while all its subtests pass counts as 1 failure.
+- **Killed runs.** A run killed for the timeout, the output cap, a client that left or a shutdown has `exitCode` -1. `timedOut` is set only for a run that was killed at the deadline.
+- **Paths in output.** The workspace path is cut from all output, so a stack trace shows `exercises/07-retry/retry.go:12`.
+- **Workspace.** `GPR_WORK_DIR/run-<random>/` holds `mod/` (the module: `go.mod`, `exercises/<exercise>/`), and the per-run `home/`, `gopath/` and `tmp/`. At start the runner removes `run-*` directories a previous process left; nothing else in `GPR_WORK_DIR` is touched.
+
 ### Sandbox rules
 
 - File names in `files` must be exactly the exercise's stub file names (`*.go`, not `_test.go`). Anything else is a 400. This blocks path traversal and test replacement. Max 256 KiB per file, 1 MiB total.
 - Each request gets a fresh directory `GPR_WORK_DIR/<random>/` with `go.mod` from the course, the exercise's `*_test.go` and `testdata/` copied from the course, and the learner's files. The directory is deleted when the request ends.
-- `go` runs as a child process in its own process group, with a minimal environment: `HOME`, `PATH`, `GOCACHE`, `GOPATH` (per run), `GOFLAGS=-mod=mod`, `GOPROXY=off`, `GOTOOLCHAIN=local`, `GOTELEMETRY=off`, `CGO_ENABLED=1` (the race detector needs cgo), `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY=http://127.0.0.1:9` (a dead end for code that honours proxies; not a security boundary).
-- On timeout, cancellation or output over the cap the runner kills the whole process group (SIGKILL).
+- `go` runs as a child process in its own session (and so its own process group), with a minimal environment: `HOME`, `PATH`, `GOCACHE`, `GOPATH` and `TMPDIR` (`HOME`, `GOPATH` and `TMPDIR` per run, so that a killed run leaves nothing in `/tmp`), `GOFLAGS=-mod=mod`, `GOPROXY=off`, `GOTOOLCHAIN=local`, `GOTELEMETRY=off`, `CGO_ENABLED=1` (the race detector needs cgo), `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY=http://127.0.0.1:9` (a dead end for code that honours proxies; not a security boundary). `staticcheck` also gets `STATICCHECK_CACHE`. `GOTELEMETRY` cannot be set from the environment, so each per-run `HOME` holds the telemetry mode file with `off`; otherwise `go` starts a telemetry child in its own session, outside the process group.
+- **Landlock.** Learner code runs as the runner's user, so the kernel's file permissions do not separate runs. Every child starts confined by Landlock (no privileges needed; `internal/runner/sandbox_linux.go`). The runner restricts a spare thread (never the main thread: the kernel checks signals and ptrace against it) with `no_new_privs` and 2 Landlock layers, starts the child from it and lets the thread end. What a run may do:
+  - Files: read and execute `/usr`, `/bin`, `/sbin`, `/lib*`, GOROOT, the directories of `go` and `staticcheck` and of `PATH`; read `/etc`, `/proc`, `/sys`; read and write `/dev` (no device nodes); read, write and execute its own workspace, `GPR_GOCACHE` and the staticcheck cache. Everything else is denied: other runs' workspaces, the course checkout (it holds `solutions/` in development), `/tmp`, `/var/run/secrets`.
+  - Processes: Landlock's ptrace rule keeps a run from `ptrace` and from `/proc/<pid>/mem`, `environ` and `exe` of processes outside its domain, such as PID 1 (`tini`, whose environment holds `GPR_TOKEN`) and the runner. With ABI 6 (Linux 6.12) it also cannot signal them or reach abstract Unix sockets outside. A process with `CAP_PERFMON` or `CAP_SYS_ADMIN` may still read other environments, so the pod must not grant them.
+  - TCP (ABI 4, Linux 6.7): bind only to an ephemeral port (port 0) and connect only to ports in the ephemeral range (`net.ipv4.ip_local_port_range`), which is what `httptest.Server` and `net.Listen("tcp", "127.0.0.1:0")` need. The runner's own API and metrics, the Kubernetes API, DNS over TCP and web servers on their usual ports are out of reach. UDP is not covered.
+  - The level depends on the node's kernel; the runner logs it at start (`sandbox for runs` with the field `sandbox`; WARN when Landlock is missing, in which case runs are not confined). When the kernel has Landlock but refuses the rules, the run fails instead of running unconfined.
+- **Processes that outlive a run.** On timeout, cancellation or output over the cap the runner kills the session's process group (SIGKILL), and it does so after a normal exit too. A process that left the group (`setpgid`) or the session (`setsid`) survives that, so the runner is a child subreaper: such a process becomes the runner's child when its parent dies. After every command and every 5 s the runner sweeps: every descendant outside the session of a running command is stopped (SIGSTOP, repeated until nothing in the set runs, so a fork bomb cannot outrun it) and then killed, through a pidfd checked against the process start time, and zombies are reaped. A run cannot join the runner's own process group, because `setpgid` works only within a session. The count is the metric `runner_stray_processes_killed_total` and a WARN log line. `tini` is PID 1 and passes SIGTERM on; the runner process is non-dumpable, so learner code cannot read its memory even without Landlock.
+- **Limits.** Each child gets `oom_score_adj` 1000 (the OOM killer takes learner code before the runner), no core dumps and at most 256 MiB per file it writes. Output is capped at 1 MiB per run and runs at `GPR_TEST_TIMEOUT`.
+- The runner image holds only `go.mod` and `exercises/` of the course. `solutions/` stays out: without Landlock (an old node kernel) learner code can read every file in the image.
 - The runner process holds no secret but its own token. The pod has no service account token, runs as UID 65532, has a read-only root filesystem, drops all capabilities and uses the RuntimeDefault seccomp profile. `/tmp` and `/cache` are `emptyDir` volumes with size limits.
 - Network isolation is a NetworkPolicy (no egress at all, ingress only from the web namespace). It only works if the cluster's CNI enforces NetworkPolicies. Document this; do not depend on it for anything except defense in depth.
 
+What the deployment must provide, because code cannot:
+
+- A node kernel with Landlock in its LSM list, Linux 6.12 or later for every rule above (check the runner's start log). The RuntimeDefault seccomp profile of containerd 1.7 and later allows the Landlock system calls.
+- `securityContext`: `runAsNonRoot`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `readOnlyRootFilesystem`, `seccompProfile: RuntimeDefault`, `automountServiceAccountToken: false`.
+- A PID limit for the pod. Kubernetes sets it per node (kubelet `podPidsLimit`; on k3s `--kubelet-arg=pod-max-pids=1024`). Without it a fork bomb in a run can use up the node's PIDs for up to `GPR_TEST_TIMEOUT`.
+- `resources.limits` for CPU and memory (Go then sizes `GOMAXPROCS` from the CPU limit), and `ephemeral-storage`.
+- `emptyDir.sizeLimit` on `/tmp` and `/cache` (about 2 GiB for `/cache`). A run can still fill them with many files under the 256 MiB per-file limit; the kubelet then evicts the pod, which restarts with an empty `/tmp`.
+- NetworkPolicies: no egress from the runner namespace (UDP included), ingress to `:8081` only from the web pods and to `:9091` only from Prometheus.
+
+Remaining risks, accepted for an invite-only course:
+
+- The build cache is shared and writable by runs (go must write to it). A learner who plants a forged build output for a standard library package changes the test binaries of later runs, other learners' included, inside their sandbox: their tests could pass or fail at will, and the planted code could copy their files into the cache for the attacker's next run to read. The fix is a `GOCACHEPROG` that serves the read-only seed of the image and keeps each run's writes apart. The staticcheck cache has the same property; there it only changes lint messages.
+- A pass is what the test binary reports, and learner code runs inside it: it can print test2json lines and exit 0. The web server requires every top-level test to report (see "Progress"), which stops the cheap fakes, but a determined learner can still fake a pass, and the reference solutions are public in the course repository. Certificates record what the site saw, not proof of skill.
+- Without Landlock ABI 6 a run can signal the runner and `tini` (same user), which restarts the pod; without ABI 4 it can connect to the runner's own ports (it needs the token, which Landlock's ptrace rule protects).
+
 ## Data model
 
-SQLite, migrations in `internal/store/migrations/NNNN_name.sql`, applied in order at start inside a transaction, version in `schema_migrations`. Times are UTC RFC 3339 text. IDs are integers except where noted.
+SQLite, migrations in `internal/store/migrations/NNNN_name.sql`, applied in order at start inside a transaction, version in `schema_migrations`. A database with a migration this build does not know stops the start. Times are UTC RFC 3339 text with milliseconds and a fixed width (`2026-10-17T09:12:33.000Z`), so that text order is time order. IDs are integers except where noted.
 
 | Table | Columns (key ones) |
 |---|---|
 | `users` | id, username (unique, 3–32 chars `[a-z0-9_-]`), display_name, email (unique, nullable), email_verified_at, is_admin, disabled_at, webauthn_handle (32 random bytes, unique), created_at |
-| `credentials` | id (credential ID bytes, PK), user_id, public_key, attestation_type, aaguid, sign_count, transports, backup_eligible, backup_state, name (user label), created_at, last_used_at |
+| `credentials` | id (credential ID bytes, PK), user_id, public_key, attestation_type, aaguid, sign_count, clone_warning, transports, attachment, user_present, user_verified, backup_eligible, backup_state, name (user label), created_at, last_used_at |
 | `sessions` | token_hash (SHA-256, PK), user_id, created_at, expires_at, last_seen_at, user_agent |
 | `webauthn_ceremonies` | id (random, PK), kind (register, login, add, recover), user_id (nullable), data (JSON SessionData), expires_at |
 | `invites` | token_hash (PK), created_by, email (nullable), note, created_at, expires_at, used_by, used_at |
@@ -145,9 +179,14 @@ SQLite, migrations in `internal/store/migrations/NNNN_name.sql`, applied in orde
 | `code` | user_id, exercise, file, content, updated_at; PK (user_id, exercise, file) |
 | `progress` | user_id, exercise, status (started, passed), started_at, passed_at, active_seconds, runs, last_run_at, last_result (JSON summary), notes; PK (user_id, exercise) |
 | `reveals` | user_id, exercise, level (1–6), revealed_at; PK (user_id, exercise, level) |
-| `certificates` | id (text, PK, `GP-XXXX-XXXX-XXXX` from a Crockford base32 alphabet), user_id, kind (tier1..tier5, course), name_on_cert, issued_at, show_stats, stats (JSON), payload (canonical JSON that was signed), signature, revoked_at |
+| `certificates` | id (text, PK, `GP-XXXX-XXXX-XXXX` from a Crockford base32 alphabet), user_id, kind (tier1..tier5, course), name_on_cert, issued_at, show_stats, stats (JSON), payload (canonical JSON that was signed), signature, revoked_at, replaced_by; a partial unique index allows 1 valid certificate per user and kind |
 | `settings` | key (PK), value — holds the certificate signing key (generated at first start) |
 | `audit` | id, user_id (nullable), event, detail (JSON), ip, created_at |
+| `probe` | id (always 1), value, updated_at — readiness writes a random value and reads it back |
+
+`internal/store` makes each flow atomic, so the web layer needs no locks: a registration uses its invite or setup token in the same transaction as the new user and passkey; recovery uses its token, adds the passkey and optionally removes the others and the sessions together; deleting a passkey cannot remove the last one; a reveal of level N succeeds only when level N−1 exists, checked in the insert itself; `MarkPassed` sets `passed_at` once; re-issuing a certificate revokes the old one and sets `replaced_by` in the same transaction. A new email token deletes the user's unused tokens of the same purpose. A change of email stores a verify token for the new address; `VerifyEmail` moves it into `users.email`, so the old verified address works for recovery until then.
+
+Connection settings: 1 `*sql.DB` with 4 connections, `busy_timeout` 10 s, `foreign_keys=ON`, `synchronous=FULL`, `journal_mode=DELETE`, and `BEGIN IMMEDIATE` transactions (a deferred transaction that reads and then writes can fail with `SQLITE_BUSY` without waiting). The daily backup runs `VACUUM INTO` a temporary file, checks it with `PRAGMA integrity_check`, fsyncs it and renames it to `go-practice-<weekday>.db`, so a bad copy never replaces a good one.
 
 ## Authentication and accounts
 
@@ -155,20 +194,22 @@ Library: `github.com/go-webauthn/webauthn`. Relying party: ID = host of `GPW_PUB
 
 Flows:
 
-1. **Setup.** At start, if `users` is empty and no unused setup token exists, generate a 32-byte token, store its hash, and log `setup link: <PUBLIC_URL>/setup?token=<token>` once at WARN level. `/setup` works like an invite and makes the account admin.
+1. **Setup.** At every start while `users` is empty, generate a 32-byte token, store its hash in place of any unused setup token, and log `setup link: <PUBLIC_URL>/setup?token=<token>` at WARN level. A pod that restarts before setup so logs a link that works; the older link stops working. `/setup` works like an invite and makes the account admin.
 2. **Sign-up with an invite.** `/join?invite=<token>`: the user picks a username, display name and email, then creates a passkey. On success: the account and credential are stored, the invite is used, the user is signed in and a verification email goes out. An invite is single use and expires (default 7 days).
 3. **Login.** `/login`: "Sign in with a passkey" (discoverable flow, no username) plus conditional UI (passkey autofill) when the browser supports it.
-4. **Sessions.** Cookie `__Host-gpw_session` (HttpOnly, Secure, SameSite=Lax, Path=/), 32 random bytes, stored as SHA-256, 30-day expiry, sliding (refreshed at most once per hour). Logout deletes the row.
-5. **Account page.** List, rename and delete passkeys (not the last one), add a passkey, change display name, change email (sends a new verification), sign out everywhere.
-6. **Recovery.** `/recover`: enter an email address. The response is always the same message. If a user with that verified email exists, send a link `/recover/confirm?token=<token>` (15 min, single use). That page lets the user create a new passkey and optionally remove all old ones. Afterwards an email reports that a passkey was added through recovery.
+4. **Sessions.** Cookie `__Host-gpw_session` (HttpOnly, Secure, SameSite=Lax, Path=/), 32 random bytes, stored as SHA-256, 30-day expiry, sliding (refreshed at most once per hour, and the cookie is renewed with it). Logout deletes the row; "sign out everywhere" deletes all the user's rows. With `GPW_DEV` the cookie is `gpw_session` without `Secure`, because browsers refuse the prefix over http. A disabled account has no session.
+5. **Account page.** List, rename and delete passkeys (not the last one), add a passkey, change display name, change email (sends a new verification), sign out everywhere. An unverified address is replaced at once; a verified one stays in use for recovery until the new one is verified, and it cannot be removed (it is the only way back in).
+6. **Recovery.** `/recover`: enter an email address. The response is always the same message, and the lookup and the mail run in the background, so neither the answer nor its timing tells whether the address has an account. If an enabled user with that verified email exists, send a link `/recover/confirm?token=<token>` (15 min, single use). That page lets the user create a new passkey and optionally remove all old ones and every session. Afterwards an email reports that a passkey was added through recovery.
 7. **Security notices.** Email the user when a passkey is added or removed, when the email changes (to the old and the new address), and when recovery is used.
-8. **Admin.** `/admin`: create invite links (optionally emailed), list and revoke invites, list users with progress, disable or enable a user. Admins cannot remove their own admin flag.
+8. **Admin.** `/admin`: create invite links (optionally emailed; the mail goes out at once, so the admin sees a failure), list and revoke invites, list users with progress, disable or enable a user. Admins cannot disable themselves or remove their own admin flag.
+9. **Ceremonies.** A begin endpoint answers `{ceremony, options}`: `options` is go-webauthn's `{publicKey, mediation}` for `navigator.credentials.create` or `.get`, with byte fields in base64url. The finish request is `{ceremony, credential, ...}` with the browser's `PublicKeyCredential` as JSON. The server half (go-webauthn `SessionData`) is stored in `webauthn_ceremonies` for 5 minutes and taken once, so a ceremony cannot be replayed. The ID travels in the body, not a cookie, so the autofill request of the login page and a click on its button can run side by side.
+10. **Sign counter.** A login whose signature counter does not grow beyond the stored one (when either is non-zero) is refused with 403 `passkey_cloned`, and the passkey is flagged on the account page: 2 copies of the key may exist. Synced passkeys always report 0 and never trip this. A credential that is unknown or was removed gets 400 `unknown_passkey`.
 
 Protection:
 
 - CSRF: every state-changing request is `POST`/`PUT`/`DELETE` with a JSON body, must carry `X-GPW-CSRF: 1`, and its `Origin` must equal `GPW_PUBLIC_URL`. SameSite=Lax is the second layer.
-- CSP (set by the app on every HTML response): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`. Add only what Monaco proves it needs, with a comment.
-- Rate limits (in memory, per client IP and per account): WebAuthn begin endpoints 20/min per IP; recovery 5/hour per IP and 3/hour per address; check 30/min per user; test runs 10/min per user; at most 1 test run in flight per user.
+- CSP (set by the app on every response except the certificate PDF): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`. Add only what Monaco proves it needs, with a comment. Monaco needed `font-src data:`: its codicon icon font is a data URL in its CSS. Its workers are blob URLs that call `importScripts`, which `worker-src blob:` and `script-src 'self'` allow. The other headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` (links carry tokens), `Cross-Origin-Opener-Policy: same-origin`, a `Permissions-Policy` without camera, microphone, geolocation, payment and USB, and HSTS outside dev mode.
+- Rate limits (in memory token buckets, per client IP and per account): WebAuthn begin endpoints 20/min per IP; recovery 5/hour per IP and 3/hour per address (resending a verification link counts against the address too); check 30/min per user, and 1 check in flight per user (a newer check cancels the older one, at the runner too, which answers 409 `superseded`; the runner's slots are shared by everyone); format 60/min per user; test runs 10/min per user; at most 1 test run in flight per user (409 `run_in_progress`); saves, resets, notes and heartbeats together 120/min per user (each is a synced write on the shared NFS volume); verification links 5/hour per account and 3/hour per address (a change of email mails the new address); certificate claims 10/hour per user; certificate PDFs 30/min per IP. A limit answers 429 with `Retry-After`. Per-IP limits count an IPv6 client per /64, because it can use any address of its /64. The client IP is the peer address, or, when the peer is in `GPW_TRUSTED_PROXIES`, the rightmost `X-Forwarded-For` entry that is not a trusted proxy.
 - Templates escape everything. Markdown from the course is trusted content (it is in our repository), rendered server-side by goldmark with raw HTML disabled.
 
 ## Course content
@@ -177,9 +218,10 @@ Protection:
 
 - Exercises in directory order. For each: number, slug, title (line 1 `# NN · Title`), tier and time (line 3 `**Tier N · about X h**`), the Go topics and the problem-solving text from line 3, and the README rendered to HTML with goldmark (GFM tables, heading IDs, chroma highlighting with CSS classes).
 - The README is split into sections by `## ` heading so the UI can place them: Task, Rules, Examples, Run the tests, Docs you can use, Stretch goals. The "Stuck?" section is not shown; the hint ladder replaces it.
-- Steps from the "Run the tests" section: every line `go test ... -run <regexp> ... # step N: label` (or `# part N: label`) becomes `{n, label, run, race}`. Add an "All tests" step that is the full run.
+- Steps from the "Run the tests" section: every line `go test ... -run <regexp> ... # step N: label` (or `# part N: label`) becomes `{id, n, kind, label, run, race, command}`, with `id` `step-N` or `part-N`. Add an "All tests" step that is the full run: `id` `all`, empty `run`, `race` true. The API's `step` is the `id`. The runner takes `-run` only, so a README step with `-skip` (18-certcheck step 1) becomes an explicit `-run '^(TestA|TestB)$'` of the top-level tests that match `-run` and not `-skip`.
 - Files: stub files (editable) and test files (read only), with content. `testdata/` names are listed but not shown.
-- Hidden material decoded from ROT13: hints 1–3 (split on `## Hint N`), explanation, walkthrough, solution files. Rendered to HTML. Never sent to a browser before the level is revealed.
+- Hidden material decoded from ROT13: hints 1–3 (split on `## Hint N`), explanation, walkthrough, solution files (they must match the stub file names). Load decodes and checks it; each level is rendered to HTML on its first reveal, because highlighting it all would triple the start time. Never sent to a browser before the level is revealed.
+- Markdown: goldmark with GFM and heading IDs; raw HTML in the course is shown as escaped text, not dropped (a `<Field>` outside backticks is a placeholder). A relative link to an exercise becomes `/learn/<slug>`; any other relative link goes to `https://github.com/Yornik/go-practice/blob/main/<path>`. `course.HighlightCSS()` returns the chroma CSS (`github` and `github-dark`) scoped under `[data-theme="light"]` and `[data-theme="dark"]`; without a `data-theme` attribute the system preference decides.
 - The root README sections (Why this exists, Start here, The rules, How to work an exercise, A problem-solving checklist, Make it a tool) for the guide page. Course-wide tiers: 1 01–03, 2 04–09, 3 10–14, 4 15–19, 5 20–25 (parse from the root README tier table).
 
 ## Learning features
@@ -187,9 +229,9 @@ Protection:
 - **Code.** The editor shows the user's saved version of each stub file, or the stub if none. Autosave 1.5 s after the last edit (`PUT`). "Reset file" restores the stub after a confirmation.
 - **Lint as you type.** 1.2 s after the last edit the UI calls check with all stub files; diagnostics become Monaco markers and a Problems list. A new edit cancels the pending request (AbortController).
 - **Format.** Button and `Shift+Alt+F`: format the active file.
-- **Run tests.** A step selector (from the README steps, plus "All tests") and a Run button (`Ctrl/Cmd+Enter`). The output panel shows a live test tree (pass, fail, skip, running) and the raw output of the selected test. File and line references in output (`retry_test.go:42:`) are links that open that file at that line. `-race` is on by default; a toggle turns it off for faster runs.
-- **Progress.** An exercise is `started` when first opened. It becomes `passed` the first time an "All tests" run with `-race` passes with zero failures. Active time counts 15-second heartbeats while the tab is visible and the user typed or clicked in the last 60 s. Runs are counted. Notes are free text per exercise, autosaved.
-- **Hint ladder.** Levels in order: hint 1, hint 2, hint 3, explanation, walkthrough, solution. The server refuses level N if N−1 is not revealed. Soft gates from the course rules: before hint 1, if the active time is under 25 minutes, the UI says so and asks for a confirmation; between hints the same with 10 minutes since the previous reveal. Revealed levels stay visible.
+- **Run tests.** A step selector (from the README steps, plus "All tests") and a Run button (`Ctrl/Cmd+Enter`). The output panel shows a live test tree (pass, fail, skip, running) and the raw output of the selected test. File and line references in output (`retry_test.go:42:`) are links that open that file at that line. `-race` is on by default; a toggle turns it off for faster runs. A run tests the saved files, so the browser saves its pending edits first.
+- **Progress.** An exercise is `started` when first opened (the IDE bootstrap request). It becomes `passed` the first time a run without a `-run` filter and with `-race` ends with exit code 0, zero failures, at least 1 pass and no timeout, truncation or build failure, and every top-level test and fuzz target of the exercise reported `pass` or `skip` (examples are left out: one without an output comment never runs). Learner code runs inside the test binary and can print test2json lines and exit 0; the last rule stops that cheap fake (see "Remaining risks" under "Sandbox rules"). Active time counts 15-second heartbeats while the tab is visible and the user typed or clicked in the last 60 s; the server credits the time since the user's previous heartbeat, at most 15 s, so a second tab or a fast client adds nothing. Runs that reach the runner's `done` event are counted, with a summary in `last_result`. Notes are free text per exercise (at most 64 KiB), autosaved.
+- **Hint ladder.** Levels in order: hint 1, hint 2, hint 3, explanation, walkthrough, solution. The server refuses level N if N−1 is not revealed (409 `reveal_order`). Soft gates from the course rules, checked by the server: before hint 1, if the active time is under 25 minutes, it answers 409 `{gate: "time", kind: "active", level, minutes, needed: 25}`; before levels 2 to 6 the same with `kind: "since"` and 10 minutes since the previous reveal. The UI shows the numbers and repeats the request with `confirm: true`. Once the exercise is passed there are no gates (rule 5 asks learners to read the explanation and the walkthrough after a pass); the order stays. Revealing a level again returns it without a gate. Revealed levels stay visible.
 - **Dashboard.** Tiers with their exercises, status, time, hints used, and overall progress. A "learning log" table (time, runs, hints, passed date per exercise) matches step 10 of the course README.
 
 ## Learning-first feedback
@@ -202,7 +244,8 @@ tools find comes with an explanation that teaches, written for the course's medi
   one kind of message: a compiler or type error, a `go vet` analyzer, a staticcheck check code, a runtime panic, a race
   report, a deadlock, a test timeout, a failing assertion, an example output mismatch, a build problem.
 - **Entry shape.** `id`, `source` (compile, vet, staticcheck, runtime, race, test, build), a `match` regular expression
-  with named groups (or an analyzer name or a check code), a `title` with placeholders, and a body with these parts:
+  with named groups (or an analyzer name or a check code; `fallback: true` marks a broad pattern, such as any got/want
+  message, that loses to every more specific match), a `title` with placeholders, and a body with these parts:
   *What it means* (plain language, using the captured names), *Why Go does this* (the language or runtime rule
   behind it), *How to find it* (where to look, what to print, which part of the message points where), *Example* (a
   small generic snippet that shows the mistake and the fix; never the exercise's solution), *Learn more* (Go spec,
@@ -219,47 +262,82 @@ tools find comes with an explanation that teaches, written for the course's medi
   object `{id, title, html, links: [{label, url}], course}` (or the generic guide). In a test stream the web server
   adds `{"type": "explain", "test": "<name>", "items": [...]}` after a test fails or a build fails, from that test's
   output (panic, race, timeout, got/want assertion with the failing file:line, Example mismatch).
+- **The explain object.** `explain.Explanation` in JSON: `id`, `source`, `title` (plain text: escape it like any text),
+  `html` (safe HTML, ends with the links), `links`, `course` (exercise slug, optional), `generic` (true for a guide)
+  and `raw` `{source, file, line, column, code, test, message, captures}`, the labelled parts of the original
+  message. The web server calls `explain.Explain(diagnostic)` per check diagnostic, `explain.ExplainBuildOutput`
+  for a `build` event (diagnostics and explanations, parallel) and `explain.ExplainTestOutput(test, output)` for each
+  failed test with its collected output, the top-level test included: in `go test -json` a panic belongs to the
+  top-level test, not to the subtest. `explain.Refs(output)` lists the stub and test file references for links.
+  Authors follow `internal/explain/catalog/README.md`.
 - **Failing assertions.** For `file_test.go:NN:` references the UI shows the test source around that line (test files
-  are visible anyway) and explains how to read got/want, so the learner sees which case failed and why.
+  are visible anyway) and explains how to read got/want, so the learner sees which case failed and why. A course
+  helper that recovers a panic with `t.Helper()` reports the panic's own line in a stub (`slo.go:76: panicked: ...`);
+  that is an assertion too, with `raw.file` the stub file.
 - **Docs in the editor.** `go doc` is allowed by the course rules, so the editor has hover documentation and
   completion for the standard library: a build step (`cmd/gendocs`) indexes the standard library of the image's Go
   version with `go/doc` into a compressed JSON (package, exported identifiers, signature, first doc paragraph, link
   to pkg.go.dev). Monaco uses it for hover on `pkg.Name`, completion after `pkg.`, and signature help.
+  - The index covers linux/amd64 (the runner's platform) and leaves out `internal`, `vendor`, `cmd`, `testdata`,
+    runtime glue (`runtime/cgo`, `runtime/race`, sanitizers), `syscall/js` and the experiments `simd` and `arena`.
+    `builtin` is in it, so `append`, `len` and `error` have docs too.
+  - Members: funcs, types, methods (also those of interfaces), struct fields, consts and vars. Each has `name`, `kind`
+    (`func`, `type`, `method`, `const`, `var`, `field`), `recv` (the owning type for methods and fields),
+    `signature` (gofmt style, 1 line except small interfaces), `doc` (first paragraph, plain text) and `deprecated`
+    (the text after `Deprecated:`, so a learner sees what to use instead). Types list `embeds`, so `rw.Read` on an
+    `io.ReadWriter` finds `io.Reader.Read`; 2 matches at the same depth are ambiguous, as for the compiler.
+  - The index is committed as `internal/godoc/data/stdlib.json.gz` (about 0.45 MB) and embedded, so the web image
+    needs no GOROOT. Regenerate it with the runner's release: `GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc`.
+    The `go:generate` line passes `-go go1.27` and fails with another release; bump it with `Dockerfile.runner`.
+  - The routes are under `/api/docs/` (see HTTP routes). A miss answers 404 with a message that teaches the usual
+    cause: a package name instead of the import path ("did you mean "net/http"?"), wrong case ("Did you mean Cut?"),
+    or a name that is not exported.
 
 ## Certificates
 
 - Eligibility: a tier certificate when every exercise of that tier is `passed`; the course certificate when all 25 are `passed`. Each kind can be issued once per user (re-issuing replaces the name and the stats choice; the old ID is revoked and points to the new one).
 - Claim: the user enters the name to print (default display name) and chooses whether to show stats. Stats: active time, runs, hints revealed (levels 1–3), explanations and walkthroughs revealed, solutions revealed, per exercise and in total.
-- Signature: Ed25519 over the canonical payload JSON `{"id","kind","name","issuedAt","exercises":[slugs],"stats"?}`. The key pair is generated at first start and stored in `settings`; the public key is served at `/.well-known/go-practice-certificates.pub` (raw base64) and its fingerprint is shown on verify pages and in the PDF.
-- PDF: A4 landscape, embedded OFL fonts, vector QR code to the verify URL, certificate ID, name, what was completed (tier name and its exercises, or the 5 tiers), date, the fingerprint, and stats if chosen. It must look like a real, well-designed certificate.
+- Signature: Ed25519 over the canonical payload JSON `{"id","kind","name","issuedAt","exercises":[slugs],"stats"?}`: compact, fields in this order, no HTML escaping, `issuedAt` RFC 3339 UTC in whole seconds. `stats` is `{activeSeconds, runs, hints, explanations, walkthroughs, solutions, exercises: [{slug, activeSeconds, runs, hints, explanation, walkthrough, solution}]}`. Verification accepts only canonical bytes, so the verify page shows exactly what was signed. The key pair is generated at first start and stored in `settings` (key `cert.ed25519.seed`, the 32-byte seed in base64; the first writer wins when 2 processes start at once); the public key is served at `/.well-known/go-practice-certificates.pub` (raw base64) and its fingerprint (the first 8 bytes of the SHA-256 of the raw public key, as `3F2A 91C4 0B7E D215`) is shown on verify pages and in the PDF.
+- IDs: 12 random symbols (60 bits) from Crockford base32. `cert.ParseID` accepts lower case, spaces, missing hyphens and the look-alikes I, L and O. Names: 1–70 characters that the PDF font can print (Latin and Cyrillic, no CJK or emoji); `cert.CleanName` checks this before a claim.
+- PDF: A4 landscape, embedded OFL fonts, vector QR code to the verify URL, certificate ID, name, what was completed (tier name and its exercises, or the 5 tiers), date, the fingerprint, and stats if chosen. It must look like a real, well-designed certificate. Fonts: Cormorant Garamond, Inter and JetBrains Mono, static instances with their `OFL.txt` in `internal/cert/fonts/`. The PDF is built from the verified payload, the QR code and the printed URL link to the verify page, and a revoked certificate gets a "Revoked · replaced by" band.
 - Verify page `/verify/<id>`: public, no login. Shows valid, revoked (with the replacement) or unknown; the name, kind, date, exercises, stats if chosen, signature status and the fingerprint. Links to the PDF at `/verify/<id>.pdf`.
 
 ## HTTP routes
 
-Pages (HTML): `/` landing (public), `/login`, `/join`, `/setup`, `/recover`, `/recover/confirm`, `/verify-email`, `/learn` dashboard, `/learn/<exercise>` IDE, `/guide`, `/account`, `/certificates`, `/admin`, `/verify/<id>`, `/verify/<id>.pdf`.
+Pages (HTML): `/` landing (public), `/login`, `/join`, `/setup`, `/recover`, `/recover/confirm`, `/verify-email`, `/learn` dashboard, `/learn/<exercise>` IDE, `/guide` (public), `/account`, `/certificates`, `/admin`, `/verify` (public lookup form; `?id=` redirects to the canonical `/verify/<id>`), `/verify/<id>`, `/verify/<id>.pdf`. Also `/healthz`, `/readyz`, `/static/...`, `/highlight.css` (the chroma CSS of `course.HighlightCSS()`, linked with the course version) and `/.well-known/go-practice-certificates.pub`. A page that needs a session redirects to `/login?next=<path>`; `next` must be a local path.
 
 API (JSON, session required unless marked public; all mutations need the CSRF header):
 
 | Method and path | Purpose |
 |---|---|
-| `POST /api/auth/register/begin` `{invite or setup token, username, displayName, email}` → WebAuthn creation options | Sign-up |
-| `POST /api/auth/register/finish` (credential JSON) | Sign-up |
-| `POST /api/auth/login/begin` → request options; `POST /api/auth/login/finish` | Login (public) |
-| `POST /api/auth/logout` | |
-| `POST /api/auth/passkeys/begin`, `.../finish`; `PUT /api/auth/passkeys/<id>` `{name}`; `DELETE /api/auth/passkeys/<id>` | Manage passkeys |
-| `POST /api/auth/recover` `{email}` (public); `POST /api/auth/recover/begin` `{token}`; `POST /api/auth/recover/finish` | Recovery |
-| `PUT /api/account` `{displayName, email}` | Account |
-| `GET /api/exercises/<ex>` → `{exercise meta, steps, files:[{name, kind:"stub"|"test", readonly, content}], progress, revealed:[{level, html}]}` | IDE bootstrap |
-| `PUT /api/exercises/<ex>/files/<file>` `{content}`; `POST /api/exercises/<ex>/files/<file>/reset` → `{content}` | Code |
-| `POST /api/exercises/<ex>/check` `{files}` → runner check response | Lint |
-| `POST /api/exercises/<ex>/format` `{file, content}` → runner format response | Format |
-| `POST /api/exercises/<ex>/test` `{step or run, race}` → NDJSON stream (runner events, plus a final `{"type":"progress", ...}`) | Run |
-| `POST /api/exercises/<ex>/reveal` `{level, confirm}` → `{level, html}` or 409 `{gate:"time", minutes, needed}` | Hints |
-| `POST /api/exercises/<ex>/heartbeat`; `PUT /api/exercises/<ex>/notes` `{notes}` | Progress |
-| `GET /api/certificates`; `POST /api/certificates` `{kind, name, showStats}` → `{id}` | Certificates |
-| `POST /api/admin/invites` `{email?, note?, days}` → `{url}`; `DELETE /api/admin/invites/<hash>`; `PUT /api/admin/users/<id>` `{disabled}` | Admin |
+| `POST /api/auth/register/begin` `{invite or setup, username, displayName, email}` → `{ceremony, options}` | Sign-up (public) |
+| `POST /api/auth/register/finish` `{ceremony, credential}` → `{user, next}` and the session cookie | Sign-up (public) |
+| `POST /api/auth/login/begin` `{conditional}` → `{ceremony, options}`; `POST /api/auth/login/finish` `{ceremony, credential, next}` → `{user, next}` | Login (public) |
+| `POST /api/auth/logout` `{everywhere}` | Sign out this browser, or every session |
+| `POST /api/auth/passkeys/begin` → `{ceremony, options}`, `.../finish` `{ceremony, credential, name}`; `PUT /api/auth/passkeys/<id>` `{name}`; `DELETE /api/auth/passkeys/<id>` (`<id>` is the credential ID in base64url) | Manage passkeys |
+| `POST /api/auth/recover` `{email}` (public); `POST /api/auth/recover/begin` `{token}` (public); `POST /api/auth/recover/finish` `{ceremony, credential, removeOthers}` (public) | Recovery |
+| `POST /api/auth/verify-email` `{token}` (public; the page posts, so a mail scanner that opens links does not use the token); `POST /api/auth/verify-email/resend` | Email verification |
+| `PUT /api/account` `{displayName, email}` → `{user, email, verificationSent, pendingEmail}` | Account |
+| `GET /api/exercises/<ex>` → `{exercise:{slug, number, title, tier, time, package, prev, next}, steps, files:[{name, kind:"stub"|"test", readonly, content, saved, updatedAt}], progress, revealed:[{level, title, html, revealedAt}], ladder:[{level, title}], gates}` | IDE bootstrap |
+| `PUT /api/exercises/<ex>/files/<file>` `{content}` → `{savedAt}`; `POST /api/exercises/<ex>/files/<file>/reset` → `{content}` | Code |
+| `GET /api/docs/pkg?path=strings` → `{path, name, synopsis, doc, deprecated, url, goVersion}`; `GET /api/docs/member?path=strings&name=Cut` (or `name=Builder.WriteString`) → `{path, package, name, kind, recv, signature, doc, deprecated, url}`; `GET /api/docs/complete?path=strings&prefix=Cu&limit=100` → `{path, prefix, items:[member], incomplete}`; `GET /api/docs/packages?prefix=net/` → `{prefix, items:[package], incomplete}`. Served by `godoc.Handler()`, with `ETag` and `Cache-Control: public, max-age=86400` | Standard library docs |
+| `POST /api/exercises/<ex>/check` `{files}` → `{diagnostics:[{...diagnostic, explain}], durationMs}`; stubs the browser leaves out are sent with their saved content | Lint |
+| `POST /api/exercises/<ex>/format` `{file, content}` → `{content, diagnostics}` | Format |
+| `POST /api/exercises/<ex>/test` `{step}` or `{run}`, and `race` → NDJSON stream | Run |
+| `POST /api/exercises/<ex>/reveal` `{level, confirm}` → `{level, title, html, revealedAt}`, 409 `{gate:"time", kind, level, minutes, needed}` or 409 `reveal_order` | Hints |
+| `POST /api/exercises/<ex>/heartbeat` → `{activeSeconds}`; `PUT /api/exercises/<ex>/notes` `{notes}` | Progress |
+| `GET /api/certificates` → `{kinds:[{kind, title, exercises, passed, total, eligible, certificate?}]}`; `POST /api/certificates` `{kind, name, showStats}` → 201 `{id, url, pdf, replaced}`, 403 `not_eligible` | Certificates |
+| `POST /api/admin/invites` `{email?, note?, days}` → 201 `{url, mailed, mailError?}`; `DELETE /api/admin/invites/<hash>` (hex SHA-256 from the admin page); `PUT /api/admin/users/<id>` `{disabled?, admin?}` | Admin |
 
-Errors are JSON `{"error": "human readable message", "code": "machine_code"}` with a fitting status.
+Errors are JSON `{"error": "human readable message", "code": "machine_code"}` with a fitting status, also for an unknown path under `/api/`. A refused CSRF header is 403 `csrf`, a foreign or missing Origin 403 `origin`, a missing session 401 `unauthenticated`, a non-admin 403 `forbidden`, a check replaced by a newer check of the same user 409 `superseded`, a rate limit 429 `rate_limited` with `Retry-After`. Runner failures map to 503 `runner_unavailable` (not reachable or restarting), 429 `runner_busy` with the runner's `Retry-After`, 504 `runner_timeout`, 502 `runner_auth` (the 2 tokens differ) or 502 `runner_error`; the runner's 400 codes pass through.
+
+The test stream (`application/x-ndjson`, flushed per line, each write with a 30 s deadline) forwards the runner's events and adds:
+
+- `{"type": "explain", "test": "<name>", "items": [explanation]}` right after a failed test, from that test's own output. A subtest whose output gives only a generic guide waits for its parent: a panic is reported on the top-level test, so the parent's specific explanation (for example "still the course stub") replaces the subtest's guide. A generic guide is sent at most once per run. Explanations of the build output and of package-level output come before `done`, with an empty `test`.
+- `{"type": "progress", "status", "allTests", "passed", "firstPass", "passedAt", "runs", "activeSeconds"}` after `done`: `allTests` is true for a run without filter and with `-race`, `passed` for a clean run, `firstPass` when this run passed the exercise.
+- `{"type": "error", "error", "code"}` when the runner stream breaks after the response started. The run is then not counted.
+
+The body is `{step}` (a step ID; its `-run` and `-race` are the defaults), `{run}` (a hand-written `-run` expression, at most 512 bytes) or `{}` (every test); `race` overrides the default. A browser that leaves cancels the run at the runner.
 
 ## Frontend
 
@@ -267,24 +345,29 @@ Errors are JSON `{"error": "human readable message", "code": "machine_code"}` wi
 - The IDE page is a full-height layout: a left panel with tabs (Spec, Steps, Hints, Notes), the editor with file tabs (stub files editable, test files marked read only), a bottom panel (Tests, Problems, Output), and a status bar (saved state, lint state, Go version, keyboard hints). Panels are resizable. Below 900 px wide the panels stack.
 - Monaco is the editor: Go language, a custom theme that matches the site in light and dark, markers from check, `Ctrl/Cmd+S` saves, `Ctrl/Cmd+Enter` runs.
 - The design follows the frontend-design skill: a distinctive, polished identity for a Go learning platform, not a generic template. Consistent tokens (CSS custom properties) for colour, type, spacing and radius.
+- Code layout: `web/web.go` embeds `web/templates` and `web/static`; with `GPW_DEV=true` the server reads them from `./web` instead (templates parsed on every request, static files with `Cache-Control: no-cache`). Templates are `layout.html` plus 1 file per page in `pages/`, each parsed with the layout. Static URLs carry `?v=<digest of the static files>` and are cached for a year; `vendor/` (Monaco, fetched by `scripts/fetch-monaco.sh`) for a day. JS: `js/api.js` (the only fetch wrapper; adds `X-GPW-CSRF`), `js/webauthn.js` (base64url and `navigator.credentials`), `js/theme-init.js` (a classic script in `<head>`, so the theme is set before the first paint), `js/site.js` (theme toggle, sign-out), `js/theme.js`, `js/pages/*.js` (1 per page) and `js/ide/*.js` (the IDE: `main`, `monaco` loader, `files` and autosave, `lint`, `tests`, `hints`, `notes`, `activity`, `panels`, `docs`, `explain`). Hidden material reaches the IDE only through the reveal API and the bootstrap's already revealed levels.
 
 ## Observability
 
-- Logs: `log/slog` JSON to stdout. One line per HTTP request (method, path pattern, status, duration, user ID), per runner call, per email.
-- Metrics on `GPW_METRICS_ADDR` and `GPR_METRICS_ADDR` (`:9091` for the runner) with `prometheus/client_golang`: HTTP requests by route and status, runner requests and durations by kind and result, queue length, active sessions, users, passed exercises, issued certificates.
-- `/healthz`: process alive. `/readyz`: database read and write (a row in a probe table) and the course loaded. The web readiness does not depend on the runner; the IDE shows a clear message when the runner is down.
+- Logs: `log/slog` JSON to stdout. One line per HTTP request (method, route pattern, status, duration, bytes, user ID; probes and static files at DEBUG), per failed runner call, per email. A request is never logged with its query string: links carry tokens.
+- Metrics on `GPW_METRICS_ADDR` and `GPR_METRICS_ADDR` (`:9091` for the runner) with `prometheus/client_golang`: HTTP requests by route and status, runner requests and durations by kind and result, queue length, active sessions, users, passed exercises, issued certificates. The web server's names: `gpw_http_requests_total{route,method,status}`, `gpw_http_request_duration_seconds{route}`, `gpw_runner_requests_total{kind,result}`, `gpw_runner_request_duration_seconds{kind,result}`, and the gauges `gpw_users`, `gpw_active_sessions`, `gpw_passed_exercises`, `gpw_certificates`, read from the database at scrape time; plus the Go and process collectors.
+- `/healthz`: process alive. `/readyz`: database read and write (a row in a probe table) and the course loaded. The web readiness does not depend on the runner; the IDE shows a clear message when the runner is down. `/readyz` is reachable through the public route, so the probe runs at most once per 2 s, and detached from the request: a client that hangs up cannot leave a cached failure for the kubelet.
+- The HTTP server reads headers within 10 s and the request within 30 s, accepts at most 64 KiB of headers and gives every response 2 minutes to be written; a test stream moves that deadline 30 s ahead before each event instead.
 
 ## Testing
 
 - Unit tests per package. `internal/runner` tests use the real course submodule and the local Go toolchain: a stub fails, a reference solution passes, a timeout kills the process group, file-name validation, output cap.
-- `internal/web` tests use `httptest` with a fake runner and the go-webauthn test helpers or a virtual authenticator.
-- E2E (`e2e/`, Playwright, Chromium): with a CDP virtual authenticator: setup link, sign up, sign out, sign in, open 01-logfmt, type the reference solution, run all tests (passes), reveal hint 1 with the soft gate, claim nothing yet; an admin creates an invite and a second user joins; recovery by email (log sender) adds a new passkey; a verify page for a seeded certificate renders and the PDF downloads.
+- `internal/auth` tests use a software authenticator, `internal/auth/authtest` (ES256, "none" attestation, CBOR via fxamacker/cbor, a controllable sign counter), against a real store with a fake clock.
+- `internal/web` tests use `httptest` with a fake runner (an `httptest.Server` that speaks the runner API) and `authtest` for real sign-ups and logins through the API.
+- E2E (`e2e/`, Playwright, Chromium): with a CDP virtual authenticator: setup link, sign up, sign out, sign in, open 01-logfmt, type the reference solution, run all tests (passes), reveal hint 1 with the soft gate, claim nothing yet; an admin creates an invite and a second user joins; recovery by email (log sender) adds a new passkey; a verify page for a seeded certificate renders and the PDF downloads. `playwright.config.js` starts `scripts/dev.sh` in a fresh state directory (`GO_PRACTICE_DEV_STATE`) and reads the setup link and the mails from its `web.log`; with `E2E_BASE_URL` set it tests a running site instead. `tests/smoke.spec.js` covers the first part of the list (to "claim nothing yet") and fails on any page error or CSP violation. Chrome's virtual authenticator answers a passkey autofill request at once, so the smoke test signs in through autofill and then, with autofill switched off, through the button.
 - CI runs `go vet`, `go test -race ./...`, `golangci-lint`, the E2E suite and builds both images.
 
 ## Build and release
 
 - `Dockerfile.runner`: `golang:1.27-bookworm`, installs `staticcheck` (pinned), copies the course, pre-warms the build cache (`go test -race -run '^$'` and `go vet` over all exercises) into `/opt/gocache-seed`, runs as 65532.
-- `Dockerfile.web`: build stage with Go and the Monaco tarball from the npm registry; final stage `gcr.io/distroless/static-debian12:nonroot` with the binary, templates and static files embedded (`embed.FS`) and the course copied to `/course`.
+- `Dockerfile.web`: build stage with Go and the Monaco tarball from the npm registry (`scripts/fetch-monaco.sh`, checked against a pinned SHA-256); final stage `gcr.io/distroless/static-debian12:nonroot` with the binary, templates and static files embedded (`embed.FS`) and the course copied to `/course` (`README.md`, `go.mod`, `exercises/`, `solutions/`; without git metadata, so `course.Version()` is the content digest).
+- `scripts/dev.sh` builds both binaries and runs them on `127.0.0.1` (site `:8080`, runner `:8081`, metrics `:9090` and `:9091`) with a random 64-character token, `GPW_DEV=true`, a state directory for the database, runs and logs, and a runner build cache in `~/.cache/go-practice-dev` that outlives it. Its own settings are `GO_PRACTICE_DEV_STATE`, `GO_PRACTICE_DEV_PORT` and `GO_PRACTICE_DEV_CACHE`: the servers refuse unknown `GPW_` and `GPR_` variables. It prints the setup link.
+- The web server shuts down within 25 s of SIGTERM (a test stream still running is cut and the runner kills its run), waits for the emails in flight, and closes the database. It backs up the database 10 minutes after start and then daily, and cleans expired sessions, ceremonies and email tokens hourly.
 - GitHub Actions: CI on pull requests; on a tag `vX.Y.Z` build and push `ghcr.io/yornik/go-practice-web:vX.Y.Z` and `ghcr.io/yornik/go-practice-runner:vX.Y.Z` (linux/amd64). The gitops repository pins these tags; Renovate bumps them.
 
 ## Deployment (sharkshere-gitops)

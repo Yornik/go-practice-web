@@ -1,0 +1,8 @@
+id: compile-cannot-use
+command: build
+file: x.go
+line: 7
+capture: expr=code
+capture: what=variable of type int
+capture: want=string
+capture: context=return statement
