@@ -570,6 +570,115 @@ func TestNoFailure(t *testing.T) {
 	}
 }
 
+// TestExit checks how an exit without a panic (os.Exit, log.Fatal) is
+// found. go test -json gives the lines after "=== RUN" to the test that
+// was running; package output and plain output end with go test's FAIL
+// line. The fixtures run the real cases; these cover the borders.
+func TestExit(t *testing.T) {
+	const (
+		fatal  = "2026/10/17 11:28:32 missing address\n"
+		goFail = "FAIL\texample.com/x\t0.004s\n"
+		// A watchdog such as the guard of the course's 08-ratelimit tests
+		// prints every goroutine before it exits.
+		dump = "\nTestInc is still running after 10s: a call is blocked.\nStacks of all goroutines:\n\n" +
+			"goroutine 7 [sync.Mutex.Lock]:\n" +
+			"sync.(*Mutex).Lock(...)\n\t/usr/local/go/src/sync/mutex.go:46\n" +
+			"example.com/x.(*Counter).Get(0xc000012345)\n\t/work/x.go:13 +0x5a\n" +
+			"testing.tRunner(0xc0000a4000, 0x5f2e10)\n\t/usr/local/go/src/testing/testing.go:2195 +0xea\n" +
+			"created by testing.(*T).Run in goroutine 1\n\t/usr/local/go/src/testing/testing.go:2260 +0x4d4\n\n" +
+			"goroutine 9 [running]:\n" +
+			"example.com/x.guard.func1()\n\t/work/x_test.go:20 +0x71\n" +
+			"...additional frames elided...\n" +
+			"created by time.goFunc\n\t/usr/local/go/src/time/sleep.go:182 +0x2d\n\n"
+	)
+	tests := []struct {
+		name, test, out  string
+		id, rawTest, msg string
+	}{
+		{"log.Fatal in a test", "TestPort", "=== RUN   TestPort\n" + fatal,
+			"runtime-exit-log-fatal", "TestPort", strings.TrimSpace(fatal)},
+		{"os.Exit in a subtest", "TestPort/empty", "=== RUN   TestPort/empty\nmissing address\n",
+			"runtime-exit", "TestPort/empty", "missing address"},
+		{"the last line counts, after an assertion", "TestPort", "=== RUN   TestPort\n    x_test.go:7: Port() = 1, want 2\n" + fatal,
+			"runtime-exit-log-fatal", "TestPort", strings.TrimSpace(fatal)},
+		{"log.Fatal in init", "", fatal + goFail,
+			"runtime-exit-log-fatal", "", strings.TrimSpace(fatal)},
+		{"a silent exit in init", "", "exit status 1\n" + goFail,
+			"runtime-exit", "", "exit status 1"},
+		{"plain go test -v names the running test", "", "=== RUN   TestOK\n--- PASS: TestOK (0.00s)\n=== RUN   TestPort\nmissing address\n" + goFail + "FAIL\n",
+			"runtime-exit", "TestPort", "missing address"},
+		{"plain go test -v after the last result", "", "=== RUN   TestOK\n--- PASS: TestOK (0.00s)\nbye\n" + goFail,
+			"runtime-exit", "", "bye"},
+		{"plain go test", "", fatal + goFail + "FAIL\n",
+			"runtime-exit-log-fatal", "", strings.TrimSpace(fatal)},
+		{"log.Fatal with a message of several lines", "TestPort",
+			"=== RUN   TestPort\n    x_test.go:5: start\n2026/10/17 11:28:32 invalid configuration:\nPORT: bad\n\tDB_URL: required\n",
+			"runtime-exit-log-fatal", "TestPort", "2026/10/17 11:28:32 invalid configuration:\nPORT: bad\n\tDB_URL: required"},
+		{"a log line in an earlier paragraph", "TestPort", "=== RUN   TestPort\n" + fatal + "\nmissing port\n",
+			"runtime-exit", "TestPort", "missing port"},
+		{"a line after a goroutine dump", "TestInc", "=== RUN   TestInc\n" + dump + fatal,
+			"runtime-exit-log-fatal", "TestInc", strings.TrimSpace(fatal)},
+		{"a watchdog's goroutine dump", "TestInc/once", "=== RUN   TestInc/once\n" + dump,
+			GuideStackTrace, "TestInc/once", "TestInc is still running after 10s: a call is blocked.\nStacks of all goroutines:"},
+		{"a goroutine dump without a line before it", "TestInc", "=== RUN   TestInc\n" + dump[strings.Index(dump, "goroutine 7"):],
+			GuideStackTrace, "TestInc", "goroutine 7 [sync.Mutex.Lock]:"},
+		{"package output with a goroutine dump", "", dump + goFail,
+			GuideStackTrace, "", "TestInc is still running after 10s: a call is blocked.\nStacks of all goroutines:"},
+		{"Windows line ends", "TestPort", "=== RUN   TestPort\r\nmissing address\r\n",
+			"runtime-exit", "TestPort", "missing address"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			exps := ExplainTestOutput(tc.test, tc.out)
+			if len(exps) == 0 {
+				t.Fatal("no explanation")
+			}
+			e := exps[0]
+			if e.ID != tc.id || e.Raw.Test != tc.rawTest || e.Raw.Message != tc.msg || e.Raw.Source != SourceRuntime {
+				t.Errorf("got %s test %q message %q (source %s), want %s test %q message %q",
+					e.ID, e.Raw.Test, e.Raw.Message, e.Raw.Source, tc.id, tc.rawTest, tc.msg)
+			}
+			if tc.id == GuideStackTrace && (e.Raw.File != "x.go" || e.Raw.Line != 13) {
+				t.Errorf("got %s:%d, want x.go:13, where the test goroutine hangs", e.Raw.File, e.Raw.Line)
+			}
+			if strings.Contains(tc.out, "want 2") && len(exps) != 2 {
+				t.Errorf("got %v, want the exit and then the assertion", ids(exps))
+			}
+		})
+	}
+
+	noExit := []struct{ name, test, out string }{
+		{"a parent that waits in t.Run", "TestPort", "=== RUN   TestPort\n"},
+		{"a test that reported", "TestPort", "=== RUN   TestPort\nmissing address\n--- FAIL: TestPort (0.00s)\n"},
+		{"a test that passed", "TestPort", "=== RUN   TestPort\nhello\n--- PASS: TestPort (0.00s)\n"},
+		{"a binary killed from outside", "TestPort", "=== RUN   TestPort\nsignal: killed\n"},
+		{"output cut in a line", "TestPort", "=== RUN   TestPort\nmissing addr"},
+		{"output of another test", "TestPort", "=== RUN   TestOther\nmissing address\n"},
+		{"lines without framing", "TestPort", "missing address\n"},
+		{"a panic", "TestPort", "=== RUN   TestPort\npanic: boom\n\ngoroutine 7 [running]:\n"},
+		{"package output of a failed test", "", "FAIL\n" + goFail},
+		{"package output of a passing run", "", "PASS\nok  \texample.com/x\t0.01s\n"},
+		{"package output without lines: maybe a kill", "", goFail},
+		{"package output of a failed build", "", "FAIL\texample.com/x [build failed]\n"},
+		{"go test killed the binary", "", "*** Test killed: ran too long (11m0s).\n" + goFail},
+		{"plain output of a binary killed from outside", "", "=== RUN   TestKill\nsignal: killed\n" + goFail},
+	}
+	for _, tc := range noExit {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, f := range scanTestOutput(tc.test, tc.out) {
+				if strings.HasPrefix(f.text, "exit: ") {
+					t.Errorf("finding %+v, want no exit", f)
+				}
+			}
+			for _, e := range ExplainTestOutput(tc.test, tc.out) {
+				if strings.HasPrefix(e.ID, "runtime-exit") {
+					t.Errorf("ExplainTestOutput gave %s", e.ID)
+				}
+			}
+		})
+	}
+}
+
 func TestGuide(t *testing.T) {
 	for _, id := range []string{GuideErrorMessage, GuideStackTrace, GuideRaceReport, GuideFailingTest} {
 		g, ok := Guide(id)
@@ -704,6 +813,17 @@ func TestCatalogBoundaries(t *testing.T) {
 		{SourceTest, "", "handler panicked with \"boom\"; what came out of AccessLog = <nil>, want the same panic", "test-got-want"},
 		{SourceTest, "", "PanicError.Stack does not mention crashingTask, the function that panicked. Stack:\ngoroutine 1", GuideFailingTest},
 		{SourceTest, "", "fn was called 5 times, want 4: the 4th call panicked, so Map must not start a 5th", GuideFailingTest},
+		// An exit: the default log prefix means log.Fatal, anything else
+		// is any exit. An assertion that reads the same stays a test text.
+		{SourceRuntime, "", "exit: 2026/10/17 11:28:32 missing address", "runtime-exit-log-fatal"},
+		{SourceRuntime, "", "exit: 2026/10/17 11:28:32.123456 x.go:8: missing address", "runtime-exit-log-fatal"},
+		{SourceRuntime, "", "exit: 11:28:32 missing address", "runtime-exit"},
+		{SourceRuntime, "", "exit: exit status 1", "runtime-exit"},
+		{SourceRuntime, "", "exit: 2026/10/17 11:28:32 invalid configuration:\nPORT: bad\nDB_URL: required", "runtime-exit-log-fatal"},
+		{SourceRuntime, "", "exit: bad port\nusage: x", "runtime-exit"},
+		{SourceRuntime, "", "panic: unexpected call to os.Exit(0) during test", "runtime-exit-zero"},
+		{SourceRuntime, "", "panic: unexpected call to os.Exit(1) during test", GuideErrorMessage},
+		{SourceTest, "", "exit: 2026/10/17 11:28:32 missing address", GuideFailingTest},
 	}
 	c := catalog()
 	for _, tc := range tests {

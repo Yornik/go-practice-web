@@ -10,8 +10,9 @@ func TestAdd(t *testing.T) {
 	within(t, `Add("a")`, func() { tl.Add("a") })
 }
 
-// timeout is short here; the course tests wait 5s.
-const timeout = 100 * time.Millisecond
+// timeout is as long as in the course tests: the panic arrives at once,
+// and a short timeout could fire first on a busy machine.
+const timeout = 5 * time.Second
 
 // within runs f in a new goroutine and waits for it. It fails the test if
 // f panics or does not return within the timeout.

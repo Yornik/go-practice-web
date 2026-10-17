@@ -9,7 +9,7 @@ import (
 
 // finding is one message to explain, from a diagnostic or from test output.
 type finding struct {
-	source string // the catalog source to search first
+	source string // the catalog source to search first; SourceGuide searches none
 	code   string // vet analyzer or staticcheck code, if known
 	guide  string // the fallback guide
 	raw    Raw

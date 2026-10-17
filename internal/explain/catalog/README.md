@@ -74,14 +74,16 @@ Each source gets a different kind of text. `match` runs against that text, and t
 | `build` | go command errors without a position: go.mod, missing packages | The line, for example `go: updates to go.mod needed; to update it:` and its continuation lines | as compile; usually empty, so use groups |
 | `vet` | `go vet` findings | The message: `fmt.Printf format %d has arg s of wrong type string` | `file`, `line`, `column`, `code` (the analyzer) |
 | `staticcheck` | staticcheck findings | The message without the code: `this value of err is never used` | `file`, `line`, `column`, `code` (the check) |
-| `runtime` | A panic or a fatal error in test output | The first line, without `[recovered, repanicked]`: `panic: runtime error: index out of range [5] with length 2`, `fatal error: all goroutines are asleep - deadlock!`. A panic value with several lines keeps them. | `func`, `file`, `line` (the first frame in the exercise package), `test` |
+| `runtime` | A panic or a fatal error in test output, or an exit without either | The first line, without `[recovered, repanicked]`: `panic: runtime error: index out of range [5] with length 2`, `fatal error: all goroutines are asleep - deadlock!`. A panic value with several lines keeps them. An exit (`os.Exit`, `log.Fatal`) prints no message of its own, so the text is `exit: ` and the last line the test binary printed: `exit: 2026/10/17 11:28:32 missing address`, or `exit: exit status 1` when it printed nothing at all. A message of several lines after the `log` prefix, such as an `errors.Join` error, keeps all of them, so use `(?s)`. | `func`, `file`, `line` (the first frame in the exercise package; empty for an exit), `test` |
 | `race` | A race detector report | The whole report, from `WARNING: DATA RACE` to the closing `=====` line, with the full stacks. Use `(?s)` to match a frame, such as `runtime\.mapassign` for a map. | `access` and `prev_access` (`read` or `write`), `func`, `file`, `line` and `prev_func`, `prev_file`, `prev_line` (the first frame in the exercise package of each access), `test` |
 | `test` | A failing test | 1 of 3 texts: an assertion, the text after `name_test.go:NN: ` plus its continuation lines, joined by `\n` and trimmed (a helper that recovers a panic reports the stub line instead: `slo.go:76: panicked: ...`); an Example mismatch, `got:\n...\nwant:\n...`; a timeout, `panic: test timed out after 35s`. | `file`, `line` (of the assertion, or for a timeout the first frame in the exercise package of the goroutine that hangs: the goroutines parked in the testing package, such as a parent test that waits in `t.Run`, are skipped; empty for Examples), `test` |
 | `guide` | Never matches. The fallback when no entry matches. | none | none |
 
 Compile and build entries search each other: an import problem can come from either.
 
-The 4 guides are `guide-error-message` (compile, build, vet, staticcheck), `guide-stack-trace` (panics, fatal errors, timeouts), `guide-race-report` and `guide-failing-test` (assertions, Examples, a failure without output). Their bodies have free sections that end with `## Learn more`.
+An exit stops the test binary without a panic, a stack or a result: the output of the running test ends there, and `go test` prints `FAIL` for the package. The engine gives the exit to the test whose output has its `=== RUN` line, no result and at least 1 printed line, so the subtest that ran gets it and its parent in `t.Run` does not. An exit in `init` or in a package-level variable gets it from the package output, which then ends with `go test`'s `FAIL\texample.com/x\t0.004s` line. While the tests run, `os.Exit(0)` panics instead: `panic: unexpected call to os.Exit(0) during test`. An exit right after a goroutine dump is a watchdog that stopped a test that hangs, such as the guard of the course's 08-ratelimit tests: no entry gets it, but the guide `guide-stack-trace`, with the lines printed before the dump as the message and the first exercise frame of the goroutine that hangs as file and line.
+
+The 4 guides are `guide-error-message` (compile, build, vet, staticcheck), `guide-stack-trace` (panics, fatal errors, timeouts, an exit after a goroutine dump), `guide-race-report` and `guide-failing-test` (assertions, Examples, a failure without output). Their bodies have free sections that end with `## Learn more`.
 
 ### Matching
 
@@ -160,9 +162,11 @@ capture: prev_line=13
 
 - Keep fixtures small, deterministic and formatted with gofmt. The exceptions are a syntax error, and a mistake that gofmt would repair, such as a misplaced `//go:build` line.
 - When the editor words a message differently from the compiler, add a fixture for each: `<id>-gofmt` for a syntax error, `<id>-vet` for a type error.
-- A race fixture: assert only values that are the same in every run. Which access is caught first changes.
+- Never order events with `time.Sleep`: on a busy machine the sleep is too short. A timeout belongs only on a path that waits for ever, such as a deadlock that the fixture shows.
+- A race fixture: assert only values that are the same in every run. The race detector reports 2 accesses without a happens-before edge whatever their timing, so start the goroutines, let them race, and join them with a `WaitGroup` or a channel after the racy accesses. Which access is caught first changes, unless the fixture waits without synchronising: `race-data-race-read-write` waits until `runtime.NumGoroutine` drops, so the write always comes first.
 - A deadlock in a test only shows as `fatal error: all goroutines are asleep` with `-timeout=0`: the timer of the default timeout keeps the runtime from seeing it. Use `command: test -timeout=0`.
 - In go test -json output a panic belongs to the top-level test, not to the subtest. Write `test: TestSum`, not `TestSum/empty`.
+- An exit belongs to the test that was running, a subtest too: write `test: TestSplit/db`. An exit in `init` belongs to no test; leave `test` out.
 
 ## Run the tests
 

@@ -1,0 +1,4 @@
+id: runtime-exit
+command: test
+test: TestPortInvalid
+capture: output=bad port: http

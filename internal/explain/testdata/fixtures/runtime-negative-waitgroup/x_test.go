@@ -1,14 +1,12 @@
 package fixture
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestTotal(t *testing.T) {
 	if got := Total([]int{1, 2}); got != 3 {
 		t.Errorf("Total = %d, want 3", got)
 	}
-	// Give the goroutine time to run its deferred Done.
-	time.Sleep(200 * time.Millisecond)
+	// The goroutine of Total panics in its deferred Done after Total has
+	// returned. Wait for that panic, which ends the test binary.
+	select {}
 }

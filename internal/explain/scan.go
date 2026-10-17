@@ -36,6 +36,16 @@ var (
 	timeoutRE     = regexp.MustCompile(`^panic: test timed out after \S+`)
 	runningTestRE = regexp.MustCompile(`^\t\t(\S+) \(`)
 	goroutineRE   = regexp.MustCompile(`^goroutine \d+ .*:$`)
+	framingRE     = regexp.MustCompile(`^=== (?:RUN|CONT|PAUSE|NAME)\s+(\S+)`)
+	resultLineRE  = regexp.MustCompile(`^\s*--- (?:FAIL|PASS|SKIP): (\S+)`)
+	// goFailRE is the line go test adds to the package output when a test
+	// binary failed: "FAIL\texample.com/x\t0.005s". A build failure has
+	// " [build failed]" instead of the time.
+	goFailRE = regexp.MustCompile(`^FAIL\t\S+\t\S+$`)
+	// logPrefixRE is the date and time that the standard logger writes
+	// before a message: "2026/10/17 11:28:32 ", with microseconds when the
+	// flags ask for them.
+	logPrefixRE   = regexp.MustCompile(`^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? `)
 	raceSeparator = "=================="
 )
 
@@ -192,6 +202,10 @@ func scanTestOutput(test, out string) []finding {
 	var fs []finding
 	fs = append(fs, buildFindings(out)...)
 	fs = append(fs, crashFindings(test, lines)...)
+	if len(fs) == 0 {
+		// A panic or a fatal error explains why a test has no result.
+		fs = append(fs, exitFindings(test, lines)...)
+	}
 	fs = append(fs, raceFindings(test, lines)...)
 	fs = append(fs, exampleFindings(test, lines)...)
 	fs = append(fs, assertFindings(test, lines)...)
@@ -276,6 +290,158 @@ func crashFindings(test string, lines []string) []finding {
 		}
 	}
 	return nil
+}
+
+// exitFindings finds a test binary that stopped without a panic before the
+// test reported a result, as os.Exit and log.Fatal make it do. No line says
+// so: the output stops after the last line the code printed, and go test
+// adds its FAIL line to the package output, with "exit status 1" before it
+// only when the binary printed nothing at all.
+//
+// With a test name, lines are that test's output (go test -json gives each
+// test the lines after its "=== RUN"). The finding goes to the test when it
+// started, never reported a result and printed a line. So a parent that
+// waits in t.Run gets nothing and the subtest that ran gets the finding. A
+// test that exits without printing leaves the output of such a parent, and
+// package output like that of a test killed from outside ("signal: killed"
+// goes to the test's output), so that exit gets no finding at all.
+//
+// Without a test name, lines are package output or plain go test output,
+// which must end with go test's FAIL line; the finding goes to the test
+// that its framing lines show running, if any.
+//
+// The finding's text for the catalog is "exit: " and the last line printed,
+// or all lines of a log message of several lines. When that line ends a
+// goroutine dump, the finding is the guide to stack traces instead (see
+// dumpFinding).
+func exitFindings(test string, lines []string) []finding {
+	// Output cut in the middle of a line, such as by a cap on the output
+	// kept per test, does not show where the binary stopped.
+	if len(lines) < 2 || lines[len(lines)-1] != "" {
+		return nil
+	}
+	end := len(lines) - 1
+	if test == "" {
+		if end = slices.IndexFunc(lines, goFailRE.MatchString); end < 0 {
+			return nil
+		}
+	}
+	started := test == ""
+	running, lastAt := test, -1
+	for i, l := range lines[:end] {
+		trimmed := strings.TrimSpace(l)
+		if m := framingRE.FindStringSubmatch(l); m != nil {
+			started = started || m[1] == test
+			// A parallel test that paused does not run.
+			if test == "" && runLineRE.MatchString(l) {
+				running = m[1]
+			}
+			continue
+		}
+		if m := resultLineRE.FindStringSubmatch(l); m != nil {
+			if test != "" {
+				return nil
+			}
+			if m[1] == running {
+				running = ""
+			}
+			continue
+		}
+		switch {
+		case trimmed == "":
+		case trimmed == "PASS" || trimmed == "FAIL" || strings.HasPrefix(l, "ok "):
+			// The testing package ran to its end.
+			return nil
+		default:
+			lastAt = i
+		}
+	}
+	if !started || lastAt < 0 {
+		return nil
+	}
+	last := strings.TrimSpace(lines[lastAt])
+	// go test prints "signal: killed" for a binary killed from outside, and
+	// "*** Test killed" when it stopped the binary itself: no exit of the
+	// code.
+	if strings.HasPrefix(last, "signal: ") || strings.HasPrefix(last, "*** ") {
+		return nil
+	}
+	if f, ok := dumpFinding(running, lines[:lastAt+1]); ok {
+		return []finding{f}
+	}
+	// log.Fatal writes its message at once, and the log prefix goes on the
+	// first line only: a message of several lines, such as an error from
+	// errors.Join, is the last printed line and the lines above it up to
+	// the one with the prefix.
+	for i := lastAt; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) == "" || testLineRE.MatchString(lines[i]) {
+			break
+		}
+		if logPrefixRE.MatchString(lines[i]) {
+			last = strings.TrimSpace(strings.Join(lines[i:lastAt+1], "\n"))
+			break
+		}
+	}
+	return []finding{{
+		source:   SourceRuntime,
+		guide:    GuideFailingTest,
+		raw:      Raw{Source: SourceRuntime, Test: running, Message: last},
+		text:     "exit: " + last,
+		builtins: map[string]string{"test": running},
+	}}
+}
+
+// dumpFinding handles an exit right after a goroutine dump, the last of
+// lines. A watchdog prints one when a call never returns and then exits,
+// as the guard of the course's 08-ratelimit tests does after 10 s: the
+// code under test called no os.Exit, it hangs. So the finding is the guide
+// to stack traces, at the first exercise frame of the goroutine that hangs,
+// and its message is the paragraph printed just before the dump, which
+// says why the watchdog fired.
+func dumpFinding(test string, lines []string) (finding, bool) {
+	last := len(lines) - 1
+	if last < 1 || !locRE.MatchString(lines[last]) {
+		return finding{}, false
+	}
+	header := -1
+	for i := last; i >= 0 && inDump(lines, i); i-- {
+		if goroutineRE.MatchString(lines[i]) {
+			header = i
+		}
+	}
+	if header < 0 {
+		return finding{}, false
+	}
+	var para []string
+	for i := header - 1; i >= 0; i-- {
+		l := strings.TrimSpace(lines[i])
+		if l == "" && len(para) == 0 {
+			continue
+		}
+		if l == "" || testLineRE.MatchString(lines[i]) {
+			break
+		}
+		para = append(para, l)
+	}
+	slices.Reverse(para)
+	msg := strings.Join(para, "\n")
+	if msg == "" {
+		msg = strings.TrimSpace(lines[header])
+	}
+	f := stackFinding(SourceRuntime, GuideStackTrace, test, msg, hangingGoroutines(lines[header:]))
+	// The text is whatever the watchdog printed, so no entry may claim it:
+	// a finding with the guide source searches no entries.
+	f.source = SourceGuide
+	return f, true
+}
+
+// inDump reports whether lines[i] can be part of a goroutine dump: a
+// header, a frame (a function or "created by" line above its location
+// line), elided frames, or a blank line between goroutines.
+func inDump(lines []string, i int) bool {
+	l := strings.TrimSpace(lines[i])
+	return l == "" || l == "...additional frames elided..." || goroutineRE.MatchString(lines[i]) ||
+		locRE.MatchString(lines[i]) || i+1 < len(lines) && locRE.MatchString(lines[i+1])
 }
 
 // hangingGoroutines returns the part of a test timeout's goroutine dump

@@ -133,14 +133,25 @@ func Explain(d runnerapi.Diagnostic) Explanation {
 
 // ExplainTestOutput explains the output of one test (test may be empty for
 // package-level output). It finds, in this order: a build failure, a test
-// timeout, a fatal runtime error such as a deadlock, race reports, a panic
-// (including the course stub's "TODO: implement"), an Example whose output
-// differs, and failing assertions (file_test.go:NN: lines, or file.go:NN:
-// when a test helper reports a panic at its line in a stub). The result holds
-// at most 1 explanation per catalog entry, the first occurrence, because
-// the first failure matters most. A failed test without any of these gets
-// the guide "How to read a failing test". Output without a failure gives
-// nil.
+// timeout, a fatal runtime error such as a deadlock, a panic (including the
+// course stub's "TODO: implement"), an exit without a panic before the test
+// reported a result (os.Exit, log.Fatal), race reports, an Example whose
+// output differs, and failing assertions (file_test.go:NN: lines, or
+// file.go:NN: when a test helper reports a panic at its line in a stub).
+//
+// An exit leaves no message, only output that stops. The finding goes to
+// the test whose output has a "=== RUN" line, no result and at least 1
+// printed line: that is the test that was running, and a parent waiting in
+// t.Run is left out. Package output gets it when it ends with go test's
+// "FAIL\tpkg\t0.01s" line after printed lines but without the testing
+// package's own "PASS" or "FAIL", as for an exit in init. An exit right
+// after a goroutine dump, as a watchdog prints one for a test that hangs,
+// gets the guide "How to read a stack trace" at the frame that hangs.
+//
+// The result holds at most 1 explanation per catalog entry, the first
+// occurrence, because the first failure matters most. A failed test
+// without any of these gets the guide "How to read a failing test". Output
+// without a failure gives nil.
 func ExplainTestOutput(test, output string) []Explanation {
 	findings := scanTestOutput(test, normalizeNewlines(output))
 	c := catalog()

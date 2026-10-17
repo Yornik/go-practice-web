@@ -1,0 +1,3 @@
+id: runtime-exit-log-fatal
+command: test
+capture: message=open hosts.txt: no such file or directory
