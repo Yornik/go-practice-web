@@ -112,6 +112,9 @@ export class TestRunner {
   async run(step, race) {
     if (this.running) return;
     this.reset();
+    // clearRun can empty the chips, and a run hides the panel that holds
+    // them below 1280 px: the Run button keeps the focus instead.
+    if (this.problems.chips?.contains(document.activeElement) || this.problems.view?.contains(document.activeElement)) this.runButton.focus();
     this.problems.clearRun();
     this.notes.replaceChildren();
     this.stale.clear();
@@ -251,7 +254,10 @@ export class TestRunner {
     // or the test binary died (an exit or a crash); a run stopped or cut off
     // from outside skips it. The server keeps the same states in last_result.
     const unfinished = ev.timedOut || ev.exitCode > 0 ? "fail" : "skip";
-    for (const node of this.nodes.values()) if (node.state === "run" || node.state === "queued") node.state = unfinished;
+    // The deepest tests still running are where the run was when it ended.
+    const running = (n) => n.state === "run" || n.state === "queued";
+    this.current.hung = [...this.nodes.values()].filter((n) => n.state === "run" && !n.children.some(running)).map((n) => n.name);
+    for (const node of this.nodes.values()) if (running(node)) node.state = unfinished;
     // Select the first failure in tree order, and show its output.
     const firstFail = this.visibleOrder().find((n) => n.state === "fail" && !n.children.some((c) => c.state === "fail"));
     if (firstFail) {
@@ -335,7 +341,13 @@ export class TestRunner {
       s.textContent = `${at}: the build failed. The tests did not run. ${c.restored ? "Run the tests again to see why." : "The problems explain why."}`;
       s.dataset.kind = "fail";
     } else if (d.timedOut) {
-      s.textContent = `${at}: the run took too long and stopped. ${parts.join(", ")}. ${c.restored ? "" : "The problems show where a test waits."}`.trim();
+      // A dump from go test's own timeout names where the test waits; a run
+      // the runner killed at its deadline has none, so name the test.
+      const where = c.restored ? ""
+        : this.problems.list.some((p) => p.kind === "run") ? "The problems show where a test waits."
+        : c.hung?.length ? `${c.hung.join(" and ")} ${c.hung.length === 1 ? "was" : "were"} still running: look for a channel, a lock or a loop that never ends.`
+        : "";
+      s.textContent = `${at}: the run took too long and stopped. ${parts.join(", ")}. ${where}`.trim();
       s.dataset.kind = "fail";
     } else if (d.truncated) {
       s.textContent = `${at}: the run printed more than 1 MiB and stopped. ${parts.join(", ")}.`;

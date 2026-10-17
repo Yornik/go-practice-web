@@ -110,7 +110,7 @@ async function main() {
 
   const notes = $("[data-notes]");
   notes.value = progress.notes || "";
-  setupNotes({
+  const notesSave = setupNotes({
     slug, textarea: notes, status: $("[data-notes-status]"),
     onStatus: (text) => setSave({ kind: text.startsWith("Notes saved") ? "ok" : text.startsWith("The notes are not") ? "fail" : "", text }),
   });
@@ -135,6 +135,7 @@ async function main() {
     await document.fonts.load('13px "Spline Sans Mono"').catch(() => null);
   } catch (err) {
     editorFailed(`The editor could not load. ${errorMessage(err)}`);
+    notesSave.attachLeave();
     return;
   }
   defineThemes(monaco);
@@ -176,6 +177,8 @@ async function main() {
     },
     onOpen: () => leader?.redraw(),
   });
+  // After the code autosave's own listeners, so the code goes first.
+  notesSave.attachLeave();
 
   leader = new Leader({
     root: $("[data-layout]"), svg: $("[data-leader]"), editor, files,

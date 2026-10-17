@@ -123,9 +123,12 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   });
   await expect(page.locator("[data-save-status]")).toContainText("Saved", { timeout: 20_000 });
   await expect(banner).toContainText("This browser kept changes to accesslog.go");
-  expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), key)).content).toBe(kept);
+  // The offered copy waits under its own key; the live backup is free for new edits.
+  const offered = "gpw-offered:02-accesslog:accesslog.go";
+  expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), offered)).content).toBe(kept);
   await banner.getByRole("button", { name: "Restore them" }).click();
   await expect(banner).toBeHidden();
+  expect(await page.evaluate((k) => localStorage.getItem(k), offered)).toBeNull();
   expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(kept);
 
   expect(errors).toEqual([]);

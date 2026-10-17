@@ -39,9 +39,9 @@ export class Files {
     this.testTab = null;
     this.quiet = false; // set while code replaces content, so it is not saved again
     this.failing = null; // the error of the last failed save, until a save works
-    // Stub files whose kept browser copy is on offer: until the learner
-    // restores or discards it, edits and saves must not overwrite or delete it.
-    this.offered = new Set();
+    // The offer of code that a closed tab could not save. Its copy lives
+    // under its own key (offerKey), so the live backup of new edits works as
+    // for any file while the offer waits.
     this.showOffer = null;
 
     for (const file of o.files) this.add(file);
@@ -277,9 +277,12 @@ export class Files {
     return `gpw-unsaved:${this.slug}:${entry.file.name}`;
   }
 
+  offerKey(entry) {
+    return `gpw-offered:${this.slug}:${entry.file.name}`;
+  }
+
   /** Keeps the unsaved code in this browser, so a lost save loses nothing. */
   backup(entry) {
-    if (this.offered.has(entry.file.name)) return;
     if (entry.dirty || entry.saving) save(this.backupKey(entry), JSON.stringify({ at: Date.now(), content: entry.model.getValue() }));
   }
 
@@ -298,7 +301,7 @@ export class Files {
         this.lastSaved = new Date(res.savedAt || Date.now());
         if (!entry.dirty) {
           entry.tab.querySelector(".dirty").hidden = true;
-          if (!this.offered.has(entry.file.name)) save(this.backupKey(entry), null);
+          save(this.backupKey(entry), null);
         }
         if (![...this.entries.values()].some((e) => e.retry)) this.setFailing(null);
         this.onSaveStatus(this.anyDirty() ? { kind: "", text: "Not saved yet" } : { kind: "ok", text: `Saved at ${clock(this.lastSaved)}` });
@@ -361,48 +364,54 @@ export class Files {
   /** Code that a closed tab could not save: offer it back. */
   offerBackups() {
     if (!this.banner) return;
+    const read = (key) => {
+      try {
+        const b = JSON.parse(load(key) || "null");
+        return b && typeof b.content === "string" ? b : null;
+      } catch {
+        return null;
+      }
+    };
     const found = [];
     for (const e of this.entries.values()) {
       if (e.file.kind !== "stub") continue;
-      let b = null;
-      try {
-        b = JSON.parse(load(this.backupKey(e)) || "null");
-      } catch {
-        b = null;
+      const server = e.model.getValue();
+      // A live backup is the newest unsaved code: it replaces an older
+      // offer. It moves to the offer key, so the backups of this page's
+      // edits cannot overwrite it.
+      let b = read(this.backupKey(e));
+      if (b && b.content !== server) {
+        save(this.offerKey(e), JSON.stringify(b));
+      } else {
+        b = read(this.offerKey(e));
       }
-      if (!b || typeof b.content !== "string") continue;
-      if (b.content === e.model.getValue()) {
-        save(this.backupKey(e), null);
+      save(this.backupKey(e), null);
+      if (!b || b.content === server) {
+        save(this.offerKey(e), null);
         continue;
       }
       found.push({ e, b });
     }
     if (!found.length) return;
-    for (const { e } of found) this.offered.add(e.file.name);
     const names = found.map(({ e }) => e.file.name).join(" and ");
     const at = clock(new Date(Math.max(...found.map(({ b }) => b.at || 0))));
     const settle = () => {
-      this.offered.clear();
+      for (const { e } of found) save(this.offerKey(e), null);
       this.showOffer = null;
       this.banner.hidden = true;
       this.banner.replaceChildren();
     };
-    // Settle first: the restore is an edit, and its backup and save must go
-    // through as for any other edit.
+    // The restore is an edit like any other: it is backed up and saved.
     const restore = () => {
       settle();
       for (const { e, b } of found) {
         e.model.pushEditOperations([], [{ range: e.model.getFullModelRange(), text: b.content }], () => null);
       }
     };
-    const discard = () => {
-      settle();
-      for (const { e } of found) save(this.backupKey(e), null);
-    };
     this.showOffer = () => {
       this.banner.replaceChildren(h("b", {}, "NOTE:"), ` This browser kept changes to ${names} from ${at} that the site did not save. `,
         h("button", { type: "button", class: "link-button", onclick: restore }, "Restore them"), " or ",
-        h("button", { type: "button", class: "link-button", onclick: discard }, "discard them"), ".");
+        h("button", { type: "button", class: "link-button", onclick: settle }, "discard them"), ".");
       this.banner.dataset.kind = "note";
       this.banner.hidden = false;
     };

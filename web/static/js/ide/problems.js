@@ -371,7 +371,7 @@ export class Problems {
       chip.querySelector(".balloon").classList.toggle("is-filled", on);
     }
     // After the loop: only then does a new chip carry aria-selected.
-    if (hadFocus) (this.chips.querySelector('[aria-selected="true"]') || this.chips.querySelector('[role="tab"]'))?.focus();
+    if (hadFocus) (this.chips.querySelector('[aria-selected="true"]') || this.chips.querySelector('[role="tab"]') || this.view).focus({ preventScroll: true });
     if (selected) this.view.setAttribute("aria-labelledby", `chip-${selected.n}`);
     else this.view.removeAttribute("aria-labelledby");
   }

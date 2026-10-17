@@ -2,6 +2,17 @@
 import { api, errorMessage } from "../api.js";
 import { clock } from "../ui/format.js";
 
+// Browsers refuse keepalive requests whose bodies add up to more than
+// 64 KiB per page. The code saves need room too, so larger notes leave
+// without keepalive and depend on the beforeunload prompt.
+const KEEPALIVE_MAX = 16 * 1024;
+const RETRY_MS = 5000;
+
+/**
+ * Sets up the notes autosave. It returns attachLeave, which main.js calls
+ * after the code autosave has added its own page-leave listeners:
+ * listeners run in the order they were added, and the code goes first.
+ */
 export function setupNotes({ slug, textarea, status, onStatus }) {
   let timer = 0;
   let pending = false;
@@ -9,14 +20,19 @@ export function setupNotes({ slug, textarea, status, onStatus }) {
     status.textContent = text;
     onStatus?.(text);
   };
+  const body = () => ({ notes: textarea.value });
   const saveNow = async (opts = {}) => {
+    clearTimeout(timer);
     pending = false;
     show("Saving the notes");
     try {
-      await api("PUT", `/api/exercises/${slug}/notes`, { notes: textarea.value }, opts);
+      await api("PUT", `/api/exercises/${slug}/notes`, body(), opts);
       show(`Notes saved at ${clock(new Date())}`);
     } catch (err) {
+      // A later keystroke must not be the only way to try again.
       pending = true;
+      clearTimeout(timer);
+      timer = setTimeout(saveNow, RETRY_MS);
       show(`The notes are not saved: ${errorMessage(err)}`);
     }
   };
@@ -26,24 +42,23 @@ export function setupNotes({ slug, textarea, status, onStatus }) {
     clearTimeout(timer);
     timer = setTimeout(saveNow, 1000);
   });
-
-  // A link or a closed tab within the 1 s would lose the last words, so
-  // leaving saves at once, as the code autosave does; keepalive lets the
-  // request finish after the page is gone. Browsers cap keepalive bodies
-  // at 64 KiB, so a note near the limit is saved on a best-effort basis.
-  const flushNow = () => {
-    if (!pending) return;
-    clearTimeout(timer);
-    saveNow({ keepalive: true });
-  };
-  addEventListener("pagehide", flushNow);
+  // A tab in the background can be discarded without a pagehide; the page
+  // is still alive, so a normal request saves the notes at once.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flushNow();
+    if (document.visibilityState === "hidden" && pending) saveNow();
   });
-  addEventListener("beforeunload", (event) => {
-    if (pending) {
-      flushNow();
-      event.preventDefault();
-    }
-  });
+
+  return {
+    attachLeave() {
+      // A link or a closed tab within the 1 s would lose the last words.
+      addEventListener("pagehide", () => {
+        if (!pending) return;
+        const size = new Blob([JSON.stringify(body())]).size;
+        if (size <= KEEPALIVE_MAX) saveNow({ keepalive: true });
+      });
+      addEventListener("beforeunload", (event) => {
+        if (pending) event.preventDefault();
+      });
+    },
+  };
 }

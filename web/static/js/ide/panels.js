@@ -255,6 +255,8 @@ export function setupLayout(ide, tabs, onChange) {
       if (empty === state.empty) return;
       state.empty = empty;
       if (!empty) state.railOpen = false;
+      // The rail hides the column; the focus inside it would drop to the page.
+      else if (problems?.contains(document.activeElement)) state.railOpen = true;
       if (rail) rail.querySelector("[data-rail-count]").textContent = String(n);
       apply();
     },
