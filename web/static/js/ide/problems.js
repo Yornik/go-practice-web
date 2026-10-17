@@ -90,6 +90,8 @@ export class Problems {
       if (!g) {
         const file = raw.openable && this.files.has(raw.file) ? raw.file : null;
         g = { kind: "run", key, explain: e, stub, occ: [], runNo, at, file, line: file ? raw.line : 0, column: raw.column || 0, severity: "error" };
+        // The file changed while this run was going: its lines are older.
+        if (!stub && file && this.tests?.stale?.has(file)) g.stale = true;
         this.groups.set(key, g);
       }
       g.occ.push({ test: name, explain: e });
@@ -346,8 +348,9 @@ export class Problems {
     const want = shown.map((p) => `${p.key}#${p.n}`).join("\n") + (many ? `\nmore:${this.list.length - shown.length}` : "");
     // Rebuild only when the set of chips changes; a new selection updates
     // the chips in place, so the chip that has the focus keeps it.
+    let hadFocus = false;
     if (want !== this.chipsSig) {
-      const hadFocus = this.chips.contains(document.activeElement);
+      hadFocus = this.chips.contains(document.activeElement);
       this.chipsSig = want;
       const nodes = shown.map((p) => h("button", {
         type: "button", role: "tab", class: `chip${p.severity === "advice" ? " is-advice" : ""}`,
@@ -360,7 +363,6 @@ export class Problems {
         nodes.push(h("button", { type: "button", class: "chip chip-more", onclick: () => { this.showAllChips = true; this.renderChips(); this.chips.querySelector(`[data-n="${shown.length + 1}"]`)?.focus(); } }, `${rest} more`));
       }
       this.chips.replaceChildren(...nodes);
-      if (hadFocus) this.chips.querySelector('[aria-selected="true"]')?.focus();
     }
     for (const chip of this.chips.querySelectorAll('[role="tab"]')) {
       const on = Number(chip.dataset.n) === selected?.n;
@@ -368,6 +370,8 @@ export class Problems {
       chip.tabIndex = on ? 0 : -1;
       chip.querySelector(".balloon").classList.toggle("is-filled", on);
     }
+    // After the loop: only then does a new chip carry aria-selected.
+    if (hadFocus) (this.chips.querySelector('[aria-selected="true"]') || this.chips.querySelector('[role="tab"]'))?.focus();
     if (selected) this.view.setAttribute("aria-labelledby", `chip-${selected.n}`);
     else this.view.removeAttribute("aria-labelledby");
   }

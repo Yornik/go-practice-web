@@ -143,8 +143,11 @@ type runSummary struct {
 // seeds or a large table must not grow a progress row without limit.
 const maxSummaryTests = 200
 
-// summaryTests returns the top-level results and the failed subtests of a run.
-func (t *runTracker) summaryTests() (map[string]string, []string) {
+// summaryTests returns the top-level results and the failed subtests of a
+// run. The tests that never reported a result get the state the IDE gives
+// them when the run ends, so a reload still shows the test that hung or
+// exited.
+func (t *runTracker) summaryTests(done runnerapi.Event) (map[string]string, []string) {
 	tops := make(map[string]string, len(t.results))
 	for name, r := range t.results {
 		if len(tops) >= maxSummaryTests {
@@ -158,11 +161,32 @@ func (t *runTracker) summaryTests() (map[string]string, []string) {
 			failed = append(failed, name)
 		}
 	}
+	state := unfinishedState(done)
+	for _, name := range t.unfinished() {
+		switch {
+		case !strings.Contains(name, "/"):
+			if _, ok := tops[name]; !ok && len(tops) < maxSummaryTests {
+				tops[name] = state
+			}
+		case state == "fail":
+			failed = append(failed, name)
+		}
+	}
 	slices.Sort(failed)
 	if len(failed) > maxSummaryTests {
 		failed = failed[:maxSummaryTests]
 	}
 	return tops, failed
+}
+
+// unfinishedState is the result of a test that never reported one. It
+// failed when go test's -timeout fired or the test binary died (an exit or
+// a crash); it is skipped when the run was stopped or cut off from outside.
+func unfinishedState(done runnerapi.Event) string {
+	if done.TimedOut || done.ExitCode > 0 {
+		return "fail"
+	}
+	return "skip"
 }
 
 // runPassed reports whether a done event is a clean pass.
@@ -318,7 +342,7 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 	// The run happened even if the browser left just now: count it.
 	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	tops, failed := tracker.summaryTests()
+	tops, failed := tracker.summaryTests(*done)
 	p, err := s.recordRun(rctx, userID, ex.Slug, rr, *done, complete, tops, failed)
 	if err != nil {
 		s.log.Error("record run", "exercise", ex.Slug, "err", err)
@@ -676,9 +700,14 @@ func (t *runTracker) finish(done runnerapi.Event) []any {
 		// The deepest unfinished test is where the run ended; its parents
 		// only waited in t.Run. A parent keeps its own messages, such as a
 		// got/want it logged first, but "the run ended here" is wrong for it.
-		if slices.ContainsFunc(unfinished, func(n string) bool { return strings.HasPrefix(n, name+"/") }) {
+		parent := slices.ContainsFunc(unfinished, func(n string) bool { return strings.HasPrefix(n, name+"/") })
+		// A run the runner killed at its own deadline (exit code -1) did not
+		// exit by itself: output that stops after a printed line is a hang,
+		// not os.Exit or log.Fatal.
+		killed := done.ExitCode < 0
+		if parent || killed {
 			items = slices.DeleteFunc(items, func(e explain.Explanation) bool {
-				return strings.HasPrefix(e.ID, "runtime-exit") || e.ID == "test-timeout"
+				return strings.HasPrefix(e.ID, "runtime-exit") || parent && e.ID == "test-timeout"
 			})
 		}
 		out = append(out, t.emit(name, items)...)

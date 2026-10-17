@@ -288,7 +288,8 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	// The admin page adds the new row to its table from these fields.
+	// The admin page adds the new row to its table from these fields; the
+	// table names creators by username, as pages.go does.
 	writeJSON(w, http.StatusCreated, struct {
 		auth.InviteResult
 		Hash      string    `json:"hash"`
@@ -297,7 +298,7 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 		Email     string    `json:"email"`
 		Note      string    `json:"note"`
 		CreatedBy string    `json:"createdBy"`
-	}{res, hex.EncodeToString(res.Invite.TokenHash), res.Invite.CreatedAt, res.Invite.ExpiresAt, res.Invite.Email, res.Invite.Note, id.User.DisplayName})
+	}{res, hex.EncodeToString(res.Invite.TokenHash), res.Invite.CreatedAt, res.Invite.ExpiresAt, res.Invite.Email, res.Invite.Note, id.User.Username})
 }
 
 func (s *Server) revokeInvite(w http.ResponseWriter, r *http.Request) {

@@ -114,7 +114,9 @@ jobs:
         with:
           images: ghcr.io/yornik/go-practice-${{ matrix.image }}
           # Only the exact tag: the gitops repository pins it, and Renovate
-          # bumps it there.
+          # bumps it there. Without latest=false, every tag (an RC, or a
+          # backport after a newer release) also moves :latest.
+          flavor: latest=false
           tags: type=ref,event=tag
       - uses: docker/build-push-action@v6
         with:

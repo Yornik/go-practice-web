@@ -241,7 +241,7 @@ async function main() {
   problems.tests = runner;
   leader.tests = runner;
   runner.runs = progress.runs || 0;
-  if (boot.raceUnavailable) runner.raceNote();
+  if (boot.raceUnavailable) runner.raceNote(false);
   if (progress.lastResult && progress.runs) {
     runner.restore(progress.lastResult, progress.runs, boot.files);
     layout.expandBottom();
@@ -322,11 +322,20 @@ async function main() {
   // opens where the learner left it.
   const cursorKey = (name) => `gpw-cursor:${slug}:${name}`;
   let cursorTimer = 0;
+  let pendingCursor = null;
+  const flushCursor = () => {
+    clearTimeout(cursorTimer);
+    if (pendingCursor) save(cursorKey(pendingCursor.name), pendingCursor.at);
+    pendingCursor = null;
+  };
   editor.onDidChangeCursorPosition((e) => {
     cursorCell.textContent = `Line ${e.position.lineNumber}, column ${e.position.column}`;
-    clearTimeout(cursorTimer);
     const name = files.activeName();
-    cursorTimer = setTimeout(() => save(cursorKey(name), `${e.position.lineNumber}:${e.position.column}`), 500);
+    // A switch to another file must not drop the last move in this one.
+    if (pendingCursor && pendingCursor.name !== name) flushCursor();
+    pendingCursor = { name, at: `${e.position.lineNumber}:${e.position.column}` };
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(flushCursor, 500);
   });
   const first = files.activeName();
   const stored = (load(cursorKey(first)) || "").split(":").map(Number);

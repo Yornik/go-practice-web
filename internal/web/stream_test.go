@@ -1,8 +1,10 @@
 package web_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -346,6 +348,43 @@ func TestStreamExplanations(t *testing.T) {
 		}
 		if last["progress"]["passed"] != false {
 			t.Errorf("progress = %v", last["progress"])
+		}
+		// A reload still shows the test that hung, as failed.
+		prog, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var summary struct {
+			Tests       map[string]string `json:"tests"`
+			FailedTests []string          `json:"failedTests"`
+		}
+		if err := json.Unmarshal(prog.LastResult, &summary); err != nil {
+			t.Fatal(err)
+		}
+		if summary.Tests["TestParseBareValues"] != "fail" || !slices.Contains(summary.FailedTests, "TestParseBareValues/single_pair") {
+			t.Errorf("last result = %s, want the test that hung as failed", prog.LastResult)
+		}
+	})
+
+	t.Run("a run the runner killed at its deadline", func(t *testing.T) {
+		// The runner kills the process group, so go test prints no dump
+		// and no FAIL line. The test hung; it did not exit.
+		h.runner.events = func(runnerapi.TestRequest) []runnerapi.Event {
+			return []runnerapi.Event{
+				action("run", "TestParse"),
+				output("TestParse", "=== RUN   TestParse\n"),
+				output("TestParse", "waiting for the first tick\n"),
+				{Type: runnerapi.EventDone, ExitCode: -1, TimedOut: true},
+			}
+		}
+		h.clock.Advance(time.Minute)
+		_, explains, _ := h.runTest(admin, map[string]any{})
+		for _, ev := range explains {
+			for _, it := range items(ev) {
+				if id, _ := it["id"].(string); strings.HasPrefix(id, "runtime-exit") {
+					t.Errorf("explanation %s for a run the runner killed", id)
+				}
+			}
 		}
 	})
 

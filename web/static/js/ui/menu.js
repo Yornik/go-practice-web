@@ -52,10 +52,12 @@ function menu(wrap) {
     }
     if (event.key === "Tab") close(state, false);
   });
-  // An item that acts closes the menu; the action runs from its own handler.
+  // An item that acts closes the menu before its own handler runs (capture
+  // phase), so the focus is back on the menu button when the action opens a
+  // dialog, and the dialog returns the focus there.
   panel.addEventListener("click", (event) => {
     if (event.target.closest('[role^="menuitem"]')) close(state, true);
-  });
+  }, true);
 }
 
 function show(state, index) {

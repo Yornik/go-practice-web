@@ -75,7 +75,9 @@ export class TestRunner {
 
   /** Remembers that a file changed after the last run. */
   markStale(name) {
-    if (!this.lastRun || this.running || this.stale.has(name)) return;
+    // An edit during a run counts too: run() takes the files before it
+    // starts, so the run's line numbers are those of the older code.
+    if ((!this.lastRun && !this.running) || this.stale.has(name)) return;
     this.stale.add(name);
     this.renderSummary();
   }
@@ -245,7 +247,11 @@ export class TestRunner {
     this.current.state = "done";
     if (ev.raceUnavailable) this.raceNote();
     // Tests still marked running never finished: the run was stopped.
-    for (const node of this.nodes.values()) if (node.state === "run" || node.state === "queued") node.state = ev.timedOut ? "fail" : "skip";
+    // A test that never reported a result failed when go test's -timeout fired
+    // or the test binary died (an exit or a crash); a run stopped or cut off
+    // from outside skips it. The server keeps the same states in last_result.
+    const unfinished = ev.timedOut || ev.exitCode > 0 ? "fail" : "skip";
+    for (const node of this.nodes.values()) if (node.state === "run" || node.state === "queued") node.state = unfinished;
     // Select the first failure in tree order, and show its output.
     const firstFail = this.visibleOrder().find((n) => n.state === "fail" && !n.children.some((c) => c.state === "fail"));
     if (firstFail) {
@@ -276,10 +282,14 @@ export class TestRunner {
     this.onProgress(p);
   }
 
-  raceNote() {
+  /** ran is false before any run: the page only knows the runner has no race detector. */
+  raceNote(ran = true) {
     this.onRaceUnavailable?.();
     if (this.notes.querySelector("[data-race-note]")) return;
-    this.notes.append(h("p", { class: "callout", "data-race-note": "" }, h("b", {}, "NOTE:"), " The race detector is not available on this server. The tests ran without -race."));
+    const text = ran
+      ? " The race detector is not available on this server. The tests ran without -race."
+      : " The race detector is not available on this server. Runs go without -race.";
+    this.notes.append(h("p", { class: "callout", "data-race-note": "" }, h("b", {}, "NOTE:"), text));
   }
 
   *topNodes() {

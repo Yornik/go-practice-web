@@ -105,8 +105,28 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(page.locator("[data-race]")).toBeDisabled();
   await expect(page.locator("[data-race-status]")).toHaveText("-race not available");
-  await expect(page.locator("[data-run-notes]")).toContainText("The race detector is not available on this server.");
+  await expect(page.locator("[data-run-notes]")).toContainText("The race detector is not available on this server. Runs go without -race.");
   await page.unrouteAll();
+
+  // Code that a closed tab could not save stays on offer through an edit and
+  // a successful save, until the learner restores or discards it.
+  const key = "gpw-unsaved:02-accesslog:accesslog.go";
+  const kept = "package accesslog\n\n// kept by this browser\n";
+  await page.evaluate(([k, content]) => localStorage.setItem(k, JSON.stringify({ at: Date.now(), content })), [key, kept]);
+  await page.reload();
+  await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  const banner = page.locator("[data-save-banner]");
+  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  await page.evaluate(() => {
+    const m = window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go"));
+    m.setValue(m.getValue() + "\n// an edit\n");
+  });
+  await expect(page.locator("[data-save-status]")).toContainText("Saved", { timeout: 20_000 });
+  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), key)).content).toBe(kept);
+  await banner.getByRole("button", { name: "Restore them" }).click();
+  await expect(banner).toBeHidden();
+  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(kept);
 
   expect(errors).toEqual([]);
 });

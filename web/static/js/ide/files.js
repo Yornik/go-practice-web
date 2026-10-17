@@ -39,6 +39,10 @@ export class Files {
     this.testTab = null;
     this.quiet = false; // set while code replaces content, so it is not saved again
     this.failing = null; // the error of the last failed save, until a save works
+    // Stub files whose kept browser copy is on offer: until the learner
+    // restores or discards it, edits and saves must not overwrite or delete it.
+    this.offered = new Set();
+    this.showOffer = null;
 
     for (const file of o.files) this.add(file);
     this.buildTestMenu();
@@ -147,6 +151,9 @@ export class Files {
       t.tabIndex = on ? 0 : -1;
     }
     if (this.active !== entry) {
+      // setModel and restoreViewState fire cursor events at once, and their
+      // listeners read the active file.
+      this.active = entry;
       this.editor.setModel(entry.model);
       const ro = entry.file.readonly;
       this.editor.updateOptions({ readOnly: ro, ariaLabel: `${name}${ro ? ", read only" : ""}, code editor` });
@@ -272,6 +279,7 @@ export class Files {
 
   /** Keeps the unsaved code in this browser, so a lost save loses nothing. */
   backup(entry) {
+    if (this.offered.has(entry.file.name)) return;
     if (entry.dirty || entry.saving) save(this.backupKey(entry), JSON.stringify({ at: Date.now(), content: entry.model.getValue() }));
   }
 
@@ -290,7 +298,7 @@ export class Files {
         this.lastSaved = new Date(res.savedAt || Date.now());
         if (!entry.dirty) {
           entry.tab.querySelector(".dirty").hidden = true;
-          save(this.backupKey(entry), null);
+          if (!this.offered.has(entry.file.name)) save(this.backupKey(entry), null);
         }
         if (![...this.entries.values()].some((e) => e.retry)) this.setFailing(null);
         this.onSaveStatus(this.anyDirty() ? { kind: "", text: "Not saved yet" } : { kind: "ok", text: `Saved at ${clock(this.lastSaved)}` });
@@ -323,8 +331,12 @@ export class Files {
     this.failing = state;
     if (!this.banner) return;
     if (!state) {
+      // Only a failure banner goes; an offer of kept code stays, and comes
+      // back once the failure that covered it is over.
+      if (!was) return;
       this.banner.hidden = true;
       this.banner.replaceChildren();
+      this.showOffer?.();
       return;
     }
     const { err, wait, signedOut } = state;
@@ -332,6 +344,7 @@ export class Files {
       ? ["Your code is not saved: this browser is signed out. ", h("a", { href: "/login", target: "_blank", rel: "noopener" }, "Sign in again in a new tab", h("span", { class: "visually-hidden" }, " (opens in a new tab)")), ", then come back. Your code stays in this browser until then. ", h("button", { type: "button", class: "link-button", onclick: () => this.retryAll() }, "Save now")]
       : [`Your code is not saved: ${errorMessage(err)} The site tries again in ${Math.round(wait / 1000)} s. Your code stays in this browser until then. `, h("button", { type: "button", class: "link-button", onclick: () => this.retryAll() }, "Save now")];
     this.banner.replaceChildren(h("b", {}, "WARNING:"), " ", ...text);
+    delete this.banner.dataset.kind;
     this.banner.hidden = false;
     this.onSaveStatus({ kind: "fail", text: "Not saved" });
     if (!was) this.alert?.(`Your code is not saved: ${signedOut ? "this browser is signed out." : errorMessage(err)}`);
@@ -365,25 +378,35 @@ export class Files {
       found.push({ e, b });
     }
     if (!found.length) return;
+    for (const { e } of found) this.offered.add(e.file.name);
     const names = found.map(({ e }) => e.file.name).join(" and ");
     const at = clock(new Date(Math.max(...found.map(({ b }) => b.at || 0))));
+    const settle = () => {
+      this.offered.clear();
+      this.showOffer = null;
+      this.banner.hidden = true;
+      this.banner.replaceChildren();
+    };
+    // Settle first: the restore is an edit, and its backup and save must go
+    // through as for any other edit.
     const restore = () => {
+      settle();
       for (const { e, b } of found) {
         e.model.pushEditOperations([], [{ range: e.model.getFullModelRange(), text: b.content }], () => null);
       }
-      this.banner.hidden = true;
-      this.banner.replaceChildren();
     };
     const discard = () => {
+      settle();
       for (const { e } of found) save(this.backupKey(e), null);
-      this.banner.hidden = true;
-      this.banner.replaceChildren();
     };
-    this.banner.replaceChildren(h("b", {}, "NOTE:"), ` This browser kept changes to ${names} from ${at} that the site did not save. `,
-      h("button", { type: "button", class: "link-button", onclick: restore }, "Restore them"), " or ",
-      h("button", { type: "button", class: "link-button", onclick: discard }, "discard them"), ".");
-    this.banner.dataset.kind = "note";
-    this.banner.hidden = false;
+    this.showOffer = () => {
+      this.banner.replaceChildren(h("b", {}, "NOTE:"), ` This browser kept changes to ${names} from ${at} that the site did not save. `,
+        h("button", { type: "button", class: "link-button", onclick: restore }, "Restore them"), " or ",
+        h("button", { type: "button", class: "link-button", onclick: discard }, "discard them"), ".");
+      this.banner.dataset.kind = "note";
+      this.banner.hidden = false;
+    };
+    this.showOffer();
   }
 
   anyDirty() {

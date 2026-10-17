@@ -146,6 +146,10 @@ func TestAdminInvites(t *testing.T) {
 	if res["mailed"] != true || !strings.HasPrefix(res["url"].(string), publicURL+"/join?invite=") {
 		t.Fatalf("invite = %v", res)
 	}
+	// The row the page adds names the creator as the table does.
+	if res["createdBy"] != "ada" {
+		t.Errorf("createdBy = %v, want the username", res["createdBy"])
+	}
 	invites, err := h.store.Invites(t.Context())
 	if err != nil || len(invites) != 1 {
 		t.Fatalf("invites = %v, %v", invites, err)
