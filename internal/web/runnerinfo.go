@@ -73,6 +73,19 @@ func (s *Server) raceUnavailable(ctx context.Context) bool {
 	return ok && !info.RaceAvailable
 }
 
+// knownRaceUnavailable is raceUnavailable from the cache only, for the IDE
+// bootstrap: opening an exercise must not wait on the runner. While
+// another request fetches, or the answer is old, it says "available"; the
+// first run then corrects the IDE.
+func (s *Server) knownRaceUnavailable() bool {
+	c := &s.info
+	if !c.mu.TryLock() {
+		return false
+	}
+	defer c.mu.Unlock()
+	return c.have && !c.info.RaceAvailable && s.now().Sub(c.fetchedAt) < runnerNoRaceTTL
+}
+
 // noteRaceUnavailable records a done event in which the runner ran
 // without -race although the site asked for it: the cached answer is out
 // of date.

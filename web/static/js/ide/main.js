@@ -185,7 +185,16 @@ async function main() {
   });
   const stepSelect = $("[data-step-select]");
   const race = $("[data-race]");
-  const run = (step = stepSelect.value) => runner.run(step, race.checked);
+  // A disabled toggle still asks for -race: the site drops it while the
+  // runner has no race detector, and a new runner pod may have one.
+  const run = (step = stepSelect.value) => runner.run(step, race.checked || race.disabled);
+  const raceUnavailable = () => {
+    if (race.disabled) return;
+    race.checked = false;
+    race.disabled = true;
+    race.setAttribute("aria-label", "Run with the race detector, -race. Not available on this server");
+    raceCell.textContent = "-race not available";
+  };
   problems = new Problems({
     monaco, editor, files,
     chips: $("[data-chips]"), view: $("[data-problem-view]"),
@@ -218,6 +227,7 @@ async function main() {
     showPanel: (name) => tabs.show("bottom", `panel-${name}`),
     showProblem,
     onStart: () => layout.expandBottom(),
+    onRaceUnavailable: raceUnavailable,
     onProgress: (p) => {
       cells.runs.textContent = String(p.runs);
       activeSeconds = p.activeSeconds;
@@ -231,6 +241,7 @@ async function main() {
   problems.tests = runner;
   leader.tests = runner;
   runner.runs = progress.runs || 0;
+  if (boot.raceUnavailable) runner.raceNote();
   if (progress.lastResult && progress.runs) {
     runner.restore(progress.lastResult, progress.runs, boot.files);
     layout.expandBottom();

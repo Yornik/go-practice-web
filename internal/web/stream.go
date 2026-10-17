@@ -657,15 +657,31 @@ func (t *runTracker) finish(done runnerapi.Event) []any {
 	if done.ExitCode == 0 {
 		return out
 	}
+	// Cut-off output, or a run killed before it ended (stopped, or ended
+	// by the output cap), leaves the last test's output incomplete: an
+	// explanation of it would guess.
+	if done.Truncated || done.ExitCode < 0 && !done.TimedOut {
+		return out
+	}
 	// When go test's -timeout fires, the test binary panics and no test
 	// reports a result: the panic and the goroutines are in the output of
 	// the test that was running. A crash looks the same.
-	for _, name := range t.unfinished() {
+	unfinished := t.unfinished()
+	for _, name := range unfinished {
 		var output string
 		if b, ok := t.output[name]; ok {
 			output = b.String()
 		}
-		out = append(out, t.emit(name, explain.ExplainTestOutput(name, output))...)
+		items := explain.ExplainTestOutput(name, output)
+		// The deepest unfinished test is where the run ended; its parents
+		// only waited in t.Run. A parent keeps its own messages, such as a
+		// got/want it logged first, but "the run ended here" is wrong for it.
+		if slices.ContainsFunc(unfinished, func(n string) bool { return strings.HasPrefix(n, name+"/") }) {
+			items = slices.DeleteFunc(items, func(e explain.Explanation) bool {
+				return strings.HasPrefix(e.ID, "runtime-exit") || e.ID == "test-timeout"
+			})
+		}
+		out = append(out, t.emit(name, items)...)
 	}
 	if len(t.explained) > 0 {
 		return out

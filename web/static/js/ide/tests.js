@@ -37,6 +37,7 @@ export class TestRunner {
    * @param {(panel: string) => void} o.showPanel
    * @param {(n: number) => void} o.showProblem
    * @param {() => void} [o.onStart]
+   * @param {() => void} [o.onRaceUnavailable]
    * @param {{slug: string, title: string}|null} o.next
    */
   constructor(o) {
@@ -263,10 +264,11 @@ export class TestRunner {
   onProgressEvent(p) {
     this.runs = p.runs || this.runs + 1;
     this.current.no = this.runs;
-    if (p.raceUnavailable && !this.notes.querySelector("[data-race-note]")) this.raceNote();
+    if (p.raceUnavailable) this.raceNote();
     if (p.firstPass) {
+      const how = p.raceUnavailable ? "passes. This server has no race detector, so it ran without -race" : "passes with -race";
       const line = h("div", { class: "pass-line" },
-        h("p", { class: "status status-ok" }, icon("tick"), h("span", {}, `Exercise ${this.number} passes with -race. Rule 5: read the explanation and the walkthrough now. They show the trade-offs.`)));
+        h("p", { class: "status status-ok" }, icon("tick"), h("span", {}, `Exercise ${this.number} ${how}. Rule 5: read the explanation and the walkthrough now. They show the trade-offs.`)));
       if (this.next) line.append(h("p", {}, "Next: ", h("a", { href: `/learn/${this.next.slug}` }, this.next.title)));
       this.notes.append(line);
     }
@@ -275,6 +277,8 @@ export class TestRunner {
   }
 
   raceNote() {
+    this.onRaceUnavailable?.();
+    if (this.notes.querySelector("[data-race-note]")) return;
     this.notes.append(h("p", { class: "callout", "data-race-note": "" }, h("b", {}, "NOTE:"), " The race detector is not available on this server. The tests ran without -race."));
   }
 

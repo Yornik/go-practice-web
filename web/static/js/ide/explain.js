@@ -555,6 +555,8 @@ export function problemView(p, { files, titles, tests, runStep }) {
   } else if (raw.file && raw.line) {
     article.append(h("p", { class: "problem-where" }, `Line ${raw.line} in `, h("span", { class: "mono" }, raw.file), raw.openable ? "" : ", a file of Go itself"));
   }
+  const rel = relatedLine(p, files);
+  if (rel) article.append(rel);
   const twin = caseTwin(e, files);
   if (twin) article.append(twin);
   const fuzz = fuzzNote(p);
@@ -567,6 +569,18 @@ export function problemView(p, { files, titles, tests, runStep }) {
   article.append(...sections(e.html || "", e));
   article.append(courseLine(e, titles));
   return article;
+}
+
+// staticcheck names a second place for some findings, such as where the
+// value in a comparison comes from. The cause is often there, not on the
+// marked line.
+function relatedLine(p, files) {
+  const r = p.diag?.related;
+  if (!r?.file || !r.line || !files.has(r.file)) return null;
+  const link = h("a", { href: "#", onclick: (ev) => { ev.preventDefault(); files.reveal(r.file, r.line, r.column || 1); } }, `line ${r.line} in ${r.file}`);
+  return r.message
+    ? h("p", { class: "problem-where problem-related" }, "See also ", link, ": ", h("code", {}, r.message), ".")
+    : h("p", { class: "problem-where problem-related" }, "See also ", link, ".");
 }
 
 function courseLine(e, titles) {

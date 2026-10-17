@@ -136,6 +136,8 @@ func (s *Server) exerciseBootstrap(w http.ResponseWriter, r *http.Request) {
 		"revealed": revealed,
 		"ladder":   ladder,
 		"gates":    map[string]int{"firstHintMinutes": firstHintMinutes, "betweenHintMinutes": betweenHintMinutes},
+		// The -race toggle is right before the first run.
+		"raceUnavailable": s.knownRaceUnavailable(),
 	})
 }
 

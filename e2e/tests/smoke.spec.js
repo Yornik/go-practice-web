@@ -94,5 +94,19 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await page.goto("/verify?id=gp-0000-0000-0000");
   await expect(page.getByRole("heading", { name: "No certificate has this ID." })).toBeVisible();
 
+  // A runner without a race detector: the bootstrap says so, and the IDE
+  // disables the toggle before the first run. The dev runner has one, so
+  // the answer is rewritten in the browser.
+  await page.route("**/api/exercises/02-*", async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: { ...(await res.json()), raceUnavailable: true } });
+  });
+  await page.goto("/learn/02-accesslog");
+  await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await expect(page.locator("[data-race]")).toBeDisabled();
+  await expect(page.locator("[data-race-status]")).toHaveText("-race not available");
+  await expect(page.locator("[data-run-notes]")).toContainText("The race detector is not available on this server.");
+  await page.unrouteAll();
+
   expect(errors).toEqual([]);
 });

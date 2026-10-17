@@ -1,7 +1,9 @@
 package web_test
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,9 +42,23 @@ func TestRaceUnavailableOnTheRunner(t *testing.T) {
 	admin := h.admin()
 	h.runner.setInfo(&runnerapi.Info{GoVersion: "go1.27.2", RaceError: "FATAL: ThreadSanitizer: unexpected memory mapping"}, 0)
 	h.runner.events = passingRun
+	raceUnavailable := func() any {
+		t.Helper()
+		w := h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: admin})
+		wantStatus(t, w, http.StatusOK)
+		return decodeJSON[map[string]any](t, w)["raceUnavailable"]
+	}
+	// Opening the IDE does not wait on the runner: before any run the
+	// site does not know yet.
+	if got := raceUnavailable(); got != false || h.runner.infoCount() != 0 {
+		t.Fatalf("bootstrap before a run: raceUnavailable = %v after %d info calls", got, h.runner.infoCount())
+	}
 
 	// A step with -race: the runner gets no -race, and the stream says why.
 	last, _, _ := h.runTest(admin, map[string]any{"step": "step-1", "race": true})
+	if got := raceUnavailable(); got != true {
+		t.Errorf("bootstrap after a run without a race detector: raceUnavailable = %v", got)
+	}
 	if got := h.runner.lastTest(); got.Race {
 		t.Fatalf("runner request = %+v, want no -race", got)
 	}
@@ -74,6 +90,9 @@ func TestRaceUnavailableOnTheRunner(t *testing.T) {
 	}
 	if last["progress"]["raceUnavailable"] != nil || last["done"]["raceUnavailable"] != nil {
 		t.Errorf("a run with -race says raceUnavailable: %v %v", last["done"], last["progress"])
+	}
+	if got := raceUnavailable(); got != false {
+		t.Errorf("bootstrap after a run with -race: raceUnavailable = %v", got)
 	}
 	if n := h.runner.infoCount(); n != 2 {
 		t.Errorf("GET /v1/info was asked %d times, want 2", n)
@@ -329,4 +348,60 @@ func TestStreamExplanations(t *testing.T) {
 			t.Errorf("progress = %v", last["progress"])
 		}
 	})
+
+	// A subtest whose code exits the test binary. Its parent logged a
+	// got/want first and then waited in t.Run.
+	crash := func(done runnerapi.Event) func(runnerapi.TestRequest) []runnerapi.Event {
+		return func(runnerapi.TestRequest) []runnerapi.Event {
+			sub := "TestParse/exit"
+			return []runnerapi.Event{
+				action("run", "TestParse"),
+				output("TestParse", "=== RUN   TestParse\n"),
+				output("TestParse", "    logfmt_test.go:7: Parse(\"a\") = 1, want 2\n"),
+				action("run", sub),
+				output(sub, "=== RUN   "+sub+"\n"),
+				output(sub, "    logfmt_test.go:9: Parse(\"b\") = 1, want 3\n"),
+				output("", "FAIL\tgithub.com/yornik/go-practice/exercises/01-logfmt\t0.012s\n"),
+				action("fail", ""),
+				done,
+			}
+		}
+	}
+
+	t.Run("a crashed subtest and its parent", func(t *testing.T) {
+		h.runner.events = crash(runnerapi.Event{Type: runnerapi.EventDone, ExitCode: 1})
+		h.clock.Advance(time.Minute)
+		_, explains, _ := h.runTest(admin, map[string]any{})
+		ids := map[string][]any{}
+		for _, ev := range explains {
+			for _, it := range items(ev) {
+				ids[ev["test"].(string)] = append(ids[ev["test"].(string)], it["id"])
+			}
+		}
+		if got := fmt.Sprint(ids["TestParse/exit"]); !strings.Contains(got, "runtime-exit") {
+			t.Errorf("TestParse/exit explanations = %v, want the exit", got)
+		}
+		if got := fmt.Sprint(ids["TestParse"]); got != "[test-got-want]" {
+			t.Errorf("TestParse explanations = %v, want only its own got/want", got)
+		}
+	})
+
+	for _, c := range []struct {
+		name string
+		done runnerapi.Event
+	}{
+		{"cut-off output", runnerapi.Event{Type: runnerapi.EventDone, ExitCode: -1, Truncated: true}},
+		{"a stopped run", runnerapi.Event{Type: runnerapi.EventDone, ExitCode: -1}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			// The output ends early, so an explanation of the unfinished
+			// tests would guess.
+			h.runner.events = crash(c.done)
+			h.clock.Advance(time.Minute)
+			_, explains, _ := h.runTest(admin, map[string]any{})
+			if len(explains) != 0 {
+				t.Errorf("explain events = %v, want none", explains)
+			}
+		})
+	}
 }

@@ -256,6 +256,18 @@ export class Problems {
     return [{ file: p.file, line: p.line, column: p.column, endLine: p.endLine, endColumn: p.endColumn }];
   }
 
+  /** The second place of a staticcheck finding, in Monaco's form. */
+  related(p) {
+    const r = p.diag?.related;
+    const model = r?.file && r.line ? this.files.model(r.file) : null;
+    if (!model) return undefined;
+    const line = Math.min(r.line, model.getLineCount());
+    const text = model.getLineContent(line);
+    const endLine = Math.min(r.endLine || line, model.getLineCount());
+    const endColumn = r.endLine && r.endColumn ? byteToUtf16Column(model.getLineContent(endLine), r.endColumn) : model.getLineMaxColumn(endLine);
+    return [{ resource: model.uri, startLineNumber: line, startColumn: byteToUtf16Column(text, r.column || 1), endLineNumber: endLine, endColumn, message: r.message || "Related place" }];
+  }
+
   renderMarkers() {
     const { monaco } = this;
     const sev = monaco.MarkerSeverity;
@@ -296,6 +308,7 @@ export class Problems {
           message: `${e.raw?.message || p.diag?.message || ""}\n\nSee problem ${p.n}.`,
           severity: advice ? sev.Warning : sev.Error,
           source: p.diag ? (p.diag.code ? `${p.diag.source} ${p.diag.code}` : p.diag.source) : "go test",
+          relatedInformation: this.related(p),
         });
         decos.push({
           range: new monaco.Range(line, 1, line, 1),

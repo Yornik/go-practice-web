@@ -41,3 +41,23 @@ test("no prose outside code shows parentheses in B612", async ({ page }) => {
   const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
   expect(family.startsWith('"Manual Parens"')).toBe(true);
 });
+
+test("a staticcheck finding links its related place", async ({ page }) => {
+  await page.goto("/guide");
+  const out = await page.evaluate(async () => {
+    const { problemView } = await import("/static/js/ide/explain.js");
+    const revealed = [];
+    const files = { has: (f) => f === "retry.go", reveal: (...a) => revealed.push(a.join(":")), model: () => null };
+    const diag = {
+      source: "staticcheck", code: "SA4023", severity: "warning", file: "retry.go", line: 20, column: 5,
+      message: "this comparison is never true",
+      related: { file: "retry.go", line: 15, column: 18, message: "the lhs of the comparison gets its value from here" },
+    };
+    const view = problemView({ n: 1, kind: "check", diag, file: "retry.go", line: 20, column: 5 }, { files, titles: {}, tests: null });
+    const rel = view.querySelector(".problem-related");
+    rel?.querySelector("a")?.click();
+    return { text: rel?.textContent, revealed };
+  });
+  expect(out.text).toBe("See also line 15 in retry.go: the lhs of the comparison gets its value from here.");
+  expect(out.revealed).toEqual(["retry.go:15:18"]);
+});
