@@ -75,12 +75,17 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Playwright
         working-directory: e2e
+        env:
+          # A known place for the logs of scripts/dev.sh.
+          GO_PRACTICE_DEV_STATE: ${{ runner.temp }}/gpw-state
         run: npx playwright test
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-results
-          path: e2e/test-results/
+          path: |
+            e2e/test-results/
+            ${{ runner.temp }}/gpw-state/*.log
           retention-days: 7
 
   release:

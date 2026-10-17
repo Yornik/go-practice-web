@@ -16,6 +16,7 @@ const baseURL = process.env.E2E_BASE_URL || `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./global-setup.js",
   // A cold build cache makes the first -race run slow.
   timeout: 240_000,
   expect: { timeout: 15_000 },

@@ -71,10 +71,13 @@ GPW_DEV="true" \
 	"$state/bin/web" >"$state/web.log" 2>&1 &
 pids+=($!)
 
-for _ in $(seq 1 100); do
-	if curl -fsS "http://127.0.0.1:$port/readyz" >/dev/null 2>&1; then
-		break
-	fi
+# The runner listens only after its race probe, which compiles the
+# standard library with -race on a cold cache: a minute or more on a CI
+# machine. Until then every check and test run fails, so wait for both.
+echo "Waiting for the web server and the runner (the first start compiles the standard library with -race)"
+deadline=$((SECONDS + 300))
+until curl -fsS "http://127.0.0.1:$port/readyz" >/dev/null 2>&1 &&
+	curl -fsS "http://127.0.0.1:8081/readyz" >/dev/null 2>&1; do
 	for pid in "${pids[@]}"; do
 		if ! kill -0 "$pid" 2>/dev/null; then
 			echo "A server stopped. Logs:" >&2
@@ -82,6 +85,11 @@ for _ in $(seq 1 100); do
 			exit 1
 		fi
 	done
+	if ((SECONDS > deadline)); then
+		echo "The servers are not ready after 300 s. Logs:" >&2
+		tail -n 20 "$state/runner.log" "$state/web.log" >&2
+		exit 1
+	fi
 	sleep 0.2
 done
 
