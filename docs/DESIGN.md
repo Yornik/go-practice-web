@@ -415,7 +415,11 @@ The visual design, the copy rules and every page layout are in `.design/FINAL.md
 - `Dockerfile.web`: build stage with Go and the Monaco tarball from the npm registry (`scripts/fetch-monaco.sh`, checked against a pinned SHA-256); final stage `gcr.io/distroless/static-debian12:nonroot` with the binary, templates and static files embedded (`embed.FS`) and the course copied to `/course` (`README.md`, `go.mod`, `exercises/`, `solutions/`; without git metadata, so `course.Version()` is the content digest).
 - `scripts/dev.sh` builds both binaries and runs them on `127.0.0.1` (site `:8080`, runner `:8081`, metrics `:9090` and `:9091`) with a random 64-character token, `GPW_DEV=true`, a state directory for the database, runs and logs, and a runner build cache in `~/.cache/go-practice-dev` that outlives it. Its own settings are `GO_PRACTICE_DEV_STATE`, `GO_PRACTICE_DEV_PORT` and `GO_PRACTICE_DEV_CACHE`: the servers refuse unknown `GPW_` and `GPR_` variables. It prints the setup link.
 - The web server shuts down within 25 s of SIGTERM (a test stream still running is cut and the runner kills its run), waits for the emails in flight, and closes the database. It backs up the database 10 minutes after start and then daily, and cleans expired sessions, ceremonies and email tokens hourly.
-- GitHub Actions: CI on pull requests; on a tag `vX.Y.Z` build and push `ghcr.io/yornik/go-practice-web:vX.Y.Z` and `ghcr.io/yornik/go-practice-runner:vX.Y.Z` (linux/amd64). The gitops repository pins these tags; Renovate bumps them.
+- `.dockerignore` keeps `.git`, `.design/`, `e2e/` and a local `web/static/vendor/` out of the build context, so `Dockerfile.web` copies all of `web/static/` and the fetched Monaco stays.
+- GitHub Actions (`.github/workflows/ci.yml`), on pull requests, pushes to `main` and tags, with Go 1.27.2, the release of the images and of the explain fixtures:
+  - `check`: gofmt (without `testdata/`), `go vet`, golangci-lint v2.15.0 and `go test -race ./...` with staticcheck v0.8.2 required. Both tools are built from source by that Go release, because they load its standard library.
+  - `e2e`: `scripts/fetch-monaco.sh` and the Playwright suite against `scripts/dev.sh`, in Chromium.
+  - `images`: on a tag `vX.Y.Z`, after the 2 jobs above pass, build and push `ghcr.io/yornik/go-practice-web:vX.Y.Z` and `ghcr.io/yornik/go-practice-runner:vX.Y.Z` (linux/amd64). Only the exact tag: the gitops repository pins it, and Renovate bumps it.
 
 ## Deployment (sharkshere-gitops)
 

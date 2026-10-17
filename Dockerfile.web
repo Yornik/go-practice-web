@@ -23,9 +23,9 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY web/web.go web/
 COPY web/templates/ web/templates/
-COPY web/static/css/ web/static/css/
-COPY web/static/js/ web/static/js/
-COPY web/static/img/ web/static/img/
+# The whole of web/static; .dockerignore keeps a local Monaco out, so the
+# fetched one above stays.
+COPY web/static/ web/static/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/web ./cmd/web

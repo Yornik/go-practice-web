@@ -1,0 +1,12 @@
+# The images build from sources only. Monaco comes from scripts/fetch-monaco.sh
+# inside the build, so a local copy must not overwrite it.
+.git
+.design
+.blind
+.staging
+bin
+data
+tmp
+e2e
+web/static/vendor
+course/.git
