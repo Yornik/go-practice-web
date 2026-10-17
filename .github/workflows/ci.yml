@@ -8,6 +8,11 @@ on:
   push:
     branches: [main]
   workflow_call:
+    inputs:
+      ref:
+        description: The commit to test. Empty means the commit of the event.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -31,6 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # release.yml passes the release commit; other events leave it empty.
+          ref: ${{ inputs.ref }}
           submodules: true
       - uses: actions/setup-go@v6
         with:
@@ -60,6 +67,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # release.yml passes the release commit; other events leave it empty.
+          ref: ${{ inputs.ref }}
           submodules: true
       - uses: actions/setup-go@v6
         with:

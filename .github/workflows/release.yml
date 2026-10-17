@@ -5,12 +5,19 @@
 # that the gitops repository pins (docs/DESIGN.md, "Build and release").
 #
 # The images are built here and not on the tag: a tag that Release Please
-# creates with GITHUB_TOKEN starts no other workflow.
+# creates with GITHUB_TOKEN starts no other workflow. To build the images of
+# an existing tag again, run this workflow by hand with that tag.
 name: Release
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing release tag, such as v0.1.0, to test and build again
+        required: true
+        type: string
 
 permissions: {}
 
@@ -20,6 +27,7 @@ concurrency:
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -36,15 +44,46 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  checks:
+  # The tag and the commit to test and build: the release this push created,
+  # or the tag of a run by hand. "Re-run all jobs" after a release finds no
+  # new release, so it builds nothing; use "Re-run failed jobs" or a run by
+  # hand instead.
+  target:
     needs: release-please
-    if: needs.release-please.outputs.created == 'true'
+    if: always() && (needs.release-please.outputs.created == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.target.outputs.tag }}
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag }}
+          SHA: ${{ needs.release-please.outputs.sha }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a release tag vX.Y.Z"
+            exit 1
+          fi
+          if [ -z "$SHA" ]; then
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: target
     permissions:
       contents: read
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.target.outputs.sha }}
 
   images:
-    needs: [release-please, checks]
+    needs: [target, checks]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -55,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ needs.release-please.outputs.sha }}
+          ref: ${{ needs.target.outputs.sha }}
           submodules: true
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -70,7 +109,7 @@ jobs:
           # Only the exact tag: the gitops repository pins it, and Renovate
           # bumps it there. Without latest=false, :latest would move too.
           flavor: latest=false
-          tags: type=raw,value=${{ needs.release-please.outputs.tag }}
+          tags: type=raw,value=${{ needs.target.outputs.tag }}
       - uses: docker/build-push-action@v6
         with:
           context: .
