@@ -41,7 +41,12 @@ type Diagnostic struct {
 	EndColumn int    `json:"endColumn"`
 	Severity  string `json:"severity"` // SeverityError, SeverityWarning or SeverityInfo
 	Source    string `json:"source"`   // SourceGofmt, SourceCompile, SourceVet or SourceStaticcheck
-	Message   string `json:"message"`
+	// Code names the check: the vet analyzer (for example "printf", from
+	// go vet -json) or the staticcheck code (for example "SA4006"). The
+	// explain catalog matches on it, so the runner must fill it for those 2
+	// sources.
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message"`
 }
 
 // Values of Diagnostic.Severity.

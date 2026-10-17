@@ -8,14 +8,14 @@ This file is the contract between the components. If code and this file disagree
 
 | Topic | Decision |
 |---|---|
-| Public URL | `https://go-practice.dev` (apex). The passkey relying party ID is `go-practice.dev`. |
+| Public URL | `https://go-learn.party` (apex). The passkey relying party ID is `go-learn.party`. |
 | Sign-up | Invite only. The first account is created with a one-time setup link that the web server logs at start when no user exists. That account is admin. Admins create single-use invite links. |
 | Login | Passkeys only (WebAuthn, discoverable credentials). No passwords. |
 | Recovery | A verified email address. A recovery link (single use, 15 min) lets the user register a new passkey. |
 | Mail | SMTP with implicit TLS through Resend (`smtp.resend.com:465`, user `resend`, password = API key), sender `go-practice@yornik.eu`. The cluster already sends Resend mail from `yornik.eu`. |
 | Database | SQLite (`modernc.org/sqlite`, pure Go) on 1 PVC, 1 replica. `journal_mode=DELETE` because the PVC is NFS. Daily online backup with `VACUUM INTO`, 7 rotating files. |
 | Code execution | A separate `runner` Deployment in its own namespace runs `go vet`, `staticcheck`, `gofmt` and `go test -race` in a sandbox. The web server calls it over HTTP with a bearer token. |
-| Certificates | 1 per tier (5) and 1 for the full course. PDF with a QR code to `https://go-practice.dev/verify/<id>`. Ed25519-signed. The owner chooses per certificate whether the verify page shows hint and solution counts. |
+| Certificates | 1 per tier (5) and 1 for the full course. PDF with a QR code to `https://go-learn.party/verify/<id>`. Ed25519-signed. The owner chooses per certificate whether the verify page shows hint and solution counts. |
 | Frontend | Server-rendered `html/template` pages, vanilla ES modules, Monaco editor vendored from npm. No frontend framework and no Node at run time. Designed with the frontend-design skill. |
 
 ## Repository layout
@@ -40,7 +40,7 @@ docs/                   This file and operator docs.
 Dockerfile.web, Dockerfile.runner
 ```
 
-Go module: `github.com/yornik/go-practice-web`, `go 1.24`. The images build with the current Go release (`golang:1.27-bookworm`).
+Go module: `github.com/yornik/go-practice-web`, `go 1.26` (the minimum of its dependencies). The images build with the current Go release (`golang:1.27-bookworm`). The course itself stays at `go 1.24`.
 
 ## Configuration
 
@@ -52,7 +52,7 @@ All configuration is environment variables. Unknown or invalid values stop the p
 |---|---|---|
 | `GPW_ADDR` | `:8080` | HTTP listen address for the site. |
 | `GPW_METRICS_ADDR` | `:9090` | Prometheus `/metrics`. Not routed publicly. |
-| `GPW_PUBLIC_URL` | (required) | `https://go-practice.dev`. Origin for WebAuthn, links in emails and certificates. |
+| `GPW_PUBLIC_URL` | (required) | `https://go-learn.party`. Origin for WebAuthn, links in emails and certificates. |
 | `GPW_DB_PATH` | `/data/go-practice.db` | SQLite file. Backups go to `<dir>/backups/`. |
 | `GPW_COURSE_DIR` | `/course` | Checkout of go-practice. |
 | `GPW_RUNNER_URL` | (required) | For example `http://runner.go-practice-runner.svc:8081`. |
@@ -95,7 +95,7 @@ Response 200:
                   "severity": "error", "source": "compile", "message": "undefined: foo"}],
  "durationMs": 1830}
 ```
-`source` is one of `gofmt`, `compile`, `vet`, `staticcheck`. `severity` is `error`, `warning` or `info` (vet and staticcheck findings are warnings). Diagnostics for test files have the test file's name; the UI shows them only in the problems list.
+`source` is one of `gofmt`, `compile`, `vet`, `staticcheck`. `code` is the vet analyzer name (run `go vet -json` to get it) or the staticcheck code; the explain catalog matches on it. `severity` is `error`, `warning` or `info` (vet and staticcheck findings are warnings). Diagnostics for test files have the test file's name; the UI shows them only in the problems list.
 
 `POST /v1/format` — `gofmt` one file.
 ```json
@@ -191,6 +191,40 @@ Protection:
 - **Progress.** An exercise is `started` when first opened. It becomes `passed` the first time an "All tests" run with `-race` passes with zero failures. Active time counts 15-second heartbeats while the tab is visible and the user typed or clicked in the last 60 s. Runs are counted. Notes are free text per exercise, autosaved.
 - **Hint ladder.** Levels in order: hint 1, hint 2, hint 3, explanation, walkthrough, solution. The server refuses level N if N−1 is not revealed. Soft gates from the course rules: before hint 1, if the active time is under 25 minutes, the UI says so and asks for a confirmation; between hints the same with 10 minutes since the previous reveal. Revealed levels stay visible.
 - **Dashboard.** Tiers with their exercises, status, time, hints used, and overall progress. A "learning log" table (time, runs, hints, passed date per exercise) matches step 10 of the course README.
+
+## Learning-first feedback
+
+This is a learning tool, not a developer tool. A learner must never see only "error at line 236". Every problem the
+tools find comes with an explanation that teaches, written for the course's medior audience.
+
+- **Catalog, not AI.** `internal/explain` holds a curated catalog of explanations (Markdown files with a small front
+  matter, embedded). The course forbids LLM help, so explanations are deterministic and reviewed. Each entry matches
+  one kind of message: a compiler or type error, a `go vet` analyzer, a staticcheck check code, a runtime panic, a race
+  report, a deadlock, a test timeout, a failing assertion, an example output mismatch, a build problem.
+- **Entry shape.** `id`, `source` (compile, vet, staticcheck, runtime, race, test, build), a `match` regular expression
+  with named groups (or an analyzer name or a check code), a `title` with placeholders, and a body with these parts:
+  *What it means* (plain language, using the captured names), *Why Go does this* (the language or runtime rule
+  behind it), *How to find it* (where to look, what to print, which part of the message points where), *Example* (a
+  small generic snippet that shows the mistake and the fix; never the exercise's solution), *Learn more* (Go spec,
+  Effective Go, the Go blog, pkg.go.dev, staticcheck.dev docs) and, when it exists, the course exercise that teaches
+  the concept (for example a data race points to 12-workerpool).
+- **Verified against the real tools.** Every entry has a fixture: a tiny program that triggers it, compiled with the
+  toolchain of the runner image, so the matcher is tested against the exact message text. A test fails when a
+  message changes in a new Go release.
+- **Raw message stays visible.** The UI shows the real message too, with its parts labelled (file, line, column,
+  message), because learning to read real Go errors is part of the course.
+- **Fallbacks.** A message without a catalog entry gets the generic guides: "How to read a Go error message", "How to
+  read a stack trace", "How to read a race report", "How to read a failing test".
+- **Where it runs.** The web server enriches runner results: every diagnostic in a check response gets an `explain`
+  object `{id, title, html, links: [{label, url}], course}` (or the generic guide). In a test stream the web server
+  adds `{"type": "explain", "test": "<name>", "items": [...]}` after a test fails or a build fails, from that test's
+  output (panic, race, timeout, got/want assertion with the failing file:line, Example mismatch).
+- **Failing assertions.** For `file_test.go:NN:` references the UI shows the test source around that line (test files
+  are visible anyway) and explains how to read got/want, so the learner sees which case failed and why.
+- **Docs in the editor.** `go doc` is allowed by the course rules, so the editor has hover documentation and
+  completion for the standard library: a build step (`cmd/gendocs`) indexes the standard library of the image's Go
+  version with `go/doc` into a compressed JSON (package, exported identifiers, signature, first doc paragraph, link
+  to pkg.go.dev). Monaco uses it for hover on `pkg.Name`, completion after `pkg.`, and signature help.
 
 ## Certificates
 
