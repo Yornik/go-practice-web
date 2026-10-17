@@ -13,6 +13,8 @@ import { h, icon, load, save } from "../ui/dom.js";
 import { confirmDialog } from "../ui/dialog.js";
 import { clock } from "../ui/format.js";
 
+// At most this many kept copies of 1 file wait on offer; older ones go.
+const OFFER_MAX = 3;
 const AUTOSAVE_MS = 1500;
 const RETRY_MS = [2000, 4000, 8000, 15000, 30000];
 
@@ -364,58 +366,82 @@ export class Files {
   /** Code that a closed tab could not save: offer it back. */
   offerBackups() {
     if (!this.banner) return;
-    const read = (key) => {
+    const readList = (key) => {
       try {
-        const b = JSON.parse(load(key) || "null");
-        return b && typeof b.content === "string" ? b : null;
+        const v = JSON.parse(load(key) || "null");
+        return (Array.isArray(v) ? v : v ? [v] : []).filter((b) => b && typeof b.content === "string");
       } catch {
-        return null;
+        return [];
       }
     };
-    const found = [];
+    this.offers = new Map(); // entry -> kept copies, oldest first
     for (const e of this.entries.values()) {
       if (e.file.kind !== "stub") continue;
       const server = e.model.getValue();
-      // A live backup is the newest unsaved code: it replaces an older
-      // offer. It moves to the offer key, so the backups of this page's
-      // edits cannot overwrite it.
-      let b = read(this.backupKey(e));
-      if (b && b.content !== server) {
-        save(this.offerKey(e), JSON.stringify(b));
-      } else {
-        b = read(this.offerKey(e));
-      }
+      // The live backup is the newest unsaved code. It joins the copies on
+      // offer instead of replacing them: a copy the learner never restored
+      // or discarded stays. It moves out of the live key, so this page's
+      // backups cannot overwrite it.
+      const copies = [...readList(this.offerKey(e)), ...readList(this.backupKey(e))];
       save(this.backupKey(e), null);
-      if (!b || b.content === server) {
-        save(this.offerKey(e), null);
-        continue;
+      const kept = [];
+      for (const b of copies.reverse()) {
+        if (b.content !== server && !kept.some((k) => k.content === b.content)) kept.push(b);
       }
-      found.push({ e, b });
+      const list = kept.slice(0, OFFER_MAX).reverse();
+      this.storeOffers(e, list);
+      if (list.length) this.offers.set(e, list);
     }
-    if (!found.length) return;
-    const names = found.map(({ e }) => e.file.name).join(" and ");
-    const at = clock(new Date(Math.max(...found.map(({ b }) => b.at || 0))));
-    const settle = () => {
-      for (const { e } of found) save(this.offerKey(e), null);
-      this.showOffer = null;
-      this.banner.hidden = true;
-      this.banner.replaceChildren();
-    };
-    // The restore is an edit like any other: it is backed up and saved.
-    const restore = () => {
-      settle();
-      for (const { e, b } of found) {
-        e.model.pushEditOperations([], [{ range: e.model.getFullModelRange(), text: b.content }], () => null);
-      }
-    };
     this.showOffer = () => {
+      const pending = [...this.offers].filter(([, l]) => l.length);
+      if (!pending.length) {
+        this.showOffer = null;
+        this.banner.hidden = true;
+        this.banner.replaceChildren();
+        return false;
+      }
+      const top = pending.map(([e, l]) => ({ e, b: l[l.length - 1] }));
+      const names = top.map(({ e }) => e.file.name).join(" and ");
+      const at = clock(new Date(Math.max(...top.map(({ b }) => b.at || 0))));
+      const older = pending.reduce((n, [, l]) => n + l.length - 1, 0);
+      const take = () => {
+        for (const [e, l] of pending) {
+          l.pop();
+          this.storeOffers(e, l);
+        }
+      };
+      const next = () => {
+        if (this.showOffer?.()) this.banner.querySelector("button")?.focus();
+        else this.editor.focus();
+      };
+      // The restored code is backed up before its offer goes, so no moment
+      // leaves it without a copy.
+      const restore = () => {
+        for (const { e, b } of top) {
+          e.model.pushEditOperations([], [{ range: e.model.getFullModelRange(), text: b.content }], () => null);
+          this.backup(e);
+        }
+        take();
+        next();
+      };
+      const discard = () => {
+        take();
+        next();
+      };
       this.banner.replaceChildren(h("b", {}, "NOTE:"), ` This browser kept changes to ${names} from ${at} that the site did not save. `,
         h("button", { type: "button", class: "link-button", onclick: restore }, "Restore them"), " or ",
-        h("button", { type: "button", class: "link-button", onclick: settle }, "discard them"), ".");
+        h("button", { type: "button", class: "link-button", onclick: discard }, "discard them"), ".",
+        older ? ` ${older === 1 ? "1 older copy waits" : `${older} older copies wait`} after this one.` : "");
       this.banner.dataset.kind = "note";
       this.banner.hidden = false;
+      return true;
     };
     this.showOffer();
+  }
+
+  /** Stores the kept copies of a file that wait on offer, or removes the key. */
+  storeOffers(entry, list) {
+    save(this.offerKey(entry), list.length ? JSON.stringify(list) : null);
   }
 
   anyDirty() {

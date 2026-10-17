@@ -112,9 +112,11 @@ export class TestRunner {
   async run(step, race) {
     if (this.running) return;
     this.reset();
-    // clearRun can empty the chips, and a run hides the panel that holds
-    // them below 1280 px: the Run button keeps the focus instead.
-    if (this.problems.chips?.contains(document.activeElement) || this.problems.view?.contains(document.activeElement)) this.runButton.focus();
+    // A run empties or hides the chips, the problem view, the test detail,
+    // the notes and the output (below 1280 px the chips are in a panel the
+    // run hides): the Run button keeps the focus instead.
+    const cleared = [this.problems.chips, this.problems.view, this.detail, this.notes, this.output?.parentElement];
+    if (cleared.some((el) => el?.contains(document.activeElement))) this.runButton.focus();
     this.problems.clearRun();
     this.notes.replaceChildren();
     this.stale.clear();
@@ -344,7 +346,7 @@ export class TestRunner {
       // A dump from go test's own timeout names where the test waits; a run
       // the runner killed at its deadline has none, so name the test.
       const where = c.restored ? ""
-        : this.problems.list.some((p) => p.kind === "run") ? "The problems show where a test waits."
+        : this.problems.list.some((p) => p.kind === "run" && p.explain?.id === "test-timeout") ? "The problems show where a test waits."
         : c.hung?.length ? `${c.hung.join(" and ")} ${c.hung.length === 1 ? "was" : "were"} still running: look for a channel, a lock or a loop that never ends.`
         : "";
       s.textContent = `${at}: the run took too long and stopped. ${parts.join(", ")}. ${where}`.trim();
@@ -352,11 +354,16 @@ export class TestRunner {
     } else if (d.truncated) {
       s.textContent = `${at}: the run printed more than 1 MiB and stopped. ${parts.join(", ")}.`;
       s.dataset.kind = "fail";
+    } else if (d.exitCode < 0) {
+      s.textContent = `${at}: the runner stopped the run before it ended. ${parts.join(", ")}. Run the tests again.`;
+      s.dataset.kind = "fail";
     } else {
       s.textContent = `${at}: ${parts.join(", ")}, ${seconds(d.durationMs)}.`;
       s.dataset.kind = k.fail || d.exitCode ? "fail" : "pass";
     }
-    if (c.restored && (k.fail || d.exitCode) && !d.buildFailed) s.append(" Run the tests again to see the output and the explanations.");
+    // The stopped-run text already asks for a new run.
+    const stopped = d.exitCode < 0 && !d.timedOut && !d.truncated;
+    if (c.restored && (k.fail || d.exitCode) && !d.buildFailed && !stopped) s.append(" Run the tests again to see the output and the explanations.");
     if (this.stale.size) {
       s.append(" ", h("span", { class: "stale" }, `You changed ${[...this.stale].join(" and ")} after this run.`));
     }

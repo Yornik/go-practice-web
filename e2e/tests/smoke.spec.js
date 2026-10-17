@@ -125,11 +125,32 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await expect(banner).toContainText("This browser kept changes to accesslog.go");
   // The offered copy waits under its own key; the live backup is free for new edits.
   const offered = "gpw-offered:02-accesslog:accesslog.go";
-  expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), offered)).content).toBe(kept);
+  expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), offered)).map((c) => c.content)).toEqual([kept]);
   await banner.getByRole("button", { name: "Restore them" }).click();
   await expect(banner).toBeHidden();
   expect(await page.evaluate((k) => localStorage.getItem(k), offered)).toBeNull();
   expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(kept);
+  // The restore is saved like any edit: the live backup goes once the server has it.
+  await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key), { timeout: 20_000 }).toBeNull();
+
+  // A copy the learner never acted on stays behind a newer one: the newest
+  // is offered first, then the older one.
+  const older = "package accesslog\n\n// older copy\n";
+  const newer = "package accesslog\n\n// newer copy\n";
+  await page.evaluate(([o, k, a, b]) => {
+    localStorage.setItem(o, JSON.stringify([{ at: 1, content: a }]));
+    localStorage.setItem(k, JSON.stringify({ at: 2, content: b }));
+  }, [offered, key, older, newer]);
+  await page.reload();
+  await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await expect(banner).toContainText("1 older copy waits after this one.");
+  await banner.getByRole("button", { name: "discard them" }).click();
+  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  await expect(banner).not.toContainText("older copy");
+  await banner.getByRole("button", { name: "Restore them" }).click();
+  await expect(banner).toBeHidden();
+  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(older);
+  await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key), { timeout: 20_000 }).toBeNull();
 
   expect(errors).toEqual([]);
 });
