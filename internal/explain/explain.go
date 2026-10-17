@@ -79,10 +79,17 @@ type Raw struct {
 	// SourceGuide.
 	Source string `json:"source"`
 	// File is a base name such as "retry.go" or "retry_test.go"; empty when
-	// the message has no position.
+	// the message has no position. It can name a file of the Go runtime or
+	// the standard library, such as "panic.go": a test helper that recovers
+	// a runtime error reports the runtime's line.
 	File   string `json:"file,omitempty"`
 	Line   int    `json:"line,omitempty"`
 	Column int    `json:"column,omitempty"`
+	// Openable is true when File is a file of the exercise, which the
+	// editor can open at Line. The engine does not know the exercise and
+	// leaves it false; the web server sets it. A UI shows a File that is
+	// not openable as plain text.
+	Openable bool `json:"openable,omitempty"`
 	// Code is the vet analyzer or the staticcheck check code, if known.
 	Code string `json:"code,omitempty"`
 	// Test is the test or example that failed, for test output.

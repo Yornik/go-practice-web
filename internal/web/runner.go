@@ -46,11 +46,13 @@ func (c *RunnerClient) setMetrics(m *metrics) { c.metrics = m }
 const maxRunnerJSON = 16 << 20
 
 // Deadlines of the calls. A check queues behind at most a few runs; a test
-// may wait in the queue and then run for GPR_TEST_TIMEOUT.
+// may wait in the queue for GPR_MAX_QUEUE_WAIT and then run for
+// GPR_TEST_TIMEOUT. The runner answers info from memory.
 const (
 	checkTimeout  = 60 * time.Second
 	formatTimeout = 15 * time.Second
 	testTimeout   = 5 * time.Minute
+	infoTimeout   = 5 * time.Second
 )
 
 // RunnerError is a failed runner call, ready for the learner: the status
@@ -76,6 +78,25 @@ func (e *RunnerError) Unwrap() error { return e.Err }
 func (c *RunnerClient) Check(ctx context.Context, req runnerapi.CheckRequest) (runnerapi.CheckResponse, error) {
 	var out runnerapi.CheckResponse
 	err := c.callJSON(ctx, "check", runnerapi.PathCheck, checkTimeout, req, &out)
+	return out, err
+}
+
+// Info asks the runner what it can do: its Go release and whether its
+// race detector works.
+func (c *RunnerClient) Info(ctx context.Context) (runnerapi.Info, error) {
+	ctx, cancel := context.WithTimeout(ctx, infoTimeout)
+	defer cancel()
+	start := time.Now()
+	var out runnerapi.Info
+	resp, err := c.do(ctx, http.MethodGet, runnerapi.PathInfo, nil)
+	if err == nil {
+		err = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out)
+		_ = resp.Body.Close()
+		if err != nil {
+			err = &RunnerError{Status: http.StatusBadGateway, Code: "runner_error", Message: "The runner sent an answer the site cannot read.", Err: err}
+		}
+	}
+	c.observe("info", err, start)
 	return out, err
 }
 
@@ -125,16 +146,28 @@ func (c *RunnerClient) observe(kind string, err error, start time.Time) {
 // post sends a JSON request and returns a 200 response; any other status
 // becomes a *RunnerError.
 func (c *RunnerClient) post(ctx context.Context, path string, body any) (*http.Response, error) {
-	b, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("runner: encode request: %w", err)
+	return c.do(ctx, http.MethodPost, path, body)
+}
+
+// do sends a request, with body as JSON unless it is nil, and returns a
+// 200 response; any other status becomes a *RunnerError.
+func (c *RunnerClient) do(ctx context.Context, method, path string, body any) (*http.Response, error) {
+	var rd io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("runner: encode request: %w", err)
+		}
+		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+path, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, rd)
 	if err != nil {
 		return nil, fmt.Errorf("runner: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
 		if ctx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {

@@ -77,7 +77,8 @@ All configuration is environment variables. Unknown or invalid values stop the p
 | `GPR_GOCACHE_SEED` | `/opt/gocache-seed` | Pre-warmed cache baked into the image. |
 | `GPR_MAX_CONCURRENT` | `2` | Concurrent `go` invocations. More requests queue up to `GPR_MAX_QUEUE`. |
 | `GPR_MAX_QUEUE` | `8` | Queue length. When full: HTTP 429 with `Retry-After`. |
-| `GPR_TEST_TIMEOUT` | `45s` | Wall clock for `go test`. Under the 60 s Traefik timeout. After SIGTERM the runner lets running jobs finish for this long plus 5 s, then kills them; set `terminationGracePeriodSeconds` to at least this plus 15 s. |
+| `GPR_MAX_QUEUE_WAIT` | `12s` | Longest wait of a test run for a slot. A run that waited longer does not start: its stream ends with a `done` event with `busy`. Keep this plus `GPR_TEST_TIMEOUT` under the 60 s Traefik timeout with a few seconds to spare; the runner logs a WARN at start when the sum is above 55 s. |
+| `GPR_TEST_TIMEOUT` | `40s` | Wall clock for `go test`, the build included. `go test` itself gets `-timeout` 5 s less, so that a hanging test ends with Go's own panic and goroutine dump; the runner's kill at `GPR_TEST_TIMEOUT` is the backstop. After SIGTERM the runner lets running jobs finish for this long plus 5 s, then kills them; set `terminationGracePeriodSeconds` to at least this plus 15 s. |
 | `GPR_CHECK_TIMEOUT` | `20s` | Wall clock for vet, staticcheck and gofmt together. |
 
 ## Runner
@@ -97,7 +98,7 @@ Response 200:
                   "severity": "error", "source": "compile", "message": "undefined: foo"}],
  "durationMs": 1830}
 ```
-`source` is one of `gofmt`, `compile`, `vet`, `staticcheck`. `code` is the vet analyzer name (run `go vet -json` to get it) or the staticcheck code; the explain catalog matches on it. `severity` is `error`, `warning` or `info` (vet and staticcheck findings are warnings). Diagnostics for test files have the test file's name; the UI shows them only in the problems list.
+`source` is one of `gofmt`, `compile`, `vet`, `staticcheck`. `code` is the vet analyzer name (run `go vet -json` to get it) or the staticcheck code; the explain catalog matches on it. `severity` is `error`, `warning` or `info` (vet and staticcheck findings are warnings). Diagnostics for test files have the test file's name; the UI shows them only in the problems list. `related` (staticcheck only, optional) is the first related position of a finding, `{file, line, column, endLine, endColumn, message}`, for example where the left-hand side of SA4023's comparison gets its value: `{"file": "retry.go", "line": 15, "column": 18, "endLine": 15, "endColumn": 32, "message": "the lhs of the comparison gets its value from here and has a concrete type"}`. The runner keeps it only when it is in a file of the exercise (not in the standard library), so the UI can show it next to the finding and link it.
 
 `POST /v1/format` — `gofmt` one file.
 ```json
@@ -105,7 +106,7 @@ Response 200:
 ```
 Response: `{"content": "...formatted...", "diagnostics": [...]}`. On a syntax error, `content` is the input unchanged and `diagnostics` holds the error.
 
-`POST /v1/test` — `go test -json -count=1 [-race] [-run <regexp>] ./exercises/<exercise>/`.
+`POST /v1/test` — `go test -json -count=1 -timeout=<see Timeouts> [-race] [-run <regexp>] ./exercises/<exercise>/`.
 ```json
 {"exercise": "07-retry", "files": {...}, "run": "TestBackoff|TestDo", "race": true}
 ```
@@ -116,19 +117,29 @@ Response: `Content-Type: application/x-ndjson`, streamed. Each line is an event:
 {"type": "build", "output": "..."}                     // compiler output when the build fails
 {"type": "test", "action": "run|pass|fail|skip|output", "test": "TestDo/ctx_cancelled", "elapsed": 0.01, "output": "..."}
 {"type": "done", "exitCode": 0, "passed": 12, "failed": 0, "skipped": 0, "durationMs": 4100,
- "timedOut": false, "truncated": false, "buildFailed": false}
+ "timedOut": false, "truncated": false, "buildFailed": false, "raceUnavailable": false, "busy": false}
 ```
-`test` events map 1 to 1 to `go test -json` events (Action, Test, Elapsed, Output). Package-level output (no `test`) is sent with an empty `test`. Output is capped at 1 MiB per run; after the cap the runner kills the run and sets `truncated`.
+`test` events map 1 to 1 to `go test -json` events (Action, Test, Elapsed, Output). Package-level output (no `test`) is sent with an empty `test`. Output is capped at 1 MiB per run; after the cap the runner kills the run and sets `truncated`. The `done` fields that are false or 0 are left out. `raceUnavailable` is set when the request asked for `race` and the run went without it, because the race detector does not work on this node (see "Race detector"). `busy` is set when the run never started: it waited longer than `GPR_MAX_QUEUE_WAIT` for a slot; `exitCode` is -1 and the client may try again in a few seconds. The stream has started with the `queued` events by then, so the answer is this `done` event, not a 429.
 
-`GET /healthz` (process alive) and `GET /readyz` (course loaded, `go version` works, work dir writable).
+`GET /v1/info` (with the token) — what this runner can do, probed once at start, before the runner listens:
+```json
+{"goVersion": "go1.27.2", "raceAvailable": true, "staticcheck": true,
+ "sandbox": "landlock ABI 6: files, ptrace, tcp, signals", "landlockABI": 6}
+```
+When `raceAvailable` is false, `raceError` holds the line of the probe's output that names the problem, for operators (for example `go run -race exited with code 1: ==12==FATAL: ThreadSanitizer: unexpected memory mapping ...`). `sandbox` is the text of the `sandbox for runs` start log line; `landlockABI` 0 means runs are not confined. The answer does not change until the process restarts.
+
+`GET /healthz` (process alive) and `GET /readyz` (course loaded, `go version` works, work dir writable). The body of a ready answer is `ok`, plus a second line `race detector not available: <reason>` when the race probe failed: the runner stays ready, because runs without `-race` work.
 
 Details the runner fixes beyond the wire types:
 
-- **Errors.** 400 for an unknown exercise, a file name that is not a stub, a missing stub (`missing_file`), a file or total over the limit or an invalid `run` regular expression; 413 for a body over 6 MiB + 64 KiB (JSON escaping can grow 1 MiB of content up to 6 times); 429 `queue_full` with `Retry-After: 5`; 503 `shutting_down` while draining; 504 `timeout` when `go vet` runs out of `GPR_CHECK_TIMEOUT` (a `staticcheck` that runs out is skipped and the vet results are returned).
+- **Errors.** 400 for an unknown exercise, a file name that is not a stub, a missing stub (`missing_file`), a file or total over the limit or an invalid `run` regular expression; 413 for a body over 6 MiB + 64 KiB (JSON escaping can grow 1 MiB of content up to 6 times); 429 `queue_full` with `Retry-After: 5`; 503 `shutting_down` while draining (`/v1/info` still answers then: it starts no work); 503 `not_ready` from `/v1/info` before the start probe ran; 504 `timeout` when `go vet` runs out of `GPR_CHECK_TIMEOUT` (a `staticcheck` that runs out is skipped and the vet results are returned).
 - **Check.** A file that does not parse returns only the `gofmt` diagnostics and skips the tools. Columns are byte columns, as the Go tools count them. `staticcheck` runs only when vet found no compile error, and only its findings in stub files are returned: the course's test files are not the learner's to fix. Its cache lives next to `GPR_GOCACHE` (`/cache/staticcheck`).
 - **Queue position.** `position` counts every request ahead, the running ones included, so it is at least 1. It is sent again whenever it changes.
+- **Queue wait.** A test request waits at most `GPR_MAX_QUEUE_WAIT` for a slot, then ends with `{"type": "done", "exitCode": -1, "busy": true}` and leaves the queue. Behind the web server sits Traefik, which cuts any response after 60 s; a run that starts late would be cut off there with no result at all. Checks have no such cap: the web server bounds them with its own deadline.
+- **Timeouts.** `go test` gets `-timeout` set to `GPR_TEST_TIMEOUT` minus 5 s (at least a quarter of `GPR_TEST_TIMEOUT`). When it fires, the test binary panics with `panic: test timed out after 35s`, lists the tests that were running and prints every goroutine, which shows the learner where the code waits; go test exits 1, and `done` has `exitCode` 1 and `timedOut`. The panic is in the output of the test that was running, and no test reports `fail`. The runner's own kill at `GPR_TEST_TIMEOUT` stays as the backstop for what the test binary's alarm does not cover: a slow build, a hang in `init` or in `TestMain`. That run has `exitCode` -1 and `timedOut`.
+- **Race detector.** At start, before it listens, the runner builds and runs a tiny program (2 goroutines and a channel) with `go run -race`, in a scratch workspace in `GPR_WORK_DIR`, with the environment and the sandbox of a learner's run. If it fails, for example with `FATAL: ThreadSanitizer` because the RuntimeDefault seccomp profile of the node (Talos) blocks `personality(ADDR_NO_RANDOMIZE)`, the runner logs 1 WARN line (`race detector not available: test runs go without -race`, with the reason), reports `raceAvailable: false` in `/v1/info` and on `/readyz`, and runs every test request without `-race`, with `raceUnavailable` in its `done` event. The probe runs once per process; a new pod probes again.
 - **Counts.** `passed`, `failed` and `skipped` count leaf tests, so 1 failing subtest is 1 failure, not 2. A parent test that fails while all its subtests pass counts as 1 failure.
-- **Killed runs.** A run killed for the timeout, the output cap, a client that left or a shutdown has `exitCode` -1. `timedOut` is set only for a run that was killed at the deadline.
+- **Killed runs.** A run killed for the timeout, the output cap, a client that left or a shutdown has `exitCode` -1. Of these, `timedOut` is set only for a run that was killed at the deadline; it is also set when go test's own `-timeout` fired (see "Timeouts").
 - **Paths in output.** The workspace path is cut from all output, so a stack trace shows `exercises/07-retry/retry.go:12`.
 - **Workspace.** `GPR_WORK_DIR/run-<random>/` holds `mod/` (the module: `go.mod`, `exercises/<exercise>/`), and the per-run `home/`, `gopath/` and `tmp/`. At start the runner removes `run-*` directories a previous process left; nothing else in `GPR_WORK_DIR` is touched.
 
@@ -143,7 +154,7 @@ Details the runner fixes beyond the wire types:
   - TCP (ABI 4, Linux 6.7): bind only to an ephemeral port (port 0) and connect only to ports in the ephemeral range (`net.ipv4.ip_local_port_range`), which is what `httptest.Server` and `net.Listen("tcp", "127.0.0.1:0")` need. The runner's own API and metrics, the Kubernetes API, DNS over TCP and web servers on their usual ports are out of reach. UDP is not covered.
   - The level depends on the node's kernel; the runner logs it at start (`sandbox for runs` with the field `sandbox`; WARN when Landlock is missing, in which case runs are not confined). When the kernel has Landlock but refuses the rules, the run fails instead of running unconfined.
 - **Processes that outlive a run.** On timeout, cancellation or output over the cap the runner kills the session's process group (SIGKILL), and it does so after a normal exit too. A process that left the group (`setpgid`) or the session (`setsid`) survives that, so the runner is a child subreaper: such a process becomes the runner's child when its parent dies. After every command and every 5 s the runner sweeps: every descendant outside the session of a running command is stopped (SIGSTOP, repeated until nothing in the set runs, so a fork bomb cannot outrun it) and then killed, through a pidfd checked against the process start time, and zombies are reaped. A run cannot join the runner's own process group, because `setpgid` works only within a session. The count is the metric `runner_stray_processes_killed_total` and a WARN log line. `tini` is PID 1 and passes SIGTERM on; the runner process is non-dumpable, so learner code cannot read its memory even without Landlock.
-- **Limits.** Each child gets `oom_score_adj` 1000 (the OOM killer takes learner code before the runner), no core dumps and at most 256 MiB per file it writes. Output is capped at 1 MiB per run and runs at `GPR_TEST_TIMEOUT`.
+- **Limits.** Each child gets `oom_score_adj` 1000 (the OOM killer takes learner code before the runner), no core dumps and at most 256 MiB per file it writes. Output is capped at 1 MiB per run, and runs at `GPR_TEST_TIMEOUT` (the test binary's own `-timeout` fires 5 s earlier). The race probe at start runs under the same rules, so it fails exactly where a learner's `-race` run would.
 - The runner image holds only `go.mod` and `exercises/` of the course. `solutions/` stays out: without Landlock (an old node kernel) learner code can read every file in the image.
 - The runner process holds no secret but its own token. The pod has no service account token, runs as UID 65532, has a read-only root filesystem, drops all capabilities and uses the RuntimeDefault seccomp profile. `/tmp` and `/cache` are `emptyDir` volumes with size limits.
 - Network isolation is a NetworkPolicy (no egress at all, ingress only from the web namespace). It only works if the cluster's CNI enforces NetworkPolicies. Document this; do not depend on it for anything except defense in depth.
@@ -151,6 +162,7 @@ Details the runner fixes beyond the wire types:
 What the deployment must provide, because code cannot:
 
 - A node kernel with Landlock in its LSM list, Linux 6.12 or later for every rule above (check the runner's start log). The RuntimeDefault seccomp profile of containerd 1.7 and later allows the Landlock system calls.
+- For `-race`: a seccomp profile that lets ThreadSanitizer call `personality(ADDR_NO_RANDOMIZE)` where the node needs it. The RuntimeDefault profile on Talos does not; the runner then turns `-race` off (see "Race detector") and says so in `/v1/info`, `/readyz` and the IDE. A `Localhost` seccomp profile that allows this 1 call brings `-race` back.
 - `securityContext`: `runAsNonRoot`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `readOnlyRootFilesystem`, `seccompProfile: RuntimeDefault`, `automountServiceAccountToken: false`.
 - A PID limit for the pod. Kubernetes sets it per node (kubelet `podPidsLimit`; on k3s `--kubelet-arg=pod-max-pids=1024`). Without it a fork bomb in a run can use up the node's PIDs for up to `GPR_TEST_TIMEOUT`.
 - `resources.limits` for CPU and memory (Go then sizes `GOMAXPROCS` from the CPU limit), and `ephemeral-storage`.
@@ -229,8 +241,8 @@ Protection:
 - **Code.** The editor shows the user's saved version of each stub file, or the stub if none. Autosave 1.5 s after the last edit (`PUT`). "Reset file" restores the stub after a confirmation.
 - **Lint as you type.** 1.2 s after the last edit the UI calls check with all stub files; diagnostics become Monaco markers and a Problems list. A new edit cancels the pending request (AbortController).
 - **Format.** Button and `Shift+Alt+F`: format the active file.
-- **Run tests.** A step selector (from the README steps, plus "All tests") and a Run button (`Ctrl/Cmd+Enter`). The output panel shows a live test tree (pass, fail, skip, running) and the raw output of the selected test. File and line references in output (`retry_test.go:42:`) are links that open that file at that line. `-race` is on by default; a toggle turns it off for faster runs. A run tests the saved files, so the browser saves its pending edits first.
-- **Progress.** An exercise is `started` when first opened (the IDE bootstrap request). It becomes `passed` the first time a run without a `-run` filter and with `-race` ends with exit code 0, zero failures, at least 1 pass and no timeout, truncation or build failure, and every top-level test and fuzz target of the exercise reported `pass` or `skip` (examples are left out: one without an output comment never runs). Learner code runs inside the test binary and can print test2json lines and exit 0; the last rule stops that cheap fake (see "Remaining risks" under "Sandbox rules"). Active time counts 15-second heartbeats while the tab is visible and the user typed or clicked in the last 60 s; the server credits the time since the user's previous heartbeat, at most 15 s, so a second tab or a fast client adds nothing. Runs that reach the runner's `done` event are counted, with a summary in `last_result`. Notes are free text per exercise (at most 64 KiB), autosaved.
+- **Run tests.** A step selector (from the README steps, plus "All tests") and a Run button (`Ctrl/Cmd+Enter`). The output panel shows a live test tree (pass, fail, skip, running) and the raw output of the selected test. File and line references in output (`retry_test.go:42:`) are links that open that file at that line, for the exercise's files only. `-race` is on by default; a toggle turns it off for faster runs. When the runner's race detector does not work, every run goes without it and the IDE says "race detector not available on this server" (the progress event's `raceUnavailable`). A run tests the saved files, so the browser saves its pending edits first.
+- **Progress.** An exercise is `started` when first opened (the IDE bootstrap request). It becomes `passed` the first time a run without a `-run` filter and with `-race` ends with exit code 0, zero failures, at least 1 pass and no timeout, truncation or build failure, and every top-level test and fuzz target of the exercise reported `pass` or `skip` (examples are left out: one without an output comment never runs). On a runner whose race detector does not work (`raceAvailable` false in `/v1/info`, or `raceUnavailable` in the runner's `done` event), the same run without `-race` passes: no run can do better there. Learner code runs inside the test binary and can print test2json lines and exit 0; the last rule stops that cheap fake (see "Remaining risks" under "Sandbox rules"). Active time counts 15-second heartbeats while the tab is visible and the user typed or clicked in the last 60 s; the server credits the time since the user's previous heartbeat, at most 15 s, so a second tab or a fast client adds nothing. Runs that reach the runner's `done` event are counted, with a summary in `last_result`. Notes are free text per exercise (at most 64 KiB), autosaved.
 - **Hint ladder.** Levels in order: hint 1, hint 2, hint 3, explanation, walkthrough, solution. The server refuses level N if N−1 is not revealed (409 `reveal_order`). Soft gates from the course rules, checked by the server: before hint 1, if the active time is under 25 minutes, it answers 409 `{gate: "time", kind: "active", level, minutes, needed: 25}`; before levels 2 to 6 the same with `kind: "since"` and 10 minutes since the previous reveal. The UI shows the numbers and repeats the request with `confirm: true`. Once the exercise is passed there are no gates (rule 5 asks learners to read the explanation and the walkthrough after a pass); the order stays. Revealing a level again returns it without a gate. Revealed levels stay visible.
 - **Dashboard.** Tiers with their exercises, status, time, hints used, and overall progress. A "learning log" table (time, runs, hints, passed date per exercise) matches step 10 of the course README.
 
@@ -261,17 +273,29 @@ tools find comes with an explanation that teaches, written for the course's medi
 - **Where it runs.** The web server enriches runner results: every diagnostic in a check response gets an `explain`
   object `{id, title, html, links: [{label, url}], course}` (or the generic guide). In a test stream the web server
   adds `{"type": "explain", "test": "<name>", "items": [...]}` after a test fails or a build fails, from that test's
-  output (panic, race, timeout, got/want assertion with the failing file:line, Example mismatch).
+  output (panic, race, timeout, got/want assertion with the failing file:line, Example mismatch). When go test's
+  `-timeout` fires, no test reports `fail`: the panic and the goroutine dump are in the output of the test that was
+  running, so a failed run also explains, before `done`, every test that started but never reported a result. The
+  timeout's `raw.file:raw.line` is where the test that hangs waits: the goroutines parked in the testing package (the
+  alarm, goroutine 1, a parent test that waits in `t.Run` for its subtest) are skipped, and the goroutines that run a
+  test come before the ones the code started.
+- **No noise.** A parent test whose own output is only its `--- FAIL` line failed because a subtest failed. It gets no
+  explanation (not even the guide "How to read a failing test"); its subtests have theirs. A generic guide goes out
+  at most once per run.
 - **The explain object.** `explain.Explanation` in JSON: `id`, `source`, `title` (plain text: escape it like any text),
   `html` (safe HTML, ends with the links), `links`, `course` (exercise slug, optional), `generic` (true for a guide)
-  and `raw` `{source, file, line, column, code, test, message, captures}`, the labelled parts of the original
-  message. The web server calls `explain.Explain(diagnostic)` per check diagnostic, `explain.ExplainBuildOutput`
+  and `raw` `{source, file, line, column, openable, code, test, message, captures}`, the labelled parts of the
+  original message. `raw.openable` is true only when `raw.file` is a stub or test file of the exercise; the web server
+  sets it, because only it knows the exercise. The UI links `raw.file:raw.line` to the editor, or shows the source
+  around it, only when `openable` is true, and otherwise shows the reference as plain text: a test helper that recovers
+  a runtime error reports the runtime's own line (`panic.go:115: panicked: runtime error: index out of range`), and
+  the editor has no `panic.go`, `runtime_*.go` or `testing.go`. The web server calls `explain.Explain(diagnostic)` per check diagnostic, `explain.ExplainBuildOutput`
   for a `build` event (diagnostics and explanations, parallel) and `explain.ExplainTestOutput(test, output)` for each
   failed test with its collected output, the top-level test included: in `go test -json` a panic belongs to the
   top-level test, not to the subtest. `explain.Refs(output)` lists the stub and test file references for links.
   Authors follow `internal/explain/catalog/README.md`.
-- **Failing assertions.** For `file_test.go:NN:` references the UI shows the test source around that line (test files
-  are visible anyway) and explains how to read got/want, so the learner sees which case failed and why. A course
+- **Failing assertions.** For `file_test.go:NN:` references (with `raw.openable`) the UI shows the test source around
+  that line (test files are visible anyway) and explains how to read got/want, so the learner sees which case failed and why. A course
   helper that recovers a panic with `t.Helper()` reports the panic's own line in a stub (`slo.go:76: panicked: ...`);
   that is an assertion too, with `raw.file` the stub file.
 - **Docs in the editor.** `go doc` is allowed by the course rules, so the editor has hover documentation and
@@ -333,11 +357,12 @@ Errors are JSON `{"error": "human readable message", "code": "machine_code"}` wi
 
 The test stream (`application/x-ndjson`, flushed per line, each write with a 30 s deadline) forwards the runner's events and adds:
 
-- `{"type": "explain", "test": "<name>", "items": [explanation]}` right after a failed test, from that test's own output. A subtest whose output gives only a generic guide waits for its parent: a panic is reported on the top-level test, so the parent's specific explanation (for example "still the course stub") replaces the subtest's guide. A generic guide is sent at most once per run. Explanations of the build output and of package-level output come before `done`, with an empty `test`.
-- `{"type": "progress", "status", "allTests", "passed", "firstPass", "passedAt", "runs", "activeSeconds"}` after `done`: `allTests` is true for a run without filter and with `-race`, `passed` for a clean run, `firstPass` when this run passed the exercise.
-- `{"type": "error", "error", "code"}` when the runner stream breaks after the response started. The run is then not counted.
+- `{"type": "explain", "test": "<name>", "items": [explanation]}` right after a failed test, from that test's own output. A subtest whose output gives only a generic guide waits for its parent: a panic is reported on the top-level test, so the parent's specific explanation (for example "still the course stub") replaces the subtest's guide. A parent whose only failure is a failed subtest gets none. A generic guide is sent at most once per run. Explanations of the tests that never finished (go test's `-timeout` fired), of the build output and of package-level output come before `done`; the last 2 have an empty `test`.
+- The runner's `done` event, with `raceUnavailable: true` also when the web server left out `-race` itself.
+- `{"type": "progress", "status", "allTests", "passed", "firstPass", "passedAt", "runs", "activeSeconds", "raceUnavailable"}` after `done`: `allTests` is true for a run without filter and with `-race` (or without `-race` when the race detector is not available), `passed` for a clean run, `firstPass` when this run passed the exercise. `raceUnavailable` (left out when false) is true when the runner's race detector does not work, whatever the learner chose: the run went without `-race`, and the IDE shows "race detector not available on this server".
+- `{"type": "error", "error", "code"}` when the runner stream breaks after the response started (`runner_stream`), or with `runner_busy` in place of `done` and `progress` when the run waited longer than `GPR_MAX_QUEUE_WAIT` in the runner's queue (the runner's `done` with `busy`). The run is then not counted. Before the stream starts, a full runner queue is a 429 `runner_busy` with `Retry-After`; the IDE shows the message of both the same way, so the learner sees "The test runner is busy. Try again in a few seconds." either way.
 
-The body is `{step}` (a step ID; its `-run` and `-race` are the defaults), `{run}` (a hand-written `-run` expression, at most 512 bytes) or `{}` (every test); `race` overrides the default. A browser that leaves cancels the run at the runner.
+The body is `{step}` (a step ID; its `-run` and `-race` are the defaults), `{run}` (a hand-written `-run` expression, at most 512 bytes) or `{}` (every test); `race` overrides the default. A browser that leaves cancels the run at the runner. The web server asks the runner's `GET /v1/info` before a run and keeps the answer for 5 minutes (a new runner pod can land on another node). A failed fetch is tried again 10 s later, and meanwhile `-race` is assumed to work: the runner drops it itself if not, and its `done` event says so, which also updates the kept answer. A runner that was not reachable makes the next run ask again. When `raceAvailable` is false, the web server sends no `-race`, and it keeps that answer for 30 s only: a rollout can move the Service to a new pod with a race detector without a failed call, and until the site asks again its runs go without `-race` and can pass the exercise. A kept `raceAvailable: true` needs no such care, because the runner's `done` event corrects it on the next run.
 
 ## Frontend
 
@@ -356,7 +381,7 @@ The body is `{step}` (a step ID; its `-run` and `-race` are the defaults), `{run
 
 ## Testing
 
-- Unit tests per package. `internal/runner` tests use the real course submodule and the local Go toolchain: a stub fails, a reference solution passes, a timeout kills the process group, file-name validation, output cap.
+- Unit tests per package. `internal/runner` tests use the real course submodule and the local Go toolchain: a stub fails, a reference solution passes, go test's own `-timeout` prints the goroutines, the runner's timeout kills the process group, a run that waits too long in the queue ends `busy`, file-name validation, output cap. The race probe runs for real in every test server; a fake `go` command that fails every `-race` invocation like ThreadSanitizer on Talos (and runs the real `go` otherwise) checks the fallback.
 - `internal/auth` tests use a software authenticator, `internal/auth/authtest` (ES256, "none" attestation, CBOR via fxamacker/cbor, a controllable sign counter), against a real store with a fake clock.
 - `internal/web` tests use `httptest` with a fake runner (an `httptest.Server` that speaks the runner API) and `authtest` for real sign-ups and logins through the API.
 - E2E (`e2e/`, Playwright, Chromium): with a CDP virtual authenticator: setup link, sign up, sign out, sign in, open 01-logfmt, type the reference solution, run all tests (passes), reveal hint 1 with the soft gate, claim nothing yet; an admin creates an invite and a second user joins; recovery by email (log sender) adds a new passkey; a verify page for a seeded certificate renders and the PDF downloads. `playwright.config.js` starts `scripts/dev.sh` in a fresh state directory (`GO_PRACTICE_DEV_STATE`) and reads the setup link and the mails from its `web.log`; with `E2E_BASE_URL` set it tests a running site instead. `tests/smoke.spec.js` covers the first part of the list (to "claim nothing yet") and fails on any page error or CSP violation. Chrome's virtual authenticator answers a passkey autofill request at once, so the smoke test signs in through autofill and then, with autofill switched off, through the button.
@@ -374,7 +399,13 @@ The body is `{step}` (a step ID; its `-run` and `-race` are the defaults), `{run
 
 One ArgoCD Application `go-practice` with `path: manifests/go-practice`. Two namespaces:
 
-- `go-practice`: web Deployment (1 replica, `Recreate`), Service with ExternalDNS annotations, IngressRoute (websecure, `letsencrypt`) plus the `web` redirect route, middlewares (security headers, redirect, fail2ban scoped to `/api/auth/`), PVC `go-practice-data-ssd` (`truenas-ssd`, 2Gi), ksops Secret (runner token, SMTP password), ServiceMonitor.
-- `go-practice-runner`: runner Deployment, Service (cluster internal), ksops Secret (runner token), NetworkPolicies, ServiceMonitor. Its own namespace keeps arbitrary code away from the web Secrets, like `gitlab-ci`.
+- `go-practice`: web Deployment (1 replica, `Recreate`), Service `go-practice-web` (`:8080` for the site, `:9090` for the ServiceMonitor only; no ExternalDNS annotations), IngressRoute (websecure, `letsencrypt`) plus the `web` redirect route, middlewares (the shared `security-headers`, `rate-limit` and `no-compression` of the `traefik` namespace, the last because a compressed NDJSON stream holds test events back; its own `redirect-https`, and `fail2ban-go-practice` on the `/api/auth/` route only), PVC `go-practice-data-ssd` (`truenas-ssd`, 2Gi), ksops Secret (runner token, SMTP password), ServiceMonitor, NetworkPolicies (default deny; ingress to `:8080` from Traefik and to `:9090` from monitoring; egress to DNS, the runner's `:8081` and SMTP on `:465`).
+- `go-practice-runner`: runner Deployment, Service `runner` (cluster internal, `:8081` and `:9091`), ksops Secret (runner token), NetworkPolicies, ServiceMonitor. Its own namespace keeps arbitrary code away from the web Secrets, like `gitlab-ci`.
+
+DNS: the site is on the zone apex, where a CNAME is not valid, and the ExternalDNS annotations that the subdomains of the estate use publish a CNAME to the jump host. So the A and AAAA records of `go-learn.party` come from a dummy Service, `dns-go-learn-party` in `manifests/external-dns/dns-records.yaml`, whose `external-dns.kubernetes.io/target` lists the jump hosts' addresses; the web Service has no DNS annotations. There is no `www` record: the site accepts 1 origin, the WebAuthn relying party. CronJobs in the same directory publish a reject-all SPF and DMARC policy (the site mails from `yornik.eu`) and a CAA record for Let's Encrypt.
+
+Probes: the web pod's liveness probe is `/healthz` and its readiness probe `/readyz`, both on the site port (`http`, 8080). `/readyz` is cheap: it runs the database probe at most once per 2 s and answers from the cached result in between (see "Observability"), and it does not depend on the runner. The runner's startup and liveness probes are `/healthz` and its readiness probe `/readyz`, on `:8081`; it stays ready without a race detector.
+
+Timeouts: `GPR_MAX_QUEUE_WAIT` plus `GPR_TEST_TIMEOUT` stays under the 60 s timeout of Traefik's entry points; the defaults (12 s and 40 s) leave 8 s. The runner's `terminationGracePeriodSeconds` is at least `GPR_TEST_TIMEOUT` plus 15 s.
 
 Manifests follow the repository's `AGENTS.md`, `REVIEW.md` checklist B and `docs/styleguide.md`.

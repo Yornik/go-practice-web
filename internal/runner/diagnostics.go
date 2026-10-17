@@ -131,21 +131,27 @@ func splitPosn(posn string) (file string, line, col int, ok bool) {
 	return filepath.Base(m[1]), atoi(m[2]), atoi(m[3]), true
 }
 
+// staticcheckPosition is a position in staticcheck -f json output.
+type staticcheckPosition struct {
+	File   string `json:"file"`
+	Line   int    `json:"line"`
+	Column int    `json:"column"`
+}
+
 // staticcheckFinding is one line of staticcheck -f json output.
 type staticcheckFinding struct {
-	Code     string `json:"code"`
-	Severity string `json:"severity"`
-	Location struct {
-		File   string `json:"file"`
-		Line   int    `json:"line"`
-		Column int    `json:"column"`
-	} `json:"location"`
-	End struct {
-		File   string `json:"file"`
-		Line   int    `json:"line"`
-		Column int    `json:"column"`
-	} `json:"end"`
-	Message string `json:"message"`
+	Code     string              `json:"code"`
+	Severity string              `json:"severity"`
+	Location staticcheckPosition `json:"location"`
+	End      staticcheckPosition `json:"end"`
+	Message  string              `json:"message"`
+	// Related are further positions that explain the finding, for example
+	// SA4023's "the lhs of the comparison gets its value from here".
+	Related []struct {
+		Location staticcheckPosition `json:"location"`
+		End      staticcheckPosition `json:"end"`
+		Message  string              `json:"message"`
+	} `json:"related"`
 }
 
 // parseStaticcheckOutput turns staticcheck -f json output (1 object per
@@ -182,9 +188,36 @@ func parseStaticcheckOutput(out []byte, keep func(file string) bool) []runnerapi
 		if f.End.File != "" && filepath.Base(f.End.File) == file {
 			d.EndLine, d.EndColumn = f.End.Line, f.End.Column
 		}
+		d.Related = staticcheckRelated(f)
 		diags = append(diags, d)
 	}
 	return diags
+}
+
+// staticcheckRelated returns the first related position of a finding when
+// it lies in the exercise directory, the directory of the finding itself:
+// a position in the standard library or the module cache is no place the
+// learner can open. The UI shows 1; the first is the one the message
+// refers to.
+func staticcheckRelated(f staticcheckFinding) *runnerapi.Related {
+	if len(f.Related) == 0 {
+		return nil
+	}
+	rel := f.Related[0]
+	if rel.Location.File == "" || filepath.Dir(rel.Location.File) != filepath.Dir(f.Location.File) {
+		return nil
+	}
+	file := filepath.Base(rel.Location.File)
+	r := &runnerapi.Related{
+		File:    file,
+		Line:    max(rel.Location.Line, 1),
+		Column:  max(rel.Location.Column, 1),
+		Message: rel.Message,
+	}
+	if rel.End.File != "" && filepath.Base(rel.End.File) == file {
+		r.EndLine, r.EndColumn = rel.End.Line, rel.End.Column
+	}
+	return r
 }
 
 // atoi converts the digits a regular expression matched; an empty optional

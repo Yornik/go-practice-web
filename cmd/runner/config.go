@@ -31,6 +31,7 @@ type config struct {
 	GoCacheSeed   string
 	MaxConcurrent int
 	MaxQueue      int
+	MaxQueueWait  time.Duration
 	TestTimeout   time.Duration
 	CheckTimeout  time.Duration
 }
@@ -40,7 +41,7 @@ type config struct {
 var knownVars = []string{
 	"GPR_ADDR", "GPR_METRICS_ADDR", "GPR_TOKEN", "GPR_COURSE_DIR", "GPR_WORK_DIR",
 	"GPR_GOCACHE", "GPR_GOCACHE_SEED", "GPR_MAX_CONCURRENT", "GPR_MAX_QUEUE",
-	"GPR_TEST_TIMEOUT", "GPR_CHECK_TIMEOUT",
+	"GPR_MAX_QUEUE_WAIT", "GPR_TEST_TIMEOUT", "GPR_CHECK_TIMEOUT",
 }
 
 // loadConfig reads the configuration from environ (os.Environ format). It
@@ -97,7 +98,9 @@ func loadConfig(environ []string) (config, error) {
 	errs = append(errs, err)
 	c.MaxQueue, err = parseInt("GPR_MAX_QUEUE", get("GPR_MAX_QUEUE", "8"), 0)
 	errs = append(errs, err)
-	c.TestTimeout, err = parseDuration("GPR_TEST_TIMEOUT", get("GPR_TEST_TIMEOUT", "45s"))
+	c.MaxQueueWait, err = parseDuration("GPR_MAX_QUEUE_WAIT", get("GPR_MAX_QUEUE_WAIT", "12s"))
+	errs = append(errs, err)
+	c.TestTimeout, err = parseDuration("GPR_TEST_TIMEOUT", get("GPR_TEST_TIMEOUT", "40s"))
 	errs = append(errs, err)
 	c.CheckTimeout, err = parseDuration("GPR_CHECK_TIMEOUT", get("GPR_CHECK_TIMEOUT", "20s"))
 	errs = append(errs, err)
@@ -138,7 +141,7 @@ func parseInt(key, s string, minimum int) (int, error) {
 func parseDuration(key, s string) (time.Duration, error) {
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %q is not a duration such as 45s", key, s)
+		return 0, fmt.Errorf("%s: %q is not a duration such as 40s", key, s)
 	}
 	if d <= 0 {
 		return 0, fmt.Errorf("%s: must be positive", key)

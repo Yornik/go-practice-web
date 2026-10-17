@@ -143,3 +143,39 @@ func TestAncestors(t *testing.T) {
 		}
 	}
 }
+
+func TestTestStreamAlarm(t *testing.T) {
+	const pkg = `"Package":"github.com/yornik/go-practice/exercises/01-logfmt"`
+	for _, tt := range []struct {
+		name  string
+		lines []string
+		want  bool
+	}{
+		{
+			name: "go test's alarm",
+			lines: []string{
+				`{"Action":"run",` + pkg + `,"Test":"TestA"}`,
+				`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"panic: test timed out after 35s\n"}`,
+				`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"\trunning tests:\n"}`,
+				`{"Action":"fail",` + pkg + `,"Elapsed":35.1}`,
+			},
+			want: true,
+		},
+		{
+			name: "the words inside other output",
+			lines: []string{
+				`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"    a_test.go:3: got panic: test timed out after 1s\n"}`,
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestStream("/w/mod", func(runnerapi.Event) {})
+			for _, line := range tt.lines {
+				s.stdoutLine([]byte(line + "\n"))
+			}
+			if got := s.alarmed(); got != tt.want {
+				t.Errorf("alarmed = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

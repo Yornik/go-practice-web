@@ -108,6 +108,8 @@ func TestParseStaticcheckOutput(t *testing.T) {
 {"code":"SA5009","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":104,"column":13},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":104,"column":19},"message":"Printf format %d has arg #1 of wrong type string"}
 {"code":"SA4006","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt_test.go","line":10,"column":2},"end":{"file":"","line":0,"column":0},"message":"this value of x is never used"}
 {"code":"compile","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":3,"column":1},"end":{"file":"","line":0,"column":0},"message":"undefined: x"}
+{"code":"SA4023","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":16,"column":5},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":16,"column":15},"message":"this comparison is never true","related":[{"location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":15,"column":18},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":15,"column":32},"message":"the lhs of the comparison gets its value from here and has a concrete type"},{"location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":9,"column":1},"end":{"file":"","line":0,"column":0},"message":"second"}]}
+{"code":"SA1012","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":20,"column":2},"end":{"file":"","line":0,"column":0},"message":"do not pass a nil Context","related":[{"location":{"file":"/usr/local/go/src/context/context.go","line":70,"column":1},"end":{"file":"","line":0,"column":0},"message":"in the standard library"}]}
 not json
 `
 	keep := func(file string) bool { return file == "logfmt.go" }
@@ -117,9 +119,22 @@ not json
 		{File: "logfmt.go", Line: 104, Column: 13, EndLine: 104, EndColumn: 19, Severity: "warning", Source: "staticcheck", Code: "SA5009",
 			Message: "Printf format %d has arg #1 of wrong type string"},
 		{File: "logfmt.go", Line: 3, Column: 1, Severity: "error", Source: "compile", Message: "undefined: x"},
+		// The first related position stays when it is in the exercise.
+		{File: "logfmt.go", Line: 16, Column: 5, EndLine: 16, EndColumn: 15, Severity: "warning", Source: "staticcheck", Code: "SA4023",
+			Message: "this comparison is never true",
+			Related: &runnerapi.Related{File: "logfmt.go", Line: 15, Column: 18, EndLine: 15, EndColumn: 32,
+				Message: "the lhs of the comparison gets its value from here and has a concrete type"}},
+		// 1 in the standard library is no place to open.
+		{File: "logfmt.go", Line: 20, Column: 2, Severity: "warning", Source: "staticcheck", Code: "SA1012",
+			Message: "do not pass a nil Context"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parseStaticcheckOutput:\n got %+v\nwant %+v", got, want)
+		for i := range min(len(got), len(want)) {
+			if !reflect.DeepEqual(got[i].Related, want[i].Related) {
+				t.Errorf("diagnostic %d: related %+v, want %+v", i, got[i].Related, want[i].Related)
+			}
+		}
 	}
 }
 

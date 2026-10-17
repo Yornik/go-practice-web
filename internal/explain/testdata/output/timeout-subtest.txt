@@ -1,0 +1,47 @@
+=== RUN   TestParseBareValues/single_pair
+panic: test timed out after 10s
+	running tests:
+		TestParseBareValues (10s)
+		TestParseBareValues/single_pair (10s)
+
+goroutine 18 [running]:
+testing.(*M).startAlarm.func1()
+	/usr/local/go1.24.7/src/testing/testing.go:2484 +0x605
+created by time.goFunc
+	/usr/local/go1.24.7/src/time/sleep.go:215 +0x45
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc00012c000, {0x7229de, 0x13}, 0x7308b0)
+	/usr/local/go1.24.7/src/testing/testing.go:1859 +0x91e
+testing.runTests.func1(0xc00012c000)
+	/usr/local/go1.24.7/src/testing/testing.go:2279 +0x86
+testing.tRunner(0xc00012c000, 0xc000133ae0)
+	/usr/local/go1.24.7/src/testing/testing.go:1792 +0x226
+testing.runTests(0xc000010018, {0x8ef080, 0xb, 0xb}, {0x0?, 0x0?, 0x8f4360?})
+	/usr/local/go1.24.7/src/testing/testing.go:2277 +0x96d
+testing.(*M).Run(0xc00007a140)
+	/usr/local/go1.24.7/src/testing/testing.go:2142 +0xeeb
+main.main()
+	_testmain.go:73 +0x165
+
+goroutine 6 [chan receive]:
+testing.(*T).Run(0xc00012c1c0, {0x720084, 0xb}, 0xc00006cbc0)
+	/usr/local/go1.24.7/src/testing/testing.go:1859 +0x91e
+github.com/yornik/go-practice/exercises/01-logfmt_test.runParseCases(0xc00012c1c0, {0xc000135a78, 0xb, 0xc000057850?})
+	exercises/01-logfmt/logfmt_test.go:37 +0xa5
+github.com/yornik/go-practice/exercises/01-logfmt_test.TestParseBareValues(0xc00012c1c0)
+	exercises/01-logfmt/logfmt_test.go:52 +0x1fd7
+testing.tRunner(0xc00012c1c0, 0x7308b0)
+	/usr/local/go1.24.7/src/testing/testing.go:1792 +0x226
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go1.24.7/src/testing/testing.go:1851 +0x8f3
+
+goroutine 7 [chan send]:
+github.com/yornik/go-practice/exercises/01-logfmt.Parse(...)
+	exercises/01-logfmt/logfmt.go:46
+github.com/yornik/go-practice/exercises/01-logfmt_test.runParseCases.func1(0xc00012c540)
+	exercises/01-logfmt/logfmt_test.go:38 +0x65
+testing.tRunner(0xc00012c540, 0xc00006cbc0)
+	/usr/local/go1.24.7/src/testing/testing.go:1792 +0x226
+created by testing.(*T).Run in goroutine 6
+	/usr/local/go1.24.7/src/testing/testing.go:1851 +0x8f3

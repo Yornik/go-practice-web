@@ -3,6 +3,7 @@ package explain
 import (
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -278,6 +279,41 @@ func TestRaceReport(t *testing.T) {
 	}
 }
 
+func TestHangingGoroutines(t *testing.T) {
+	const (
+		alarm = "goroutine 18 [running]:\ntesting.(*M).startAlarm.func1()\n\t/usr/local/go/src/testing/testing.go:2484 +0x605\n" +
+			"created by time.goFunc\n\t/usr/local/go/src/time/sleep.go:215 +0x45\n\n"
+		parent = "goroutine 6 [chan receive]:\ntesting.(*T).Run(0xc00012c1c0, {0x720084, 0xb}, 0xc00006cbc0)\n" +
+			"\t/usr/local/go/src/testing/testing.go:1859 +0x91e\n" +
+			"example.com/x_test.TestDo(0xc00012c1c0)\n\t/w/x_test.go:37 +0xa5\n" +
+			"testing.tRunner(0xc00012c1c0, 0x7308b0)\n\t/usr/local/go/src/testing/testing.go:1792 +0x226\n\n"
+		leaked = "goroutine 7 [chan receive]:\nexample.com/x.Watch(...)\n\t/w/x.go:22\n" +
+			"created by example.com/x_test.TestWatch in goroutine 5\n\t/w/x_test.go:10 +0xdb\n\n"
+		hanging = "goroutine 9 [chan send]:\nexample.com/x.Do(...)\n\t/w/x.go:46\n" +
+			"example.com/x_test.TestDo.func1(0xc00012c540)\n\t/w/x_test.go:38 +0x65\n" +
+			"testing.tRunner(0xc00012c540, 0xc00006cbc0)\n\t/usr/local/go/src/testing/testing.go:1792 +0x226\n\n"
+		stdOnly = "goroutine 8 [IO wait]:\ninternal/poll.runtime_pollWait(0x7f, 0x72)\n\t/usr/local/go/src/runtime/netpoll.go:351 +0x85\n\n"
+	)
+	tests := []struct {
+		name string
+		dump string
+		file string
+		line int
+	}{
+		{"the test that hangs, past its parent and a leaked goroutine", alarm + parent + leaked + hanging, "x.go", 46},
+		{"a goroutine the code started", alarm + parent + leaked, "x.go", 22},
+		{"no goroutine with exercise code: the whole dump", alarm + parent + stdOnly, "x_test.go", 37},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fr, ok := firstUserFrame(parseFrames(hangingGoroutines(strings.Split(tt.dump, "\n"))))
+			if !ok || path.Base(fr.path) != tt.file || fr.line != tt.line {
+				t.Errorf("frame = %+v (found %v), want %s:%d", fr, ok, tt.file, tt.line)
+			}
+		})
+	}
+}
+
 func TestScanTestOutput(t *testing.T) {
 	c := testCatalog(t, nil)
 	tests := []struct {
@@ -293,6 +329,10 @@ func TestScanTestOutput(t *testing.T) {
 	}{
 		{"deadlock.txt", "", SourceRuntime, GuideStackTrace, "fatal error: all goroutines are asleep - deadlock!", "y.go", 25, "", "Stuck"},
 		{"timeout.txt", "", SourceTest, GuideStackTrace, "panic: test timed out after 1s", "y_test.go", 35, "TestSlow", ""},
+		// The runner's output of a table test whose subtest hangs: the
+		// parent waits in t.Run at logfmt_test.go:37, the subtest at the
+		// channel send in the stub.
+		{"timeout-subtest.txt", "TestParseBareValues/single_pair", SourceTest, GuideStackTrace, "panic: test timed out after 10s", "logfmt.go", 46, "TestParseBareValues/single_pair", ""},
 		{"nil.txt", "", SourceRuntime, GuideStackTrace, "panic: runtime error: invalid memory address or nil pointer dereference", "y.go", 32, "TestNil", "Nil"},
 		{"example.txt", "", SourceTest, GuideFailingTest, "got:\n1\nhello\nwant:\n1\nworld", "", 0, "ExampleCount", ""},
 		{"gotwant.txt", "", SourceTest, GuideFailingTest, "Add(1, 2) = 3, want 4", "y_test.go", 29, "TestGotWant/case_one", ""},

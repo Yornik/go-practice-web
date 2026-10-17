@@ -3,6 +3,7 @@ package explain
 import (
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,7 @@ var (
 	raceAccessRE  = regexp.MustCompile(`^(Previous )?([A-Za-z ]+?) at 0x[0-9a-f]+ by (?:main goroutine|goroutine \d+):$`)
 	timeoutRE     = regexp.MustCompile(`^panic: test timed out after \S+`)
 	runningTestRE = regexp.MustCompile(`^\t\t(\S+) \(`)
+	goroutineRE   = regexp.MustCompile(`^goroutine \d+ .*:$`)
 	raceSeparator = "=================="
 )
 
@@ -263,7 +265,7 @@ func crashFindings(test string, lines []string) []finding {
 					break
 				}
 			}
-			f := stackFinding(SourceTest, GuideStackTrace, name, strings.TrimSpace(l), lines[i+1:])
+			f := stackFinding(SourceTest, GuideStackTrace, name, strings.TrimSpace(l), hangingGoroutines(lines[i+1:]))
 			delete(f.builtins, "func")
 			return []finding{f}
 		case strings.HasPrefix(l, "fatal error: "):
@@ -274,6 +276,46 @@ func crashFindings(test string, lines []string) []finding {
 		}
 	}
 	return nil
+}
+
+// hangingGoroutines returns the part of a test timeout's goroutine dump
+// that shows where the test hangs. The testing package prints every
+// goroutine, and the ones parked in the testing package itself only wait
+// for the one that hangs: the alarm, the test runner in goroutine 1, a
+// parent test in t.Run that waits for its subtest (its first exercise
+// frame is the t.Run line of a table test), a parallel test that waits
+// for its turn. Of the rest, the goroutines that run a test come first,
+// then those the code started: an earlier test may have leaked one. When
+// none of them has a frame in the exercise, it returns lines unchanged.
+func hangingGoroutines(lines []string) []string {
+	var tests, others []string
+	add := func(block []string) {
+		frames := parseFrames(block)
+		switch {
+		case len(frames) == 0 || funcPackage(frames[0].fn) == "testing":
+		case slices.ContainsFunc(frames, func(f frame) bool { return strings.HasPrefix(f.fn, "testing.tRunner(") }):
+			tests = append(tests, block...)
+		default:
+			others = append(others, block...)
+		}
+	}
+	start := -1
+	for i, l := range lines {
+		if goroutineRE.MatchString(l) {
+			if start >= 0 {
+				add(lines[start:i])
+			}
+			start = i
+		}
+	}
+	if start >= 0 {
+		add(lines[start:])
+	}
+	hanging := append(tests, others...)
+	if _, ok := firstUserFrame(parseFrames(hanging)); !ok {
+		return lines
+	}
+	return hanging
 }
 
 // panicMessage returns the panic value: from "panic: " up to the stack,

@@ -94,6 +94,14 @@ func (sb *sandbox) describe() (string, bool) {
 	return fmt.Sprintf("landlock ABI %d: %s", abi, strings.Join(parts, ", ")), true
 }
 
+// abi returns the Landlock ABI that confines runs, 0 for none.
+func (sb *sandbox) abi() int {
+	if sb == nil {
+		return 0
+	}
+	return landlockABI()
+}
+
 // start starts cmd confined to the sandbox, with full access to the
 // workspace. Without Landlock it starts cmd unconfined. A kernel that has
 // Landlock but refuses the rules fails the start: running learner code

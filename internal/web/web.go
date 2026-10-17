@@ -72,6 +72,9 @@ type Server struct {
 	checks    map[int64]*checkSlot // users with a check in flight
 	heartbeat map[int64]time.Time  // last heartbeat per user
 
+	// info caches the runner's GET /v1/info; see runnerInfo.
+	info runnerInfoCache
+
 	// readiness caches the last database probe; see probe.
 	readiness struct {
 		mu  sync.Mutex

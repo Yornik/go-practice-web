@@ -24,7 +24,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 		GoCacheSeed:   "/opt/gocache-seed",
 		MaxConcurrent: 2,
 		MaxQueue:      8,
-		TestTimeout:   45 * time.Second,
+		MaxQueueWait:  12 * time.Second,
+		TestTimeout:   40 * time.Second,
 		CheckTimeout:  20 * time.Second,
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -37,14 +38,14 @@ func TestLoadConfigOverrides(t *testing.T) {
 		goodToken,
 		"GPR_ADDR=127.0.0.1:1", "GPR_METRICS_ADDR=127.0.0.1:2",
 		"GPR_COURSE_DIR=/c", "GPR_WORK_DIR=/w", "GPR_GOCACHE=/g", "GPR_GOCACHE_SEED=",
-		"GPR_MAX_CONCURRENT=4", "GPR_MAX_QUEUE=0", "GPR_TEST_TIMEOUT=1m", "GPR_CHECK_TIMEOUT=500ms",
+		"GPR_MAX_CONCURRENT=4", "GPR_MAX_QUEUE=0", "GPR_MAX_QUEUE_WAIT=3s", "GPR_TEST_TIMEOUT=1m", "GPR_CHECK_TIMEOUT=500ms",
 	})
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
 	if got.Addr != "127.0.0.1:1" || got.MetricsAddr != "127.0.0.1:2" || got.CourseDir != "/c" ||
 		got.WorkDir != "/w" || got.GoCache != "/g" || got.GoCacheSeed != "" ||
-		got.MaxConcurrent != 4 || got.MaxQueue != 0 ||
+		got.MaxConcurrent != 4 || got.MaxQueue != 0 || got.MaxQueueWait != 3*time.Second ||
 		got.TestTimeout != time.Minute || got.CheckTimeout != 500*time.Millisecond {
 		t.Errorf("config = %+v", got)
 	}
@@ -64,6 +65,8 @@ func TestLoadConfigErrors(t *testing.T) {
 		{name: "negative queue", env: []string{goodToken, "GPR_MAX_QUEUE=-1"}, wantErr: "GPR_MAX_QUEUE"},
 		{name: "bad duration", env: []string{goodToken, "GPR_TEST_TIMEOUT=45"}, wantErr: "GPR_TEST_TIMEOUT"},
 		{name: "zero duration", env: []string{goodToken, "GPR_CHECK_TIMEOUT=0s"}, wantErr: "GPR_CHECK_TIMEOUT"},
+		{name: "bad queue wait", env: []string{goodToken, "GPR_MAX_QUEUE_WAIT=soon"}, wantErr: "GPR_MAX_QUEUE_WAIT"},
+		{name: "zero queue wait", env: []string{goodToken, "GPR_MAX_QUEUE_WAIT=0s"}, wantErr: "GPR_MAX_QUEUE_WAIT"},
 		{name: "relative cache", env: []string{goodToken, "GPR_GOCACHE=cache"}, wantErr: "GPR_GOCACHE"},
 		{name: "relative work dir", env: []string{goodToken, "GPR_WORK_DIR=runs"}, wantErr: "GPR_WORK_DIR"},
 		{name: "bad address", env: []string{goodToken, "GPR_ADDR=8081"}, wantErr: "GPR_ADDR"},

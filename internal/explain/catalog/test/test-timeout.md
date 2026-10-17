@@ -19,7 +19,7 @@ A goroutine that waits on a channel, a lock or a `WaitGroup` sleeps without an e
 
 ## How to find it
 
-Skip the goroutine of the alarm (`testing.(*M).startAlarm`) and goroutine 1, the test runner. Look for the goroutines in the exercise package; the first one waits at {{file}}:{{line}}. The word in brackets says what each one waits for: `[chan receive]`, `[chan send]`, `[select]`, `[sync.Mutex.Lock]`, `[sync.WaitGroup.Wait]`. For each, ask which goroutine should wake it, and why that never happens:
+Skip the goroutine of the alarm (`testing.(*M).startAlarm`), goroutine 1, the test runner, and a parent test that waits in `testing.(*T).Run` for its subtest. Look for the goroutines in the exercise package; the test that hangs waits at {{file}}:{{line}}. The word in brackets says what each one waits for: `[chan receive]`, `[chan send]`, `[select]`, `[sync.Mutex.Lock]`, `[sync.WaitGroup.Wait]`. For each, ask which goroutine should wake it, and why that never happens:
 
 - A receive that expects more values than the senders send.
 - A send whose receiver already returned.

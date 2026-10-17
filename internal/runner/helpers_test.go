@@ -106,6 +106,12 @@ func newTestEnv(t *testing.T, adjust ...func(*Options)) *testEnv {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	// As cmd/runner does before it listens.
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+	if _, err := srv.Probe(ctx); err != nil {
+		t.Fatalf("Probe: %v", err)
+	}
 	hs := httptest.NewServer(srv.Handler())
 	t.Cleanup(func() {
 		hs.Close()
@@ -116,6 +122,31 @@ func newTestEnv(t *testing.T, adjust ...func(*Options)) *testEnv {
 		}
 	})
 	return &testEnv{srv: srv, url: hs.URL, workDir: opts.WorkDir, course: course}
+}
+
+// get sends a GET request with the given Authorization header (none when
+// empty) and returns the status and the body.
+func (e *testEnv) get(t *testing.T, path, authorization string) (int, []byte) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.url+path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read %s answer: %v", path, err)
+	}
+	return resp.StatusCode, body
 }
 
 // post sends body (a value to encode, or a string sent as is) with the

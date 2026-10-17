@@ -35,7 +35,11 @@ type testStream struct {
 	trim        *strings.Replacer
 	results     map[string]string // test name -> last of pass, fail or skip
 	buildFailed bool
+	alarm       bool // the test binary's -timeout fired
 }
+
+// alarmPrefix starts the panic of a test binary whose -timeout fired.
+const alarmPrefix = "panic: test timed out after "
 
 // newTestStream returns a testStream that passes events to emit. modDir is
 // the workspace's module root; it is cut from output so that stack traces
@@ -77,6 +81,9 @@ func (s *testStream) stdoutLine(line []byte) {
 	if ev.Test != "" && ev.Action != "run" && ev.Action != "output" {
 		s.results[ev.Test] = ev.Action
 	}
+	if ev.Action == "output" && strings.HasPrefix(ev.Output, alarmPrefix) {
+		s.alarm = true
+	}
 	s.emit(runnerapi.Event{
 		Type:    runnerapi.EventTest,
 		Action:  ev.Action,
@@ -93,6 +100,15 @@ func (s *testStream) stderrLine(line []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.emit(runnerapi.Event{Type: runnerapi.EventBuild, Output: s.trim.Replace(string(line))})
+}
+
+// alarmed reports whether the test binary panicked because go test's
+// -timeout fired. Learner code could print the same line, but only to
+// fail its own run.
+func (s *testStream) alarmed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.alarm
 }
 
 // summary returns the counts and whether the build failed.

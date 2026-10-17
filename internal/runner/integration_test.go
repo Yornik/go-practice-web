@@ -50,6 +50,26 @@ func TestCheck(t *testing.T) {
 	apiBreak := strings.Replace(stub, "func Parse(line string)", "func Parse2(line string)", 1)
 
 	unused := stub + "\nfunc unused() {}\n"
+	nilCompare := stub + `
+type validationError struct{ field string }
+
+func (e *validationError) Error() string { return "invalid " + e.field }
+
+func validate(name string) *validationError {
+	if name == "" {
+		return &validationError{field: "name"}
+	}
+	return nil
+}
+
+func Check(name string) error {
+	var err error = validate(name)
+	if err == nil {
+		return nil
+	}
+	return err
+}
+`
 	hasStaticcheck := env.srv.opts.Staticcheck != ""
 
 	tests := []struct {
@@ -61,6 +81,7 @@ func TestCheck(t *testing.T) {
 		exact    bool                   // no other diagnostics allowed
 		only     string                 // if set, the only source allowed
 		needSC   bool                   // needs staticcheck
+		related  *runnerapi.Related     // if set, want[0] has this related position
 	}{
 		{name: "unmodified stub", content: stub, exact: true},
 		{
@@ -93,6 +114,16 @@ func TestCheck(t *testing.T) {
 				Severity: "warning", Source: "staticcheck", Code: "U1000",
 			}},
 			needSC: true,
+		},
+		{
+			name:    "staticcheck related position",
+			content: nilCompare,
+			want: []runnerapi.Diagnostic{{
+				File: "logfmt.go", Line: lineOf(t, nilCompare, "if err == nil"),
+				Severity: "warning", Source: "staticcheck", Code: "SA4023",
+			}},
+			related: &runnerapi.Related{File: "logfmt.go", Line: lineOf(t, nilCompare, "var err error = validate(name)")},
+			needSC:  true,
 		},
 		{
 			name:    "syntax error",
@@ -134,6 +165,16 @@ func TestCheck(t *testing.T) {
 			for _, want := range tt.want {
 				if !containsDiagnostic(resp.Diagnostics, want) {
 					t.Errorf("no diagnostic like %+v in %+v", want, resp.Diagnostics)
+				}
+			}
+			if tt.related != nil {
+				for _, d := range resp.Diagnostics {
+					if d.Code != tt.want[0].Code {
+						continue
+					}
+					if r := d.Related; r == nil || r.File != tt.related.File || r.Line != tt.related.Line || r.Message == "" {
+						t.Errorf("%s related = %+v, want %s:%d with a message", d.Code, r, tt.related.File, tt.related.Line)
+					}
 				}
 			}
 			for _, d := range resp.Diagnostics {
@@ -309,6 +350,94 @@ func TestTimeoutKillsTheProcessGroup(t *testing.T) {
 	}
 	assertWorkDirEmpty(t, env.workDir)
 	assertNoStrays(t, env)
+}
+
+// hangingStub is the 01-logfmt stub with every function blocked forever
+// instead of panicking, so a test hangs inside the test binary.
+func hangingStub(t *testing.T) map[string]string {
+	t.Helper()
+	stub := stubFiles(t, "01-logfmt")["logfmt.go"]
+	hung := strings.ReplaceAll(stub, `panic("TODO: implement")`, "select {}")
+	if hung == stub {
+		t.Fatal("the 01-logfmt stub no longer panics with TODO: implement; adjust the test")
+	}
+	return map[string]string{"logfmt.go": hung}
+}
+
+func TestGoTestTimeoutPrintsGoroutines(t *testing.T) {
+	slow(t)
+	t.Parallel()
+	// go test's alarm fires after 6 s of the test binary; the runner's kill
+	// is 24 s after the start, which leaves the build 18 s.
+	env := newTestEnv(t, func(o *Options) { o.TestTimeout, o.testTimeoutMargin = 24*time.Second, 18*time.Second })
+
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: hangingStub(t), Run: "^TestParseBareValues$"})
+	done := doneEvent(t, events)
+	// go test ended the run itself (exit code 1), the runner did not kill it.
+	if !done.TimedOut || done.ExitCode != 1 {
+		t.Errorf("done = %+v, want timedOut with exit code 1", done)
+	}
+	if !hasOutput(events, "panic: test timed out after 6s") {
+		t.Error("no output with go test's timeout panic")
+	}
+	var hung bool
+	for _, ev := range events {
+		// The goroutine dump shows where the test waits, in the stub.
+		if strings.Contains(ev.Output, "exercises/01-logfmt/logfmt.go:") && strings.HasPrefix(ev.Test, "TestParseBareValues") {
+			hung = true
+		}
+	}
+	if !hung {
+		t.Error("the goroutine dump in the output of TestParseBareValues does not point at logfmt.go")
+	}
+	if !waitFor(5*time.Second, func() bool { return len(processesUnder(env.workDir)) == 0 }) {
+		t.Errorf("processes left behind: %v", processesUnder(env.workDir))
+	}
+}
+
+func TestGoTestTimeout(t *testing.T) {
+	tests := []struct {
+		limit, margin, want time.Duration
+	}{
+		{40 * time.Second, testTimeoutMargin, 35 * time.Second},
+		{20 * time.Second, testTimeoutMargin, 15 * time.Second},
+		// A quarter of the limit at least: never 0, which turns the alarm off.
+		{4 * time.Second, testTimeoutMargin, time.Second},
+		{100 * time.Millisecond, testTimeoutMargin, 25 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		if got := goTestTimeout(tt.limit, tt.margin); got != tt.want {
+			t.Errorf("goTestTimeout(%s, %s) = %s, want %s", tt.limit, tt.margin, got, tt.want)
+		}
+	}
+	ex := &Exercise{Name: "01-logfmt"}
+	got := strings.Join(testArgs(ex, runnerapi.TestRequest{Race: true, Run: "-x"}, 40*time.Second, testTimeoutMargin), " ")
+	if want := "test -json -count=1 -timeout=35s -race -run=-x ./exercises/01-logfmt/"; got != want {
+		t.Errorf("testArgs = %q, want %q", got, want)
+	}
+}
+
+func TestQueueWaitEndsWithBusy(t *testing.T) {
+	slow(t)
+	t.Parallel()
+	env := newTestEnv(t, func(o *Options) { o.MaxConcurrent, o.MaxQueue, o.MaxQueueWait = 1, 1, 200*time.Millisecond })
+	held := mustJoin(t, env.srv.limiter)
+	defer held.Release()
+
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Race: true})
+	if len(events) != 2 || events[0].Type != runnerapi.EventQueued || events[0].Position != 1 {
+		t.Fatalf("events = %+v, want queued and done", events)
+	}
+	if done := doneEvent(t, events); !done.Busy || done.ExitCode != -1 || done.Passed != 0 {
+		t.Errorf("done = %+v, want busy with exit code -1", done)
+	}
+	// The request left the queue: a slot is free again for the next one.
+	held.Release()
+	events = env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Run: "TestLevel"})
+	if done := doneEvent(t, events); done.Busy || done.ExitCode != 0 {
+		t.Errorf("done after the slot was free = %+v, want a pass", done)
+	}
+	assertWorkDirEmpty(t, env.workDir)
 }
 
 func TestOutputCapKillsTheRun(t *testing.T) {

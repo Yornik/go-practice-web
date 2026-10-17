@@ -12,3 +12,6 @@ func (sb *sandbox) start(cmd *exec.Cmd, _ string) error { return cmd.Start() }
 func (sb *sandbox) describe() (string, bool) {
 	return "none: the sandbox needs Linux, so runs can read each other's files and signal the runner", false
 }
+
+// abi returns 0: nothing confines runs.
+func (sb *sandbox) abi() int { return 0 }

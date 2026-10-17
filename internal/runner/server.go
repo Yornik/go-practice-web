@@ -53,7 +53,13 @@ type Options struct {
 	MaxConcurrent int
 	// MaxQueue is the number of requests that may wait for a slot.
 	MaxQueue int
-	// TestTimeout is the wall clock limit of go test.
+	// MaxQueueWait bounds how long a test request waits for a slot. A
+	// request that waited longer ends with a busy done event, so that the
+	// wait and the run together stay under the proxy timeout in front of
+	// the web server. 0 means no bound.
+	MaxQueueWait time.Duration
+	// TestTimeout is the wall clock limit of go test. go test itself gets
+	// a -timeout a little below it; see goTestTimeout.
 	TestTimeout time.Duration
 	// CheckTimeout is the wall clock limit of go vet and staticcheck
 	// together.
@@ -63,6 +69,11 @@ type Options struct {
 	// Metrics receives the request metrics. Nil registers them on a private
 	// registry.
 	Metrics *Metrics
+
+	// testTimeoutMargin replaces the const of the same name, so that a
+	// test can make go test's alarm fire long before the runner's kill
+	// without waiting 35 s. 0 means the const.
+	testTimeoutMargin time.Duration
 }
 
 // Server serves the runner API. Create it with New.
@@ -86,6 +97,9 @@ type Server struct {
 	closed   bool           // guarded by mu
 	jobs     sync.WaitGroup // Add only under mu while !closed
 	draining atomic.Bool
+
+	// info is what Probe found; nil until it ran.
+	info atomic.Pointer[runnerapi.Info]
 }
 
 // New validates opts and returns a Server.
@@ -99,6 +113,8 @@ func New(opts Options) (*Server, error) {
 		return nil, errors.New("runner: work dir, GOCACHE and the go command are required")
 	case opts.TestTimeout <= 0, opts.CheckTimeout <= 0:
 		return nil, errors.New("runner: timeouts must be positive")
+	case opts.MaxQueueWait < 0:
+		return nil, errors.New("runner: the queue wait must not be negative")
 	}
 	if ok, err := isDir(opts.WorkDir); err != nil {
 		return nil, fmt.Errorf("runner: work dir: %w", err)
@@ -113,6 +129,9 @@ func New(opts Options) (*Server, error) {
 	}
 	if opts.Metrics == nil {
 		opts.Metrics = NewMetrics(prometheus.NewRegistry())
+	}
+	if opts.testTimeoutMargin == 0 {
+		opts.testTimeoutMargin = testTimeoutMargin
 	}
 	// The sandbox can only grant access to directories that exist; a cache
 	// that go or staticcheck created later would be out of reach.
@@ -197,6 +216,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /readyz", s.handleReadyz)
+	mux.HandleFunc("GET "+runnerapi.PathInfo, s.handleInfo)
 	mux.Handle("POST "+runnerapi.PathCheck, s.api(kindCheck, s.handleCheck))
 	mux.Handle("POST "+runnerapi.PathFormat, s.api(kindFormat, s.handleFormat))
 	mux.Handle("POST "+runnerapi.PathTest, s.api(kindTest, s.handleTest))
@@ -311,7 +331,13 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 		writePlain(w, http.StatusServiceUnavailable, "not ready: "+err.Error()+"\n")
 		return
 	}
-	writePlain(w, http.StatusOK, "ok\n")
+	// Ready either way: runs without -race still work. The second line
+	// tells an operator who looks at the probe why the IDE says so.
+	body := "ok\n"
+	if info := s.info.Load(); info != nil && !info.RaceAvailable {
+		body += "race detector not available: " + info.RaceError + "\n"
+	}
+	writePlain(w, http.StatusOK, body)
 }
 
 // probe checks that go runs and the work dir is writable. The course was

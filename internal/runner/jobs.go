@@ -108,17 +108,7 @@ func (s *Server) runTest(ctx context.Context, ex *Exercise, req runnerapi.TestRe
 	}
 	defer s.closeWorkspace(ctx, ws)
 
-	args := []string{"test", "-json", "-count=1"}
-	if req.Race {
-		args = append(args, "-race")
-	}
-	if req.Run != "" {
-		// 1 argument with "=", so a pattern that starts with "-" stays a
-		// pattern and cannot become a flag.
-		args = append(args, "-run="+req.Run)
-	}
-	args = append(args, pkgPattern(ex))
-
+	args := testArgs(ex, req, s.opts.TestTimeout, s.opts.testTimeoutMargin)
 	stream := newTestStream(ws.modDir, emit)
 	budget := newOutputBudget(runnerapi.MaxOutput, func() { cancelCap(errOutputCap) })
 	stdout := newLineWriter(budget, maxLine, stream.stdoutLine)
@@ -135,9 +125,11 @@ func (s *Server) runTest(ctx context.Context, ex *Exercise, req runnerapi.TestRe
 	stderr.Flush()
 
 	passed, failed, skipped, buildFailed := stream.summary()
-	// Only a run that was killed (exit code -1) timed out: a run that ended
-	// just as the deadline passed is complete.
-	timedOut := exitCode < 0 && errors.Is(context.Cause(ctx), errTestTimeout)
+	// A run that was killed (exit code -1) at the deadline timed out; a run
+	// that ended just as the deadline passed is complete. go test's own
+	// alarm makes the test binary panic, and go test then fails.
+	timedOut := exitCode < 0 && errors.Is(context.Cause(ctx), errTestTimeout) ||
+		exitCode != 0 && stream.alarmed()
 	return runnerapi.Event{
 		Type:        runnerapi.EventDone,
 		ExitCode:    exitCode,
@@ -149,6 +141,37 @@ func (s *Server) runTest(ctx context.Context, ex *Exercise, req runnerapi.TestRe
 		Truncated:   budget.Exceeded(),
 		BuildFailed: buildFailed,
 	}, nil
+}
+
+// testTimeoutMargin is how much earlier than the runner's deadline go
+// test's own -timeout fires: time for the build, for the test binary to
+// print every goroutine and for go test to report the failure.
+const testTimeoutMargin = 5 * time.Second
+
+// goTestTimeout is the -timeout of go test for a run limited to limit.
+// When it fires, the test binary panics with "test timed out after ...",
+// names the tests that were running and prints every goroutine, which
+// shows the learner where the code hangs. The runner's own kill at limit
+// stays as the backstop, for a hang in the build, in init or in TestMain,
+// before the test binary's alarm starts. The -timeout is at least a
+// quarter of limit, so a short limit never gives 0, which turns it off.
+func goTestTimeout(limit, margin time.Duration) time.Duration {
+	return max(limit-margin, limit/4)
+}
+
+// testArgs are the go test arguments of a run with the runner's deadline
+// limit and the margin before it.
+func testArgs(ex *Exercise, req runnerapi.TestRequest, limit, margin time.Duration) []string {
+	args := []string{"test", "-json", "-count=1", "-timeout=" + goTestTimeout(limit, margin).String()}
+	if req.Race {
+		args = append(args, "-race")
+	}
+	if req.Run != "" {
+		// 1 argument with "=", so a pattern that starts with "-" stays a
+		// pattern and cannot become a flag.
+		args = append(args, "-run="+req.Run)
+	}
+	return append(args, pkgPattern(ex))
 }
 
 // closeWorkspace removes a workspace and logs a failure: the request has

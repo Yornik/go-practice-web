@@ -178,6 +178,7 @@ func newServer(ctx context.Context, log *slog.Logger, cfg config, metrics *runne
 		StaticcheckCache: staticcheckCache,
 		MaxConcurrent:    cfg.MaxConcurrent,
 		MaxQueue:         cfg.MaxQueue,
+		MaxQueueWait:     cfg.MaxQueueWait,
 		TestTimeout:      cfg.TestTimeout,
 		CheckTimeout:     cfg.CheckTimeout,
 		Logger:           log,
@@ -186,10 +187,21 @@ func newServer(ctx context.Context, log *slog.Logger, cfg config, metrics *runne
 	if err != nil {
 		return nil, err
 	}
-	version, err := srv.GoVersion(ctx)
+	// Before listening: a test run must know whether -race works.
+	info, err := srv.Probe(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("toolchain ready", "go", goPath, "version", version, "staticcheck", staticcheck)
+	log.Info("toolchain ready", "go", goPath, "version", info.GoVersion, "staticcheck", staticcheck,
+		"race", info.RaceAvailable)
+	if total := cfg.MaxQueueWait + cfg.TestTimeout; total > proxyBudget {
+		log.Warn("GPR_MAX_QUEUE_WAIT plus GPR_TEST_TIMEOUT is close to the 60 s proxy timeout: a late run may be cut off without a result",
+			"total", total.String())
+	}
 	return srv, nil
 }
+
+// proxyBudget is the longest queue wait plus run that fits under Traefik's
+// 60 s timeout with time to spare for the workspace, the web server and
+// the network.
+const proxyBudget = 55 * time.Second

@@ -352,11 +352,18 @@ func TestCheckExplainsDiagnostics(t *testing.T) {
 				ID    string `json:"id"`
 				Title string `json:"title"`
 				HTML  string `json:"html"`
+				Raw   struct {
+					File     string `json:"file"`
+					Openable bool   `json:"openable"`
+				} `json:"raw"`
 			} `json:"explain"`
 		} `json:"diagnostics"`
 	}](t, w)
 	if len(res.Diagnostics) != 1 || res.Diagnostics[0].Explain.ID == "" || res.Diagnostics[0].Explain.HTML == "" {
 		t.Fatalf("check = %+v", res)
+	}
+	if raw := res.Diagnostics[0].Explain.Raw; raw.File != "logfmt.go" || !raw.Openable {
+		t.Fatalf("explain raw = %+v, want logfmt.go and openable", raw)
 	}
 	// The runner got every stub: the sent one, and the others as stubs.
 	ex, _ := testCourse.Exercise("01-logfmt")

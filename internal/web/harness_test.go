@@ -88,6 +88,10 @@ type fakeRunner struct {
 	checkStarted chan struct{} // receives when a check starts
 	checkBlock   chan struct{} // when set, a check waits for it to close
 	checkGone    chan struct{} // receives when a waiting check's caller hung up
+
+	info       *runnerapi.Info // the answer of GET /v1/info; nil answers 503
+	infoCalls  int
+	infoStatus int // when set, GET /v1/info answers this status
 }
 
 func (f *fakeRunner) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +109,20 @@ func (f *fakeRunner) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch r.URL.Path {
+	case runnerapi.PathInfo:
+		f.mu.Lock()
+		f.infoCalls++
+		info, status := f.info, f.infoStatus
+		f.mu.Unlock()
+		if status == 0 && info == nil {
+			status = http.StatusServiceUnavailable
+		}
+		if status != 0 {
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(runnerapi.Error{Error: "not ready", Code: "not_ready"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(info)
 	case runnerapi.PathCheck:
 		var req runnerapi.CheckRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
@@ -163,6 +181,21 @@ func (f *fakeRunner) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// setInfo sets the answer of GET /v1/info and returns how many times it
+// was asked before.
+func (f *fakeRunner) setInfo(info *runnerapi.Info, status int) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.info, f.infoStatus = info, status
+	return f.infoCalls
+}
+
+func (f *fakeRunner) infoCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.infoCalls
 }
 
 func (f *fakeRunner) lastTest() runnerapi.TestRequest {
@@ -230,7 +263,10 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(a.Wait)
-	fake := &fakeRunner{}
+	fake := &fakeRunner{info: &runnerapi.Info{
+		GoVersion: "go1.27.2", RaceAvailable: true, Staticcheck: true,
+		Sandbox: "landlock ABI 6: files, ptrace, tcp, signals", LandlockABI: 6,
+	}}
 	rs := httptest.NewServer(fake)
 	t.Cleanup(rs.Close)
 	seed := sha256.Sum256([]byte("test signing key"))

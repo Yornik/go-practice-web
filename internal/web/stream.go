@@ -31,12 +31,20 @@ const maxRunRegexp = 512
 type resolvedRun struct {
 	Step string // the step ID, or "" for a hand-written filter
 	Run  string
-	Race bool
+	Race bool // the run uses -race
+	// RaceUnavailable is true when the runner's race detector does not
+	// work: Race is then false whatever the learner chose.
+	RaceUnavailable bool
 }
 
 // all reports whether the run is the full run: no filter. Only a full run
-// with -race can pass an exercise.
+// can pass an exercise.
 func (r resolvedRun) all() bool { return r.Run == "" }
+
+// canPass reports whether a clean run passes the exercise: a full run with
+// -race, or without it on a runner whose race detector does not work,
+// where no run can do better.
+func (r resolvedRun) canPass() bool { return r.all() && (r.Race || r.RaceUnavailable) }
 
 func resolveRun(ex *course.Exercise, in testRun) (resolvedRun, error) {
 	var rr resolvedRun
@@ -83,17 +91,25 @@ type explainEvent struct {
 
 // progressEvent ends every stream that reached the runner's done event.
 type progressEvent struct {
-	Type          string    `json:"type"`
-	Status        string    `json:"status"`    // the exercise: "started" or "passed"
-	AllTests      bool      `json:"allTests"`  // the run had no filter and -race: it can pass the exercise
+	Type   string `json:"type"`
+	Status string `json:"status"` // the exercise: "started" or "passed"
+	// AllTests: the run had no filter and -race, or no filter on a runner
+	// without a race detector. It can pass the exercise.
+	AllTests      bool      `json:"allTests"`
 	Passed        bool      `json:"passed"`    // this run passed with zero failures
 	FirstPass     bool      `json:"firstPass"` // this run passed the exercise for the first time
 	PassedAt      time.Time `json:"passedAt,omitzero"`
 	Runs          int       `json:"runs"`
 	ActiveSeconds int64     `json:"activeSeconds"`
+	// RaceUnavailable: the race detector does not work on the runner, so
+	// the run went without -race. The IDE says so next to the race toggle.
+	RaceUnavailable bool `json:"raceUnavailable,omitempty"`
 }
 
-// errorEvent reports a stream that broke after it started.
+// errorEvent ends a stream that cannot reach progress: the runner stream
+// broke after it started (runner_stream), or the run never started because
+// it waited too long in the runner's queue (runner_busy), or the site
+// could not save the run (internal).
 type errorEvent struct {
 	Type  string `json:"type"`
 	Error string `json:"error"`
@@ -102,18 +118,20 @@ type errorEvent struct {
 
 // runSummary is the last_result the store keeps for the dashboard.
 type runSummary struct {
-	Step        string    `json:"step,omitempty"`
-	Run         string    `json:"run,omitempty"`
-	Race        bool      `json:"race"`
-	Passed      int       `json:"passed"`
-	Failed      int       `json:"failed"`
-	Skipped     int       `json:"skipped"`
-	ExitCode    int       `json:"exitCode"`
-	DurationMs  int64     `json:"durationMs"`
-	TimedOut    bool      `json:"timedOut,omitempty"`
-	Truncated   bool      `json:"truncated,omitempty"`
-	BuildFailed bool      `json:"buildFailed,omitempty"`
-	At          time.Time `json:"at"`
+	Step        string `json:"step,omitempty"`
+	Run         string `json:"run,omitempty"`
+	Race        bool   `json:"race"`
+	Passed      int    `json:"passed"`
+	Failed      int    `json:"failed"`
+	Skipped     int    `json:"skipped"`
+	ExitCode    int    `json:"exitCode"`
+	DurationMs  int64  `json:"durationMs"`
+	TimedOut    bool   `json:"timedOut,omitempty"`
+	Truncated   bool   `json:"truncated,omitempty"`
+	BuildFailed bool   `json:"buildFailed,omitempty"`
+	// RaceUnavailable: the runner had no race detector, so Race is false.
+	RaceUnavailable bool      `json:"raceUnavailable,omitempty"`
+	At              time.Time `json:"at"`
 }
 
 // runPassed reports whether a done event is a clean pass.
@@ -173,8 +191,18 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// A runner without a race detector would drop -race itself; asking
+	// without it keeps the request honest about what runs.
+	raceDropped := false
+	if s.raceUnavailable(ctx) {
+		rr.RaceUnavailable = true
+		raceDropped, rr.Race = rr.Race, false
+	}
 	stream, err := s.cfg.Runner.Test(ctx, runnerapi.TestRequest{Exercise: ex.Slug, Files: files, Run: rr.Run, Race: rr.Race})
 	if err != nil {
+		if re := (*RunnerError)(nil); errors.As(err, &re) && re.Code == "runner_unavailable" {
+			s.forgetRunnerInfo()
+		}
 		s.runnerFailed(w, r, err)
 		return
 	}
@@ -188,12 +216,29 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	out := newEventWriter(w)
 
-	tracker := newRunTracker()
+	tracker := newRunTracker(ex)
 	var done *runnerapi.Event
 	for stream.Next() {
 		ev := stream.Event()
+		if ev.Type == runnerapi.EventDone && ev.Busy {
+			// The run never started: it waited too long in the runner's
+			// queue. Nothing ran, so nothing is counted; the IDE shows the
+			// message like any other error of the stream.
+			_ = out.send(errorEvent{Type: eventError, Code: "runner_busy",
+				Error: "The test runner is busy. Try again in a few seconds."})
+			return
+		}
 		var extra []any
 		if ev.Type == runnerapi.EventDone {
+			if raceDropped {
+				ev.RaceUnavailable = true
+			}
+			if ev.RaceUnavailable {
+				rr.Race, rr.RaceUnavailable = false, true
+				if !raceDropped {
+					s.noteRaceUnavailable()
+				}
+			}
 			// Explanations of the build and of package-level output go
 			// before done, so the UI has them when it shows the summary.
 			for _, x := range tracker.finish(ev) {
@@ -219,6 +264,7 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 		if ctx.Err() != nil {
 			return
 		}
+		s.forgetRunnerInfo()
 		s.log.Warn("test stream broke", "exercise", ex.Slug, "err", err)
 		_ = out.send(errorEvent{Type: eventError, Code: "runner_stream",
 			Error: "The connection to the test runner broke during the run. Try again."})
@@ -251,13 +297,13 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 }
 
 // recordRun counts the run, keeps its summary and passes the exercise
-// when this was a clean full run with -race that reported every test
-// (complete).
+// when this was a clean full run with -race (or on a runner without a race
+// detector) that reported every test (complete).
 func (s *Server) recordRun(ctx context.Context, userID int64, slug string, rr resolvedRun, d runnerapi.Event, complete bool) (progressEvent, error) {
 	sum, err := json.Marshal(runSummary{
 		Step: rr.Step, Run: rr.Run, Race: rr.Race, Passed: d.Passed, Failed: d.Failed, Skipped: d.Skipped,
 		ExitCode: d.ExitCode, DurationMs: d.DurationMs, TimedOut: d.TimedOut, Truncated: d.Truncated,
-		BuildFailed: d.BuildFailed, At: s.now().UTC(),
+		BuildFailed: d.BuildFailed, RaceUnavailable: rr.RaceUnavailable, At: s.now().UTC(),
 	})
 	if err != nil {
 		return progressEvent{}, err
@@ -265,7 +311,8 @@ func (s *Server) recordRun(ctx context.Context, userID int64, slug string, rr re
 	if err := s.cfg.Store.RecordRun(ctx, userID, slug, sum); err != nil {
 		return progressEvent{}, err
 	}
-	ev := progressEvent{Type: eventProgress, AllTests: rr.all() && rr.Race, Passed: runPassed(d) && complete}
+	ev := progressEvent{Type: eventProgress, AllTests: rr.canPass(), Passed: runPassed(d) && complete,
+		RaceUnavailable: rr.RaceUnavailable}
 	if ev.AllTests && ev.Passed {
 		if ev.FirstPass, err = s.cfg.Store.MarkPassed(ctx, userID, slug); err != nil {
 			return progressEvent{}, err
@@ -329,9 +376,15 @@ func (e *eventWriter) send(v any) error {
 // panic belongs to the top-level test. So a subtest whose own output
 // explains nothing specific waits: if its parent then has a specific
 // explanation (the stub's "TODO: implement" panic), that one is enough;
-// otherwise the subtest gets the generic guide.
+// otherwise the subtest gets the generic guide. A parent whose output
+// shows nothing but its own "--- FAIL" line failed only because a subtest
+// did; the subtests' explanations say why, so the parent gets none.
 type runTracker struct {
+	ex        *course.Exercise                 // its files are the ones the editor can open
 	results   map[string]string                // top-level test: its last action (pass, fail or skip)
+	started   map[string]bool                  // every test that reported run
+	ended     map[string]bool                  // every test that reported pass, fail or skip
+	failures  map[string]bool                  // every test that failed
 	output    map[string]*strings.Builder      // by test name; "" is package output
 	explained map[string]bool                  // tests that got an explain event
 	pending   map[string][]explain.Explanation // subtests with only a generic guide
@@ -344,9 +397,13 @@ type runTracker struct {
 // of the output is the part that explains the failure.
 const maxTrackedOutput = 256 << 10
 
-func newRunTracker() *runTracker {
+func newRunTracker(ex *course.Exercise) *runTracker {
 	return &runTracker{
+		ex:        ex,
 		results:   map[string]string{},
+		started:   map[string]bool{},
+		ended:     map[string]bool{},
+		failures:  map[string]bool{},
 		output:    map[string]*strings.Builder{},
 		explained: map[string]bool{},
 		pending:   map[string][]explain.Explanation{},
@@ -367,6 +424,8 @@ func (t *runTracker) observe(ev runnerapi.Event) []any {
 		appendCapped(&t.build, ev.Output)
 	case runnerapi.EventTest:
 		switch ev.Action {
+		case "run":
+			t.started[ev.Test] = true
 		case "output":
 			b, ok := t.output[ev.Test]
 			if !ok {
@@ -381,15 +440,20 @@ func (t *runTracker) observe(ev runnerapi.Event) []any {
 				return nil // package failure: finish explains it
 			}
 			t.result(ev)
+			t.failures[ev.Test] = true
 			return t.failed(ev.Test)
 		}
 	}
 	return nil
 }
 
-// result records the outcome of a top-level test.
+// result records the outcome of a test; results keeps the top-level ones.
 func (t *runTracker) result(ev runnerapi.Event) {
-	if ev.Test != "" && !strings.Contains(ev.Test, "/") {
+	if ev.Test == "" {
+		return
+	}
+	t.ended[ev.Test] = true
+	if !strings.Contains(ev.Test, "/") {
 		t.results[ev.Test] = ev.Action
 	}
 }
@@ -412,6 +476,9 @@ func (t *runTracker) failed(test string) []any {
 		out = b.String()
 	}
 	items := explain.ExplainTestOutput(test, out)
+	if t.failedOnlyBelow(test, items) {
+		items = nil
+	}
 	var specific []explain.Explanation
 	for _, it := range items {
 		if !it.Generic {
@@ -440,6 +507,31 @@ func (t *runTracker) failed(test string) []any {
 	return t.emit(test, items)
 }
 
+// failedOnlyBelow reports whether test failed only because a subtest
+// failed: a subtest failed, and all its own output explains is its
+// "--- FAIL" line, which the generic guide "How to read a failing test"
+// stands for.
+func (t *runTracker) failedOnlyBelow(test string, items []explain.Explanation) bool {
+	if len(items) == 0 || !t.hasFailedSubtest(test) {
+		return false
+	}
+	for _, it := range items {
+		if it.ID != explain.GuideFailingTest || it.Raw.File != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func (t *runTracker) hasFailedSubtest(test string) bool {
+	for name := range t.failures {
+		if strings.HasPrefix(name, test+"/") {
+			return true
+		}
+	}
+	return false
+}
+
 // emit returns the explain event for test, without the generic guides
 // that went out before.
 func (t *runTracker) emit(test string, items []explain.Explanation) []any {
@@ -457,7 +549,29 @@ func (t *runTracker) emit(test string, items []explain.Explanation) []any {
 		return nil
 	}
 	t.explained[test] = true
-	return []any{explainEvent{Type: eventExplain, Test: test, Items: kept}}
+	return []any{t.event(test, kept)}
+}
+
+// event is the explain event for test with items, which it marks openable
+// where the editor can open their file.
+func (t *runTracker) event(test string, items []explain.Explanation) explainEvent {
+	markOpenable(t.ex, items)
+	return explainEvent{Type: eventExplain, Test: test, Items: items}
+}
+
+// markOpenable sets Raw.Openable on the explanations whose file is a stub
+// or test file of the exercise. A file of the runtime or the standard
+// library, such as panic.go in a recovered runtime error, stays plain text
+// in the UI: the editor has no such file.
+func markOpenable(ex *course.Exercise, items []explain.Explanation) {
+	for i := range items {
+		raw := &items[i].Raw
+		if ex == nil || raw.File == "" {
+			raw.Openable = false
+			continue
+		}
+		_, raw.Openable = ex.File(raw.File)
+	}
 }
 
 func (t *runTracker) childExplained(test string) bool {
@@ -495,18 +609,32 @@ func (t *runTracker) releasePending(prefix string) []any {
 	return out
 }
 
-// finish returns the explanations that need the whole run: the build, or
-// package output of a run that failed without a failed test (a panic in
-// init, a TestMain that exits).
+// finish returns the explanations that need the whole run: the build, the
+// tests that were still running when the test binary died, or package
+// output of a run that failed without a failed test (a panic in init, a
+// TestMain that exits).
 func (t *runTracker) finish(done runnerapi.Event) []any {
 	// A killed run never reports the parents of waiting subtests.
 	out := t.releasePending("")
 	if t.build.Len() > 0 {
 		if _, items := explain.ExplainBuildOutput(t.build.String()); len(items) > 0 {
-			return append(out, explainEvent{Type: eventExplain, Items: items})
+			return append(out, t.event("", items))
 		}
 	}
-	if done.ExitCode == 0 || len(t.explained) > 0 {
+	if done.ExitCode == 0 {
+		return out
+	}
+	// When go test's -timeout fires, the test binary panics and no test
+	// reports a result: the panic and the goroutines are in the output of
+	// the test that was running. A crash looks the same.
+	for _, name := range t.unfinished() {
+		var output string
+		if b, ok := t.output[name]; ok {
+			output = b.String()
+		}
+		out = append(out, t.emit(name, explain.ExplainTestOutput(name, output))...)
+	}
+	if len(t.explained) > 0 {
 		return out
 	}
 	var pkg string
@@ -514,7 +642,20 @@ func (t *runTracker) finish(done runnerapi.Event) []any {
 		pkg = b.String()
 	}
 	if items := explain.ExplainTestOutput("", pkg); len(items) > 0 {
-		out = append(out, explainEvent{Type: eventExplain, Items: items})
+		out = append(out, t.event("", items))
 	}
 	return out
+}
+
+// unfinished lists the tests that started but never reported a result, in
+// name order.
+func (t *runTracker) unfinished() []string {
+	var names []string
+	for name := range t.started {
+		if name != "" && !t.ended[name] {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }

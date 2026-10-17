@@ -277,6 +277,13 @@ func (s *Server) handleTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A node whose race detector does not work runs the tests without it,
+	// rather than fail every run; the done event says so.
+	raceDropped := req.Race && !s.raceAvailable()
+	if raceDropped {
+		req.Race = false
+	}
+
 	queuedAt := time.Now()
 	ticket, ok := s.join(w, l)
 	if !ok {
@@ -287,11 +294,18 @@ func (s *Server) handleTest(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	stream := newEventStream(w, cancel)
-	err := ticket.Wait(ctx, func(position int) {
+	err := s.waitForSlot(ctx, ticket, func(position int) {
 		stream.send(runnerapi.Event{Type: runnerapi.EventQueued, Position: position})
 	})
 	l.waited, l.wait = true, time.Since(queuedAt)
-	if err != nil {
+	switch {
+	case errors.Is(err, errQueueWait):
+		// The stream started with the queued events, so the answer is a done
+		// event rather than a 429.
+		l.result = "busy"
+		stream.send(runnerapi.Event{Type: runnerapi.EventDone, ExitCode: -1, Busy: true})
+		return
+	case err != nil:
 		l.result = "canceled"
 		stream.send(runnerapi.Event{Type: runnerapi.EventDone, ExitCode: -1})
 		return
@@ -307,7 +321,25 @@ func (s *Server) handleTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	l.result = testResult(ctx, done)
+	done.RaceUnavailable = raceDropped
 	stream.send(done)
+}
+
+// errQueueWait is the cause of a test request that waited longer than
+// Options.MaxQueueWait for a slot.
+var errQueueWait = errors.New("waited too long for a slot")
+
+// waitForSlot waits for the ticket's slot, at most MaxQueueWait. Behind
+// the web server sits a proxy with a fixed timeout for the whole response
+// (60 s for Traefik); a run that starts late would be cut off there with
+// no result, so it does not start at all and the learner tries again.
+func (s *Server) waitForSlot(ctx context.Context, t *Ticket, onPosition func(int)) error {
+	if s.opts.MaxQueueWait > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeoutCause(ctx, s.opts.MaxQueueWait, errQueueWait)
+		defer cancel()
+	}
+	return t.Wait(ctx, onPosition)
 }
 
 // testResult names the outcome of a test run for logs and metrics.
