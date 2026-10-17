@@ -48,6 +48,10 @@ type Course struct {
 	Tiers     []*Tier     // tiers 1 to 5, in order
 	Exercises []*Exercise // in directory order, which is number order
 
+	// levels describes each level of the hint ladder, from the root
+	// README's "Level | What it gives you" table; empty when it has none.
+	levels map[Level]string
+
 	bySlug map[string]*Exercise
 }
 
@@ -217,7 +221,7 @@ func (c *Course) loadRoot(md *markdown) error {
 		}
 	}
 
-	var tierTable, exerciseTable *east.Table
+	var tierTable, exerciseTable, levelTable *east.Table
 	_ = ast.Walk(doc.root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		t, ok := n.(*east.Table)
 		if !entering || !ok {
@@ -228,6 +232,8 @@ func (c *Course) loadRoot(md *markdown) error {
 			tierTable = t
 		case "#|Exercise|Tier|Time|Go you practice|The real-life skill":
 			exerciseTable = t
+		case "Level|What it gives you":
+			levelTable = t
 		}
 		return ast.WalkSkipChildren, nil
 	})
@@ -242,8 +248,34 @@ func (c *Course) loadRoot(md *markdown) error {
 			return err
 		}
 	}
+	if levelTable != nil {
+		c.parseLevelTable(levelTable, src)
+	}
 	return nil
 }
+
+// parseLevelTable reads the descriptions of the ladder levels. A row whose
+// first cell is not a level name is left out: the table is help text, not
+// structure the site depends on.
+func (c *Course) parseLevelTable(t *east.Table, src []byte) {
+	c.levels = map[Level]string{}
+	for _, row := range rows(t) {
+		if len(row) != 2 {
+			continue
+		}
+		name := plainText(row[0], src)
+		for l := Hint1; l <= MaxLevel; l++ {
+			if strings.EqualFold(l.String(), name) {
+				c.levels[l] = plainText(row[1], src)
+			}
+		}
+	}
+}
+
+// LevelDescription is what a level of the hint ladder gives, as the course
+// README says it, for example "A nudge: the question to ask, or the
+// concept that fits." It is empty when the README does not say.
+func (c *Course) LevelDescription(l Level) string { return c.levels[l] }
 
 func headerCells(t *east.Table, src []byte) []string {
 	var cells []string

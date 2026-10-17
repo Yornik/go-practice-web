@@ -2,8 +2,10 @@ package web
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/yornik/go-practice-web/internal/auth"
 	"github.com/yornik/go-practice-web/internal/store"
@@ -286,7 +288,16 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, res)
+	// The admin page adds the new row to its table from these fields.
+	writeJSON(w, http.StatusCreated, struct {
+		auth.InviteResult
+		Hash      string    `json:"hash"`
+		CreatedAt time.Time `json:"createdAt"`
+		ExpiresAt time.Time `json:"expiresAt"`
+		Email     string    `json:"email"`
+		Note      string    `json:"note"`
+		CreatedBy string    `json:"createdBy"`
+	}{res, hex.EncodeToString(res.Invite.TokenHash), res.Invite.CreatedAt, res.Invite.ExpiresAt, res.Invite.Email, res.Invite.Note, id.User.DisplayName})
 }
 
 func (s *Server) revokeInvite(w http.ResponseWriter, r *http.Request) {

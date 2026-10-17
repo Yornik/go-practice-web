@@ -27,7 +27,7 @@ Compare the 2 values character by character. A difference that is hard to see, s
 
 ## Run 1 test
 
-Run only the failing test while you fix it: pick its step, or use `go test -run 'TestSplit/two_fields' -v`. `-run` takes a regular expression per level of the name, separated by a slash. `-v` also prints the logs of the tests that pass.
+Run only the failing step while you fix it: open the Steps tab and press its Run button. The Output tab shows everything the tests printed, also the logs of the tests that pass.
 
 If the output says `panic: test timed out`, a test ran longer than the timeout allows. Usually it waits for something that never happens. The goroutine list below it shows where it waits.
 

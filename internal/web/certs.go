@@ -85,13 +85,50 @@ func (s *Server) certificatesPage(w http.ResponseWriter, r *http.Request) {
 	st, err := s.certificateStatus(r.Context(), id.User.ID)
 	if err != nil {
 		s.log.Error("certificates", "err", err)
-		s.errorPage(w, r, http.StatusInternalServerError, "The certificates could not load. Try again.")
+		s.errorPage(w, r, http.StatusInternalServerError, "The certificates could not load.")
 		return
+	}
+	passed, err := s.cfg.Store.PassedExercises(r.Context(), id.User.ID)
+	if err != nil {
+		s.log.Error("certificates", "err", err)
+		s.errorPage(w, r, http.StatusInternalServerError, "The certificates could not load.")
+		return
+	}
+	done := map[string]bool{}
+	for _, slug := range passed {
+		done[slug] = true
+	}
+	cards := make([]certCard, 0, len(st))
+	for _, k := range st {
+		c := certCard{certStatus: k}
+		if kind, err := cert.ParseKind(s.cfg.Course, k.Kind); err == nil {
+			if n, ok := kind.Tier(); ok {
+				if t, ok := s.cfg.Course.Tier(n); ok {
+					c.Name, c.Theme = t.Title(), t.Theme
+				}
+			} else {
+				c.Name, c.Theme = "The course", fmt.Sprintf("All %d exercises", len(s.cfg.Course.Exercises))
+			}
+		}
+		for _, slug := range k.Exercises {
+			if e, ok := s.cfg.Course.Exercise(slug); ok && !done[slug] {
+				c.Missing = append(c.Missing, fmt.Sprintf("%02d", e.Number))
+			}
+		}
+		cards = append(cards, c)
 	}
 	s.render(w, r, http.StatusOK, "certificates", view{
 		Title: "Certificates", Nav: "certificates", Script: "pages/certificates.js",
-		Data: map[string]any{"Kinds": st, "Fingerprint": s.cfg.Signer.Fingerprint()},
+		Data: map[string]any{"Cards": cards, "Fingerprint": s.cfg.Signer.Fingerprint()},
 	})
+}
+
+// certCard is 1 certificate on the certificates page.
+type certCard struct {
+	certStatus
+	Name    string   // "Tier 2" or "The course"
+	Theme   string   // the tier's theme
+	Missing []string // the numbers of the exercises that do not pass yet
 }
 
 // issueAttempts bounds the retries on an ID collision, which at 60 bits
@@ -133,7 +170,12 @@ func (s *Server) claimCertificate(w http.ResponseWriter, r *http.Request) {
 		name = id.User.DisplayName
 	}
 	if name, err = cert.CleanName(name); err != nil {
-		s.fail(w, r, errorf(http.StatusBadRequest, "bad_name", strings.TrimPrefix(err.Error(), "cert: ")))
+		msg := "Use letters, spaces and punctuation."
+		var ne *cert.NameError
+		if errors.As(err, &ne) {
+			msg = ne.Message()
+		}
+		s.fail(w, r, errorf(http.StatusBadRequest, "bad_name", msg))
 		return
 	}
 	exs, err := cert.Exercises(s.cfg.Course, kind)
@@ -235,6 +277,12 @@ type verifyView struct {
 	Fingerprint string
 	PDF         string
 	URL         string // the absolute link to this page, to share
+	// The drawing area: a tier's exercises, or for the course the 5 tiers
+	// and the course strip.
+	IsCourse bool
+	Tiers    []*course.Tier
+	Strip    strip
+	Range    string // the exercises as a range, "04 to 09"
 }
 
 // verifyLookup answers the "enter an ID" form.
@@ -272,7 +320,7 @@ func (s *Server) verifyPage(w http.ResponseWriter, r *http.Request) {
 	v, _, _, err := s.loadCertificate(r.Context(), id)
 	if err != nil {
 		s.log.Error("verify", "id", id, "err", err)
-		s.errorPage(w, r, http.StatusInternalServerError, "The certificate could not be checked. Try again.")
+		s.errorPage(w, r, http.StatusInternalServerError, "The server could not check this certificate.")
 		return
 	}
 	status := http.StatusOK
@@ -317,6 +365,18 @@ func (s *Server) loadCertificate(ctx context.Context, id string) (verifyView, st
 		if e, ok := s.cfg.Course.Exercise(slug); ok {
 			v.Exercises = append(v.Exercises, e)
 		}
+	}
+	if n := len(v.Exercises); n > 0 {
+		v.Range = fmt.Sprintf("%02d to %02d", v.Exercises[0].Number, v.Exercises[n-1].Number)
+	}
+	if p.Kind == cert.KindCourse {
+		v.IsCourse, v.Tiers = true, s.cfg.Course.Tiers
+		states := map[string]string{}
+		for _, e := range v.Exercises {
+			states[e.Slug] = "passed"
+		}
+		v.Strip = courseStrip(s.cfg.Course, states)
+		v.Strip.Label = fmt.Sprintf("The course to scale: all %d exercises pass.", len(v.Exercises))
 	}
 	if p.Stats != nil {
 		v.Stats = p.Stats

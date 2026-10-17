@@ -23,7 +23,7 @@ Floating-point numbers behave differently. With Go's compiler, a `float64` divid
 Find the divisor on line {{line}}. It is usually a count or a size: the length of an input, a number of buckets, a number of seconds, a total. Then ask:
 
 1. Can this value be 0 for valid input? An empty slice is the most common case.
-2. What does the spec of your function say the result is in that case? The README often names it.
+2. What does the spec of your function say the result is in that case? The spec often names it.
 3. Is it 0 because of an earlier integer division, such as `n / 1000` with `n` below 1000?
 
 Handle the 0 case before the division, and return what the spec asks for.

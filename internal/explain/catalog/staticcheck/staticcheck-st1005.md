@@ -19,7 +19,7 @@ The Go Code Review Comments say that error strings should not be capitalized, un
 
 ## How to find it
 
-Go to {{file}}:{{line}} and rewrite the message: start with a lower-case letter, unless the first word is a name such as `HTTP` or a Go identifier, and drop the final period or newline. When an exercise README prescribes an exact error message, the README wins: the tests compare the text.
+Go to {{file}}:{{line}} and rewrite the message: start with a lower-case letter, unless the first word is a name such as `HTTP` or a Go identifier, and drop the final period or newline. When the spec prescribes an exact error message, the spec wins: the tests compare the text.
 
 ## Example
 

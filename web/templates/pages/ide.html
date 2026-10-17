@@ -1,126 +1,215 @@
 {{define "content"}}
 {{- with .Data}}
 {{- $ex := .Exercise}}
-<div class="ide" data-exercise="{{$ex.Slug}}" data-go-version="{{.GoVersion}}">
-  <header class="ide-header">
-    <nav class="breadcrumbs" aria-label="Breadcrumb">
-      <a href="/learn">Learn</a> <span aria-hidden="true">/</span> <span>Tier {{$ex.Tier}}</span>
-    </nav>
-    <h1>{{pad2 $ex.Number}} · {{$ex.Title}}</h1>
-    <p class="ide-meta"><span>{{$ex.Time}}</span> <span class="badge" data-progress-status>…</span></p>
-    <nav class="ide-neighbours" aria-label="Other exercises">
-      {{- with .Prev}}<a href="/learn/{{.Slug}}" rel="prev">← {{pad2 .Number}}</a>{{end}}
-      {{- with .Next}}<a href="/learn/{{.Slug}}" rel="next">{{pad2 .Number}} →</a>{{end}}
-    </nav>
+<div class="ide" data-exercise="{{$ex.Slug}}" data-number="{{pad2 $ex.Number}}" data-title="{{$ex.Title}}" data-go-version="{{.GoVersion}}" data-titles="{{json .Titles}}"
+  {{- with .Next}} data-next-slug="{{.Slug}}" data-next-title="{{pad2 .Number}} {{.Title}}"{{end}}>
+  <header class="ide-top">
+    <a class="ide-brand" href="/learn" aria-label="Go Practice: your course"><span class="brand-mark" aria-hidden="true">Go</span></a>
+    <p class="ide-mobile-title" aria-hidden="true">{{pad2 $ex.Number}} {{$ex.Title}}</p>
+    <dl class="ide-cells">
+      <div class="cell-title" title="{{pad2 $ex.Number}} {{$ex.Title}}"><dt>Exercise {{pad2 $ex.Number}}</dt><dd><h1 class="cell-title-h"><span class="visually-hidden">{{pad2 $ex.Number}} </span>{{$ex.Title}}</h1></dd></div>
+      <div><dt>Tier</dt><dd>{{$ex.Tier}}</dd></div>
+      <div class="cell-optional"><dt>Estimate</dt><dd>{{hours $ex.Hours}}</dd></div>
+      <div><dt>Active</dt><dd data-cell-active>{{duration 0}}</dd></div>
+      <div><dt>Runs</dt><dd data-cell-runs>0</dd></div>
+      <div><dt>Revealed</dt><dd><a href="#ladder" data-cell-revealed>Nothing</a></dd></div>
+      <div class="cell-ok" hidden data-cell-passed><dt>Passed</dt><dd data-progress-status></dd></div>
+    </dl>
+    <div class="ide-tools">
+      {{- template "theme-menu" $}}
+      {{- template "avatar-menu-ide" $}}
+    </div>
   </header>
 
-  <div class="ide-body">
-    <aside class="ide-side" aria-label="Exercise">
-      <div class="tabs" role="tablist" aria-label="Exercise panels" data-tabs="side">
-        <button type="button" role="tab" id="side-tab-spec" aria-controls="side-spec" aria-selected="true">Spec</button>
-        <button type="button" role="tab" id="side-tab-steps" aria-controls="side-steps" aria-selected="false" tabindex="-1">Steps</button>
-        <button type="button" role="tab" id="side-tab-hints" aria-controls="side-hints" aria-selected="false" tabindex="-1">Hints</button>
-        <button type="button" role="tab" id="side-tab-notes" aria-controls="side-notes" aria-selected="false" tabindex="-1">Notes</button>
+  <div class="ide-main" data-layout>
+    <section class="task" id="task-col" aria-label="The task" data-col="task" tabindex="-1">
+      <div class="col-head">
+        <div class="tabs" role="tablist" aria-label="The task" data-tabs="task">
+          <button type="button" class="tab" role="tab" id="tab-spec" aria-controls="panel-spec" aria-selected="true">Spec</button>
+          <button type="button" class="tab" role="tab" id="tab-steps" aria-controls="panel-steps" aria-selected="false" tabindex="-1">Steps <span class="tab-count">{{len $ex.Steps}}</span></button>
+          <button type="button" class="tab" role="tab" id="tab-notes" aria-controls="panel-notes" aria-selected="false" tabindex="-1">Notes</button>
+        </div>
+        <button type="button" class="btn btn-quiet col-hide" data-hide="task" aria-controls="task-col">Hide<span class="visually-hidden"> the task</span></button>
       </div>
-      <section id="side-spec" role="tabpanel" aria-labelledby="side-tab-spec" class="tab-panel prose spec" tabindex="0">
-        <div class="spec-intro">{{$ex.Intro}}</div>
-        <p class="spec-topics">{{$ex.Topics}}</p>
-        {{- range $ex.SpecSections}}
-        <section aria-labelledby="spec-{{.ID}}">
-          <h2 id="spec-{{.ID}}">{{.Title}}</h2>
-          {{.HTML}}
+      <div class="task-body">
+        <div class="spec" id="panel-spec" role="tabpanel" aria-labelledby="tab-spec" tabindex="0" data-spec>
+          <article aria-label="The spec of exercise {{pad2 $ex.Number}}">
+          <dl class="spec-facts">
+            <dt>Tier</dt><dd>{{$ex.Tier}}, about {{hours $ex.Hours}}</dd>
+            <dt>Go you practice</dt><dd>{{$ex.Topics}}</dd>
+            <dt>Problem solving</dt><dd>{{$ex.ProblemSolving}}</dd>
+          </dl>
+          <div class="spec-text">
+            <div class="spec-intro">{{$ex.Intro}}</div>
+            {{- range $ex.SpecSections}}
+            <section aria-labelledby="spec-{{.ID}}">
+              <h2 id="spec-{{.ID}}">{{.Title}}</h2>
+              {{.HTML}}
+            </section>
+            {{- end}}
+          </div>
+          <nav class="spec-neighbours" aria-label="Other exercises">
+            {{- with .Next}}<p>Next exercise: <a href="/learn/{{.Slug}}" rel="next">{{pad2 .Number}} {{.Title}}</a></p>{{end}}
+            {{- with .Prev}}<p>Previous exercise: <a href="/learn/{{.Slug}}" rel="prev">{{pad2 .Number}} {{.Title}}</a></p>{{end}}
+          </nav>
+          </article>
+        </div>
+        <button type="button" class="btn btn-quiet spec-more" data-spec-more aria-controls="panel-spec">Show the full spec</button>
+        <section class="steps-panel" id="panel-steps" role="tabpanel" aria-labelledby="tab-steps" tabindex="0" hidden>
+          <p class="help">Each step runs the tests of 1 part of the task. "All tests" with <span class="mono">-race</span> passes the exercise.</p>
+          <ol class="step-rows">
+            {{- range $ex.Steps}}
+            <li class="step-row-item" data-step-row="{{.ID}}">
+              <span class="step-n">{{if .IsAll}}<span class="visually-hidden">All</span>{{else}}{{.N}}{{end}}</span>
+              <span class="step-main">
+                <span class="step-label">{{if .IsAll}}All tests{{else}}{{$ex.StepLabel .}}{{end}}</span>
+                <span class="step-filter mono">{{if .Run}}-run {{.Run}}{{else}}every test{{end}}</span>
+                <span class="step-status" data-step-status></span>
+              </span>
+              <button type="button" class="btn btn-sm" data-step="{{.ID}}">{{if .IsAll}}Run all tests{{else}}Run {{lower .Kind}} {{.N}}{{end}}</button>
+            </li>
+            {{- end}}
+          </ol>
         </section>
-        {{- end}}
-      </section>
-      <section id="side-steps" role="tabpanel" aria-labelledby="side-tab-steps" class="tab-panel" hidden tabindex="0">
-        <p class="muted">Each step runs the tests of 1 part of the task. "All tests" with -race passes the exercise.</p>
-        <ol class="step-list">
-          {{- range $ex.Steps}}
-          <li>
-            <button type="button" class="step-run" data-step="{{.ID}}">{{.Title}}</button>
-            <code class="step-command">{{.Command}}</code>
-          </li>
-          {{- end}}
-        </ol>
-      </section>
-      <section id="side-hints" role="tabpanel" aria-labelledby="side-tab-hints" class="tab-panel" hidden tabindex="0">
-        <p class="muted">Reveal 1 level at a time. The course asks for 25 minutes of trying before hint 1 and 10 minutes between hints.</p>
-        <ol class="hint-ladder" data-hint-ladder>
-          {{- range .Levels}}
-          <li class="hint-level" data-level="{{int .}}">
-            <h3>{{.}}</h3>
-            <div class="hint-body prose" data-hint-body></div>
-            <button type="button" class="button" data-reveal="{{int .}}" hidden>Reveal {{.}}</button>
-          </li>
-          {{- end}}
-        </ol>
-        <div class="gate-dialog notice" role="alertdialog" aria-labelledby="gate-title" aria-describedby="gate-text" hidden data-gate>
-          <h3 id="gate-title">Are you sure?</h3>
-          <p id="gate-text" data-gate-text></p>
-          <p class="button-row">
-            <button type="button" class="button button-primary" data-gate-confirm>Reveal anyway</button>
-            <button type="button" class="button" data-gate-cancel>Keep trying</button>
-          </p>
-        </div>
-      </section>
-      <section id="side-notes" role="tabpanel" aria-labelledby="side-tab-notes" class="tab-panel" hidden tabindex="0">
-        <label for="notes">Your notes on this exercise</label>
-        <textarea id="notes" rows="16" data-notes placeholder="What did you try? What surprised you?"></textarea>
-        <p class="muted" role="status" data-notes-status></p>
-      </section>
-    </aside>
-    <div class="splitter splitter-vertical" role="separator" aria-orientation="vertical" aria-label="Resize the side panel" tabindex="0" data-splitter="side"></div>
-
-    <div class="ide-main">
-      <div class="file-bar">
-        <div class="file-tabs" role="tablist" aria-label="Files" data-file-tabs></div>
-        <div class="file-actions">
-          <button type="button" class="button-ghost" data-format title="Shift+Alt+F">Format</button>
-          <button type="button" class="button-ghost" data-reset>Reset file</button>
-        </div>
+        <section class="notes-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" tabindex="0" hidden>
+          <label class="label" for="notes">Your notes on exercise {{pad2 $ex.Number}}</label>
+          <p class="help" id="notes-help">Write down where you got stuck and what you tried. Step 10 of the course asks for this log.</p>
+          <textarea class="textarea" id="notes" data-notes aria-describedby="notes-help notes-status"></textarea>
+          <p class="help" id="notes-status" data-notes-status></p>
+        </section>
       </div>
-      <div class="editor" data-editor aria-label="Code editor"><p class="editor-loading">Loading the editor…</p></div>
-      <div class="splitter splitter-horizontal" role="separator" aria-orientation="horizontal" aria-label="Resize the bottom panel" tabindex="0" data-splitter="bottom"></div>
-      <section class="ide-bottom" aria-label="Results">
-        <div class="run-bar">
-          <div class="tabs" role="tablist" aria-label="Result panels" data-tabs="bottom">
-            <button type="button" role="tab" id="bottom-tab-tests" aria-controls="bottom-tests" aria-selected="true">Tests</button>
-            <button type="button" role="tab" id="bottom-tab-problems" aria-controls="bottom-problems" aria-selected="false" tabindex="-1">Problems <span class="count" data-problem-count>0</span></button>
-            <button type="button" role="tab" id="bottom-tab-output" aria-controls="bottom-output" aria-selected="false" tabindex="-1">Output</button>
+
+      <section class="ladder" id="ladder" aria-labelledby="ladder-title" data-ladder tabindex="-1">
+        <div class="ladder-head">
+          <h2 id="ladder-title">Hints</h2>
+          <p class="ladder-sub" data-ladder-sub>Reveal 1 level at a time.</p>
+          <button type="button" class="btn btn-quiet" data-ladder-fold aria-expanded="true" aria-controls="ladder-rungs">Fold</button>
+        </div>
+        <div class="ladder-rungs" id="ladder-rungs">
+          <p class="callout ladder-passed" hidden data-ladder-passed><b>NOTE:</b> You passed. Rule 5: read the explanation and the walkthrough. They show the trade-offs.</p>
+          <ol class="rungs" data-gate>
+            {{- range .Rungs}}
+            <li class="rung" data-level="{{.Level}}" data-state="locked" data-title="{{.Title}}" data-after="{{.After}}">
+              <span class="balloon is-locked" role="img" aria-label="{{.Title}}: locked" data-rung-balloon>{{.Level}}</span>
+              <div class="rung-body">
+                <p class="rung-title"><b>{{.Title}}</b> <span class="rung-meta" data-rung-meta>{{.After}}</span></p>
+                {{- with .Description}}<p class="rung-desc" data-rung-desc>{{.}}</p>{{end}}
+                <div class="rung-gate" data-rung-gate hidden></div>
+                <div class="hint-text" data-hint-body tabindex="-1"></div>
+                <div class="rung-actions" data-rung-actions></div>
+              </div>
+            </li>
+            {{- end}}
+          </ol>
+          <p class="rung-rest" hidden data-rung-rest></p>
+        </div>
+      </section>
+    </section>
+
+    <div class="col-handle" role="separator" aria-orientation="vertical" aria-label="Resize the task column" aria-controls="task-col" tabindex="0" data-handle="task"></div>
+
+    <section class="work" aria-label="Your code">
+      <div class="filebar">
+        <button type="button" class="btn btn-quiet show-col" data-show="task" hidden>Show the task</button>
+        <div class="file-tabs" role="tablist" aria-label="Files" data-file-tabs></div>
+        <div class="menu-wrap test-files" data-menu>
+          <button type="button" class="file-menu-button" aria-haspopup="menu" aria-expanded="false" aria-controls="test-files-menu" aria-label="Tests: open a test file, read only" data-menu-button>Tests <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+          <div class="menu" id="test-files-menu" role="menu" aria-label="Test files, read only" hidden data-test-files></div>
+        </div>
+        <span class="filebar-end">
+          <button type="button" class="btn btn-quiet" data-format>Format</button>
+          <button type="button" class="btn btn-quiet show-col" data-show="problems" hidden>Show problems</button>
+        </span>
+      </div>
+      <div class="editor-wrap">
+        <p class="save-banner callout callout-warning" role="status" hidden data-save-banner></p>
+        <div class="editor" id="editor-host" data-editor tabindex="-1"><p class="editor-loading">Loading the editor</p></div>
+        <button type="button" class="leader-jump" data-leader-jump hidden></button>
+      </div>
+      <div class="row-handle" role="separator" aria-orientation="horizontal" aria-label="Resize the test panel" tabindex="0" data-handle="bottom"></div>
+      <section class="bottom" id="test-results" aria-label="Test results" tabindex="-1">
+        <div class="bottom-bar">
+          <div class="tabs" role="tablist" aria-label="Results" data-tabs="bottom">
+            <button type="button" class="tab" role="tab" id="tab-tests" aria-controls="panel-tests" aria-selected="true">Tests</button>
+            <button type="button" class="tab tab-problems" role="tab" id="tab-problems" aria-controls="panel-problems" aria-selected="false" tabindex="-1">Problems <span class="count-badge" aria-hidden="true" data-problem-count hidden></span></button>
+            <button type="button" class="tab" role="tab" id="tab-output" aria-controls="panel-output" aria-selected="false" tabindex="-1">Output</button>
           </div>
           <div class="run-controls">
-            <label for="step-select" class="visually-hidden">Step</label>
-            <select id="step-select" data-step-select>
+            <label for="step-select" class="visually-hidden">The tests to run</label>
+            <select class="select select-sm" id="step-select" data-step-select>
               {{- range $ex.Steps}}
               <option value="{{.ID}}"{{if .IsAll}} selected{{end}}>{{.Title}}</option>
               {{- end}}
             </select>
-            <label class="check"><input type="checkbox" data-race checked> -race</label>
-            <button type="button" class="button button-primary" data-run title="Ctrl+Enter">Run</button>
-            <button type="button" class="button" data-stop hidden>Stop</button>
+            <label class="check check-sm"><input type="checkbox" data-race checked aria-label="Run with the race detector, -race"> <span class="mono" aria-hidden="true">-race</span></label>
+            <button type="button" class="btn btn-primary btn-sm" data-run aria-describedby="step-select">Run tests</button>
+            <button type="button" class="btn btn-sm" data-stop hidden>Stop</button>
           </div>
         </div>
-        <div id="bottom-tests" role="tabpanel" aria-labelledby="bottom-tab-tests" class="tab-panel results" tabindex="0">
-          <p class="run-summary" role="status" aria-live="polite" data-run-summary>Run the tests to see results here.</p>
-          <ul class="test-tree" data-test-tree></ul>
-          <div class="explanations" data-explanations></div>
+        <div class="results tests-panel" id="panel-tests" role="tabpanel" aria-labelledby="tab-tests">
+          <p class="run-line" data-run-summary>Run the tests to see each step here.</p>
+          <div class="run-notes" data-run-notes></div>
+          <div class="tree-wrap" data-tree-wrap>
+            <ul class="tree" role="tree" aria-label="Test results" data-test-tree></ul>
+          </div>
+          <section class="test-detail" id="test-detail" role="region" aria-label="Output of the selected test" hidden data-test-detail></section>
+          <button type="button" class="leader-jump tree-jump" data-tree-jump hidden></button>
         </div>
-        <div id="bottom-problems" role="tabpanel" aria-labelledby="bottom-tab-problems" class="tab-panel results" hidden tabindex="0">
-          <ul class="problem-list" data-problems><li class="muted">No problems found.</li></ul>
-        </div>
-        <div id="bottom-output" role="tabpanel" aria-labelledby="bottom-tab-output" class="tab-panel results" hidden tabindex="0">
-          <pre class="output" data-output></pre>
+        <div class="results problems-tab" id="panel-problems" role="tabpanel" aria-labelledby="tab-problems" hidden data-problems-slot-bottom></div>
+        <div class="results" id="panel-output" role="tabpanel" aria-labelledby="tab-output" hidden tabindex="0">
+          <pre class="output" data-output>Run the tests to see the output of go test here.</pre>
         </div>
       </section>
-    </div>
+    </section>
+
+    <div class="col-handle" role="separator" aria-orientation="vertical" aria-label="Resize the problems column" aria-controls="problems-col" tabindex="0" data-handle="problems"></div>
+
+    <aside class="problems is-rail" id="problems-col" aria-label="Problems" data-col="problems" data-problems-slot-side tabindex="-1">
+      <button type="button" class="problems-rail" data-problems-rail><span>Problems</span> <span class="rail-count" data-rail-count>0</span></button>
+      <div class="problems-panel" data-problems-panel>
+        <div class="problems-head">
+          <div class="problems-title">
+            <h2>Problems <span class="count-badge" aria-hidden="true" data-problem-count hidden></span></h2>
+            <button type="button" class="btn btn-quiet col-hide" data-hide="problems" aria-controls="problems-col">Hide<span class="visually-hidden"> problems</span></button>
+          </div>
+          <div class="chips" role="tablist" aria-label="Problems" data-chips></div>
+        </div>
+        <div class="problem-view" id="problem-view" role="tabpanel" data-problem-view tabindex="-1">
+          <p class="problems-empty">Nothing to explain. When the compiler, go vet or a test finds a problem, it appears here, tied to its line.</p>
+        </div>
+      </div>
+    </aside>
+    <svg class="ide-leaders" aria-hidden="true" focusable="false" data-leader></svg>
   </div>
 
   <footer class="status-bar">
-    <span data-save-status>Saved</span>
-    <span data-lint-status>Checks idle</span>
-    {{- with .GoVersion}}<span>{{.}}</span>{{end}}
-    <span class="status-keys">Ctrl+S save · Ctrl+Enter run · Shift+Alt+F format</span>
+    <span class="sb-cell" data-save-status>Loading</span>
+    <span class="sb-cell" data-lint-status>Checks start when the editor loads</span>
+    <span class="sb-cell sb-optional" data-cursor></span>
+    <span class="sb-cell sb-optional mono" data-race-status>-race on</span>
+    {{- with .GoVersion}}<span class="sb-cell sb-optional">Go {{trimPrefix . "go"}}</span>{{end}}
+    <span class="sb-keys" data-keys>
+      <span><kbd data-mod>Ctrl</kbd>+<kbd>Enter</kbd> runs the tests</span>
+      <span><kbd data-mod>Ctrl</kbd>+<kbd>S</kbd> saves</span>
+      <span><kbd>F8</kbd> next problem</span>
+      <span class="menu-wrap keys-menu" data-popover>
+        <button type="button" class="sb-button" aria-expanded="false" aria-controls="keys-panel" data-popover-button>Keys</button>
+        <span class="menu menu-up keys-panel" id="keys-panel" hidden>
+          <span class="keys-row"><span><kbd data-mod>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Run the tests</span></span>
+          <span class="keys-row"><span><kbd data-mod>Ctrl</kbd>+<kbd>S</kbd></span><span>Save now</span></span>
+          <span class="keys-row"><span><kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd></span><span>Next and previous problem</span></span>
+          <span class="keys-row"><span><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></span><span>Format the file</span></span>
+          <span class="keys-row"><span><kbd data-mod>Ctrl</kbd>+<kbd>M</kbd>, <kbd>Tab</kbd></span><span>Leave the editor with Tab</span></span>
+          <span class="keys-row keys-size"><label for="editor-size">Editor text size</label>
+            <select class="select select-sm" id="editor-size" data-editor-size>
+              <option value="13">13 px</option><option value="14">14 px</option><option value="15">15 px</option><option value="16">16 px</option><option value="18">18 px</option>
+            </select></span>
+        </span>
+      </span>
+    </span>
   </footer>
+  <p class="visually-hidden" aria-live="polite" data-announce></p>
+  <p class="visually-hidden" role="alert" data-alert></p>
 </div>
 {{- end}}
 {{end}}

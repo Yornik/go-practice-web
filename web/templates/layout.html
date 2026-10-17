@@ -5,64 +5,176 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{{.Title}} · Go Practice</title>
+<title>{{if .Title}}{{.Title}}, Go Practice{{else}}Go Practice{{end}}</title>
+<meta name="description" content="Practice Go on real operations tasks, without an LLM. 25 exercises in 5 tiers, with the real tests and an explanation for every error.">
 <link rel="icon" href="{{static "img/favicon.svg"}}" type="image/svg+xml">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/b612-latin-400-normal.woff2"}}">
+{{- if or .Mono .Wide}}
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/spline-sans-mono-latin-400-normal.woff2"}}">
+{{- end}}
 <link rel="stylesheet" href="{{static "css/site.css"}}">
+{{- if .Wide}}
+<link rel="stylesheet" href="{{static "css/ide.css"}}">
+{{- end}}
 <link rel="stylesheet" href="/highlight.css?v={{.Course.Version}}">
-{{- block "head" .}}{{end}}
 {{/* A classic script, not a module: it must set the theme before the first paint. */}}
 <script src="{{static "js/theme-init.js"}}"></script>
+{{.ImportMap}}
 <script type="module" src="{{static "js/site.js"}}"></script>
 {{- with .Script}}
 <script type="module" src="{{static (printf "js/%s" .)}}"></script>
 {{- end}}
 </head>
-<body{{if .Wide}} class="layout-wide"{{end}}>
-<a class="skip-link" href="#main">Skip to the content</a>
-<header class="site-header">
-  <a class="brand" href="{{if .User}}/learn{{else}}/{{end}}">
-    <img src="{{static "img/favicon.svg"}}" alt="" width="28" height="28">
-    <span>Go Practice</span>
-  </a>
-  <nav class="site-nav" aria-label="Main">
-    <ul>
-      {{- if .User}}
-      <li><a href="/learn"{{if eq .Nav "learn"}} aria-current="page"{{end}}>Learn</a></li>
-      {{- end}}
-      <li><a href="/guide"{{if eq .Nav "guide"}} aria-current="page"{{end}}>Guide</a></li>
-      {{- if .User}}
-      <li><a href="/certificates"{{if eq .Nav "certificates"}} aria-current="page"{{end}}>Certificates</a></li>
-      <li><a href="/account"{{if eq .Nav "account"}} aria-current="page"{{end}}>Account</a></li>
-      {{- if .User.IsAdmin}}
-      <li><a href="/admin"{{if eq .Nav "admin"}} aria-current="page"{{end}}>Admin</a></li>
-      {{- end}}
-      {{- end}}
-    </ul>
-  </nav>
-  <div class="header-actions">
-    <button type="button" class="button-ghost theme-toggle" data-theme-toggle aria-pressed="false">
-      <span class="visually-hidden">Dark theme</span><span aria-hidden="true">◐</span>
-    </button>
-    {{- if .User}}
-    <span class="header-user" title="Signed in as {{.User.Username}}">{{.User.DisplayName}}</span>
-    <button type="button" class="button-ghost" data-logout>Sign out</button>
-    {{- else if ne .Nav "login"}}
-    <a class="button" href="/login">Sign in</a>
-    {{- end}}
-  </div>
-</header>
+<body class="{{if .Wide}}ide-page{{else if .User}}app{{else}}public{{end}}{{with .Nav}} page-{{.}}{{end}}">
+{{template "sprite"}}
+{{- if .Wide}}
+<a class="skip-link" href="#task-col">Skip to the task</a>
+<a class="skip-link" href="#editor-host">Skip to the editor</a>
+<a class="skip-link" href="#test-results">Skip to the tests</a>
+<a class="skip-link" href="#problems-col">Skip to the problems</a>
+{{- else}}
+<a class="skip-link" href="#main">Skip to content</a>
+{{template "site-head" .}}
+{{- end}}
 <main id="main" tabindex="-1">
 {{template "content" .}}
 </main>
 {{- if not .Wide}}
-<footer class="site-footer">
-  <p>
-    Go Practice: {{len .Course.Exercises}} exercises for reliability engineers.
-    Course <a href="https://github.com/Yornik/go-practice">github.com/Yornik/go-practice</a> at {{.Course.Version}}.
-    <a href="/verify">Verify a certificate</a>.
-  </p>
+<footer class="site-foot">
+  <div class="wrap">
+    <span>Go Practice runs the <a href="https://github.com/Yornik/go-practice">go-practice course</a> by Yornik, version <span class="mono">{{.Course.Version}}</span>.</span>
+    <a href="/guide">Guide</a>
+    <a href="/verify">Verify a certificate</a>
+  </div>
 </footer>
 {{- end}}
+<div class="toast-region">
+  <div role="status" aria-live="polite" data-toasts></div>
+  <div role="alert" data-toasts-alert></div>
+</div>
 </body>
 </html>
 {{- end}}
+
+{{define "site-head"}}
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="{{if .User}}/learn{{else}}/{{end}}"{{if .User}} aria-label="Go Practice: your course"{{end}}><span class="brand-mark" aria-hidden="true">Go</span>Go Practice</a>
+    <nav class="site-nav" aria-label="Main">
+      {{- template "nav-links" .}}
+    </nav>
+    <button type="button" class="text-button nav-toggle" aria-expanded="false" aria-controls="nav-sheet" data-nav-toggle>Menu</button>
+    <div class="head-end">
+      {{- template "theme-menu" .}}
+      {{- if .User}}
+      {{template "avatar-menu" .}}
+      {{- else if ne .Nav "login"}}
+      <a class="btn btn-sm" href="/login">Sign in</a>
+      {{- end}}
+    </div>
+  </div>
+  <div class="nav-sheet" id="nav-sheet" hidden data-nav-sheet>
+    <nav aria-label="Main">
+      {{- template "nav-links" .}}
+    </nav>
+    <fieldset>
+      <legend>Theme</legend>
+      <div class="theme-choice">
+        <label class="check"><input type="radio" name="nav-theme" value="system" data-theme-radio> System</label>
+        <label class="check"><input type="radio" name="nav-theme" value="light" data-theme-radio> Light</label>
+        <label class="check"><input type="radio" name="nav-theme" value="dark" data-theme-radio> Dark</label>
+      </div>
+    </fieldset>
+  </div>
+</header>
+{{end}}
+
+{{define "nav-links"}}
+      {{- if .User}}
+      <a href="/learn"{{if eq .Nav "learn"}} aria-current="page"{{end}}>Course</a>
+      <a href="/guide"{{if eq .Nav "guide"}} aria-current="page"{{end}}>Guide</a>
+      <a href="/certificates"{{if eq .Nav "certificates"}} aria-current="page"{{end}}>Certificates</a>
+      {{- if .User.IsAdmin}}
+      <a href="/admin"{{if eq .Nav "admin"}} aria-current="page"{{end}}>Admin</a>
+      {{- end}}
+      {{- else}}
+      <a href="/guide"{{if eq .Nav "guide"}} aria-current="page"{{end}}>Guide</a>
+      <a href="/verify"{{if eq .Nav "verify"}} aria-current="page"{{end}}>Verify a certificate</a>
+      {{- end}}
+{{- end}}
+
+{{define "theme-menu"}}
+      <div class="menu-wrap theme-menu" data-menu>
+        <button type="button" class="text-button" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" data-menu-button>Theme <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <div class="menu" id="theme-menu" role="menu" aria-label="Theme" hidden>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="system"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>System</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="light"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Light</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="dark"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Dark</button>
+        </div>
+      </div>
+{{- end}}
+
+{{define "avatar-menu"}}
+      <div class="menu-wrap" data-menu>
+        <button type="button" class="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="{{.User.DisplayName}}" data-menu-button>{{initials .User.DisplayName}}</button>
+        <div class="menu" hidden>
+          <p class="menu-label">{{.User.DisplayName}}<small>{{.User.Username}}</small></p>
+          <div id="account-menu" role="menu" aria-label="Account">
+            <a role="menuitem" href="/account">Account</a>
+            <button type="button" role="menuitem" data-logout>Sign out</button>
+          </div>
+        </div>
+      </div>
+{{- end}}
+
+{{define "avatar-menu-ide"}}
+      <div class="menu-wrap" data-menu>
+        <button type="button" class="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="{{.User.DisplayName}}" data-menu-button>{{initials .User.DisplayName}}</button>
+        <div class="menu" hidden>
+          <p class="menu-label">{{.User.DisplayName}}<small>{{.User.Username}}</small></p>
+          <div id="account-menu" role="menu" aria-label="Account">
+            <a role="menuitem" href="/account">Account</a>
+            <button type="button" role="menuitem" data-logout>Sign out</button>
+            {{- /* On a phone the theme menu leaves the top bar and lives here. */}}
+            <div class="menu-phone-only" role="group" aria-label="Theme">
+              <hr>
+              <p class="menu-group-label" aria-hidden="true">Theme</p>
+              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="system"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>System</button>
+              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="light"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Light</button>
+              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="dark"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Dark</button>
+            </div>
+          </div>
+        </div>
+      </div>
+{{- end}}
+
+{{define "strip"}}
+<div class="strip {{.Class}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
+  {{- range .Tiers}}
+  <div class="strip-tier" style="flex: {{grow .Hours}} 1 0; --tier-h: {{.Hours}}">
+    <div class="strip-bars">
+      {{- range .Bars}}
+      {{- if $.Links}}
+      <a href="/learn/{{.Slug}}" style="flex-grow: {{grow .Hours}}" data-state="{{.State}}" aria-label="{{.Name}}" title="{{.Name}}"></a>
+      {{- else}}
+      <span style="flex-grow: {{grow .Hours}}" data-state="{{.State}}"></span>
+      {{- end}}
+      {{- end}}
+    </div>
+    {{- if ne $.Class "strip-mini"}}
+    <p class="strip-label"{{if not $.Links}} aria-hidden="true"{{end}}><b>Tier {{.N}}</b><span>{{hours .Hours}}</span></p>
+    {{- end}}
+  </div>
+  {{- end}}
+</div>
+{{end}}
+
+{{define "sprite"}}<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-tick" viewBox="0 0 16 16"><path d="M3.25 8.5l3 3L12.75 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-cross" viewBox="0 0 16 16"><path d="M4.25 4.25l7.5 7.5M11.75 4.25l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="i-dash" viewBox="0 0 16 16"><path d="M4 8h8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="i-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.75"/></symbol>
+<symbol id="i-arc" viewBox="0 0 16 16"><path d="M8 3.25a4.75 4.75 0 1 1-4.75 4.75" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.25" fill="currentColor"/></symbol>
+</svg>{{end}}

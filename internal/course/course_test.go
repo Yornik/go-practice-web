@@ -2,6 +2,7 @@ package course
 
 import (
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -703,5 +704,42 @@ func copyTree(t *testing.T, from, to string) {
 	t.Helper()
 	if err := os.CopyFS(to, os.DirFS(from)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLevelDescriptions(t *testing.T) {
+	c := loadedOnce(t)
+	if got := c.LevelDescription(Hint1); !strings.HasPrefix(got, "A nudge") {
+		t.Errorf("hint 1 = %q", got)
+	}
+	for l := Hint1; l <= MaxLevel; l++ {
+		if c.LevelDescription(l) == "" {
+			t.Errorf("%s has no description", l)
+		}
+	}
+}
+
+func TestStepLabel(t *testing.T) {
+	c := loadedOnce(t)
+	tests := []struct {
+		slug, id string
+		want     template.HTML
+	}{
+		{"07-retry", "step-1", "<code>Validate</code> and <code>Backoff</code>"},
+		{"07-retry", "step-3", "The error types"},
+		{"07-retry", "step-4", "<code>Do</code> and <code>DoValue</code>"},
+		{"16-middleware", "step-5", "Uses <code>RequestID</code>"},
+		{"05-slo", "step-1", "Step 1"},
+		{"10-deployorder", "step-6", "All, with <code>Example</code> and <code>TestConcurrentUse</code>"},
+	}
+	for _, tt := range tests {
+		e, _ := c.Exercise(tt.slug)
+		s, ok := e.Step(tt.id)
+		if !ok {
+			t.Fatalf("%s: no step %q", tt.slug, tt.id)
+		}
+		if got := e.StepLabel(s); got != tt.want {
+			t.Errorf("%s %s: StepLabel = %q, want %q", tt.slug, tt.id, got, tt.want)
+		}
 	}
 }

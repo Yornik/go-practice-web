@@ -2,6 +2,6 @@
 {{define "content"}}
 <p style="{{template "p"}}">Hello {{.E.Name}},</p>
 <p style="{{template "p"}}">The passkey <strong>{{.E.Passkey}}</strong> was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.</p>
-<p style="{{template "p"}}">If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys.</p>
+<p style="{{template "p"}}"><strong>WARNING:</strong> If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys.</p>
 <p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Check my passkeys</a></p>
 {{end}}

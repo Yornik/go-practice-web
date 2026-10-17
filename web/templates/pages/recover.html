@@ -1,14 +1,21 @@
 {{define "content"}}
-<section class="card auth-card" aria-labelledby="recover-title">
-  <h1 id="recover-title">Recover your account</h1>
-  <p>Enter the verified email address of your account. If it has one, you get a link that lets you add a new passkey. The link works for 15 minutes.</p>
-  <form id="recover-form" class="stack" novalidate>
-    <div class="field">
-      <label for="recover-email">Email address</label>
-      <input id="recover-email" name="email" type="email" required autocomplete="email">
+<div class="wrap page">
+  <section class="auth narrow" aria-labelledby="recover-title">
+    <header class="page-head">
+      <h1 id="recover-title">Recover your account</h1>
+      <p class="lede">Enter the verified email address of your account. If your account has a verified address, we send a link that adds a new passkey.</p>
+    </header>
+    <form id="recover-form" class="auth-form" novalidate>
+      <div class="field">
+        <label for="recover-email">Email address</label>
+        <input class="input" id="recover-email" name="email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false">
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg">Send a recovery link</button>
+      <p class="form-status mt-4" role="status" aria-live="polite"></p>
+    </form>
+    <div class="auth-aside">
+      <p>If you have your passkey, <a href="/login">sign in</a>.</p>
     </div>
-    <button type="submit" class="button button-primary">Send a recovery link</button>
-  </form>
-  <p class="form-status" role="status" aria-live="polite"></p>
-</section>
+  </section>
+</div>
 {{end}}

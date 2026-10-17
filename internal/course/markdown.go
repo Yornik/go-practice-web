@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
@@ -268,11 +269,48 @@ func (r *linkRewriter) rewrite(base, dest string, image bool) string {
 	return GitHubBlobURL + p + frag
 }
 
-// Default highlighting themes for HighlightCSS.
+// Default highlighting themes for HighlightCSS: the site's own, so that
+// the code blocks of a spec match the editor (".design/FINAL.md",
+// section 12). 4 colours keep away from the blue, red and green of the
+// site's status colours; everything else is the text colour.
 const (
-	DefaultLightStyle = "github"
-	DefaultDarkStyle  = "github-dark"
+	DefaultLightStyle = "gpw-light"
+	DefaultDarkStyle  = "gpw-dark"
 )
+
+func init() {
+	styles.Register(siteStyle(DefaultLightStyle, styleColours{
+		text: "#1E2821", kw: "#6E2C7E", num: "#0E6670", str: "#7A4E05", com: "#56685B", red: "#B3251A", ok: "#1C6A3A",
+	}))
+	styles.Register(siteStyle(DefaultDarkStyle, styleColours{
+		text: "#DDE6D7", kw: "#DDA9EE", num: "#7ED3D9", str: "#E3C27C", com: "#91A396", red: "#FF9086", ok: "#8AD6A0",
+	}))
+}
+
+type styleColours struct{ text, kw, num, str, com, red, ok string }
+
+func siteStyle(name string, c styleColours) *chroma.Style {
+	return chroma.MustNewStyle(name, chroma.StyleEntries{
+		// No background: the code block sets it from the page's tokens.
+		chroma.Background:         c.text,
+		chroma.Keyword:            c.kw,
+		chroma.KeywordDeclaration: c.kw,
+		chroma.KeywordNamespace:   c.kw,
+		chroma.KeywordReserved:    c.kw,
+		chroma.KeywordType:        c.num,
+		chroma.KeywordConstant:    c.num,
+		chroma.NameBuiltin:        c.num,
+		chroma.LiteralNumber:      c.num,
+		chroma.LiteralString:      c.str,
+		chroma.Comment:            "noitalic " + c.com,
+		chroma.CommentPreproc:     "noitalic " + c.com,
+		chroma.Error:              c.red,
+		chroma.GenericDeleted:     c.red,
+		chroma.GenericInserted:    c.ok,
+		chroma.GenericEmph:        "italic",
+		chroma.GenericStrong:      "bold",
+	})
+}
 
 // HighlightCSS returns the CSS for highlighted code with the default themes.
 // See HighlightCSSFor.

@@ -203,25 +203,75 @@ const MaxNameRunes = 70
 // ErrName is returned for a name that cannot go on a certificate.
 var ErrName = errors.New("cert: invalid name")
 
+// NameError says why CleanName refused a name. It wraps ErrName.
+type NameError struct {
+	reason  string // for logs: "length", "not UTF-8", "not printable", "no glyph"
+	Missing []rune // the characters the certificate fonts cannot draw
+	r       rune   // the character that does not print
+}
+
+func (e *NameError) Error() string {
+	switch {
+	case len(e.Missing) > 0:
+		return fmt.Sprintf("cert: invalid name: the certificate font cannot print %q", string(e.Missing))
+	case e.reason == "not printable":
+		return fmt.Sprintf("cert: invalid name: %U is not printable", e.r)
+	case e.reason == "length":
+		return fmt.Sprintf("cert: invalid name: use 1 to %d characters", MaxNameRunes)
+	}
+	return "cert: invalid name: " + e.reason
+}
+
+func (e *NameError) Unwrap() error { return ErrName }
+
+// Message is the error for the learner: what is wrong and what to do.
+func (e *NameError) Message() string {
+	switch {
+	case len(e.Missing) > 0:
+		return fmt.Sprintf("The PDF cannot print %s. Use Latin, Greek or Cyrillic letters.", quoteRunes(e.Missing))
+	case e.reason == "not printable":
+		return "The name has a character that does not print. Use letters, spaces and punctuation."
+	case e.reason == "length":
+		return fmt.Sprintf("Use 1 to %d characters.", MaxNameRunes)
+	}
+	return "Use letters, spaces and punctuation."
+}
+
+// quoteRunes lists runes as "漢" or "漢 and 字".
+func quoteRunes(rs []rune) string {
+	seen := map[rune]bool{}
+	var parts []string
+	for _, r := range rs {
+		if !seen[r] {
+			seen[r] = true
+			parts = append(parts, string(r))
+		}
+	}
+	if len(parts) == 1 {
+		return parts[0]
+	}
+	return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
+}
+
 // CleanName trims and collapses spaces, and checks that the name is
 // printable text of 1 to MaxNameRunes characters that the certificate font
-// has glyphs for.
+// has glyphs for. Its errors are *NameError.
 func CleanName(s string) (string, error) {
 	if !utf8.ValidString(s) {
-		return "", fmt.Errorf("%w: not UTF-8", ErrName)
+		return "", &NameError{reason: "not UTF-8"}
 	}
 	name := strings.Join(strings.Fields(s), " ")
 	n := utf8.RuneCountInString(name)
 	if n == 0 || n > MaxNameRunes {
-		return "", fmt.Errorf("%w: use 1 to %d characters", ErrName, MaxNameRunes)
+		return "", &NameError{reason: "length"}
 	}
 	for _, r := range name {
 		if !unicode.IsPrint(r) {
-			return "", fmt.Errorf("%w: %U is not printable", ErrName, r)
+			return "", &NameError{reason: "not printable", r: r}
 		}
 	}
 	if missing := missingGlyphs(name); len(missing) > 0 {
-		return "", fmt.Errorf("%w: the certificate font cannot print %q", ErrName, string(missing))
+		return "", &NameError{reason: "no glyph", Missing: missing}
 	}
 	return name, nil
 }

@@ -132,6 +132,37 @@ type runSummary struct {
 	// RaceUnavailable: the runner had no race detector, so Race is false.
 	RaceUnavailable bool      `json:"raceUnavailable,omitempty"`
 	At              time.Time `json:"at"`
+	// Tests is the result (pass, fail or skip) of each top-level test, and
+	// FailedTests every failed subtest, so the IDE can show the last run's
+	// tree after a reload. The output and the explanations are not kept.
+	Tests       map[string]string `json:"tests,omitempty"`
+	FailedTests []string          `json:"failedTests,omitempty"`
+}
+
+// maxSummaryTests bounds the tests a summary keeps: a fuzz target with many
+// seeds or a large table must not grow a progress row without limit.
+const maxSummaryTests = 200
+
+// summaryTests returns the top-level results and the failed subtests of a run.
+func (t *runTracker) summaryTests() (map[string]string, []string) {
+	tops := make(map[string]string, len(t.results))
+	for name, r := range t.results {
+		if len(tops) >= maxSummaryTests {
+			break
+		}
+		tops[name] = r
+	}
+	var failed []string
+	for name := range t.failures {
+		if strings.Contains(name, "/") {
+			failed = append(failed, name)
+		}
+	}
+	slices.Sort(failed)
+	if len(failed) > maxSummaryTests {
+		failed = failed[:maxSummaryTests]
+	}
+	return tops, failed
 }
 
 // runPassed reports whether a done event is a clean pass.
@@ -287,7 +318,8 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 	// The run happened even if the browser left just now: count it.
 	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	p, err := s.recordRun(rctx, userID, ex.Slug, rr, *done, complete)
+	tops, failed := tracker.summaryTests()
+	p, err := s.recordRun(rctx, userID, ex.Slug, rr, *done, complete, tops, failed)
 	if err != nil {
 		s.log.Error("record run", "exercise", ex.Slug, "err", err)
 		_ = out.send(errorEvent{Type: eventError, Code: "internal", Error: "The run finished, but the site could not save your progress."})
@@ -299,11 +331,12 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 // recordRun counts the run, keeps its summary and passes the exercise
 // when this was a clean full run with -race (or on a runner without a race
 // detector) that reported every test (complete).
-func (s *Server) recordRun(ctx context.Context, userID int64, slug string, rr resolvedRun, d runnerapi.Event, complete bool) (progressEvent, error) {
+func (s *Server) recordRun(ctx context.Context, userID int64, slug string, rr resolvedRun, d runnerapi.Event, complete bool, tests map[string]string, failed []string) (progressEvent, error) {
 	sum, err := json.Marshal(runSummary{
 		Step: rr.Step, Run: rr.Run, Race: rr.Race, Passed: d.Passed, Failed: d.Failed, Skipped: d.Skipped,
 		ExitCode: d.ExitCode, DurationMs: d.DurationMs, TimedOut: d.TimedOut, Truncated: d.Truncated,
 		BuildFailed: d.BuildFailed, RaceUnavailable: rr.RaceUnavailable, At: s.now().UTC(),
+		Tests: tests, FailedTests: failed,
 	})
 	if err != nil {
 		return progressEvent{}, err

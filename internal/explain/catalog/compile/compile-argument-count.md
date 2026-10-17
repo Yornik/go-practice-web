@@ -22,7 +22,7 @@ Compare `have` and `want` position by position and find the first one that diffe
 
 - Did the signature change? When you add a parameter, every call needs it, and the error moves to each of them.
 - Did you forget an argument that is easy to overlook, such as a `context.Context`, a clock or a limit?
-- When the call is in a test file, the test calls the API from the exercise README. Change your function to that signature, not the test.
+- When the call is in a test file, the test calls the API from the spec. Change your function to that signature, not the test.
 - Look up the signature of a library function with `go doc`, for example `go doc strings.Cut`.
 
 ## Example

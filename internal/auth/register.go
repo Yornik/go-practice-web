@@ -58,6 +58,18 @@ func (s *Service) CheckInvite(ctx context.Context, token string) (store.Invite, 
 	return inv, nil
 }
 
+// DeadInvite returns the invite of a token that no longer works, so the
+// join page can say when it expired or was used. ok is false for a token
+// that matches no invite.
+func (s *Service) DeadInvite(ctx context.Context, token string) (inv store.Invite, ok bool) {
+	hash, ok := hashToken(token)
+	if !ok {
+		return store.Invite{}, false
+	}
+	inv, err := s.store.Invite(ctx, hash)
+	return inv, err == nil
+}
+
 // SignUp is the form of the sign-up page. Exactly 1 of Invite and Setup is
 // set: the token from the link.
 type SignUp struct {

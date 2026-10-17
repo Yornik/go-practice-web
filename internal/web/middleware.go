@@ -142,6 +142,13 @@ const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
 	"font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; " +
 	"form-action 'self'"
 
+// pageCSP is the policy of an HTML page: csp plus the hash of the page's
+// import map, the only inline script. A hash, not a nonce: the map is the
+// same on every page of a deploy.
+func pageCSP(importMapHash string) string {
+	return strings.Replace(csp, "script-src 'self'", "script-src 'self' "+importMapHash, 1)
+}
+
 // securityHeaders sets the headers every response carries.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +248,7 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 				writeJSONError(w, http.StatusForbidden, "forbidden", "Only an admin can do this.")
 				return
 			}
-			s.errorPage(w, r, http.StatusForbidden, "Only an admin can open this page.")
+			s.errorPage(w, r, http.StatusForbidden, "You do not have access to this page.")
 			return
 		}
 		next(w, r)

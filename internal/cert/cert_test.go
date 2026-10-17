@@ -416,6 +416,8 @@ func TestCleanName(t *testing.T) {
 		{"Zoë Ångström-Çelik", "Zoë Ångström-Çelik", true},
 		{"Łukasz Żółć", "Łukasz Żółć", true},
 		{"Пётр Чайковский", "Пётр Чайковский", true},
+		{"Łukasz Dvořák", "Łukasz Dvořák", true},
+		{"Анна", "Анна", true},
 		{"O'Brien & Sons", "O'Brien & Sons", true},
 		{"", "", false},
 		{"   ", "", false},
@@ -582,13 +584,49 @@ func abs(x int) int {
 }
 
 func TestActivityText(t *testing.T) {
-	tests := map[int64]string{0: "0 h", 360: "0.1 h", 3600: "1 h", 5400: "1.5 h", 35999: "10 h", 36000: "10 h", 150000: "42 h"}
+	tests := map[int64]string{0: "0 min", 59: "0 min", 360: "6 min", 3600: "1 h", 5400: "1 h 30 min", 78000: "21 h 40 min"}
 	for sec, want := range tests {
-		if got := hours(sec); got != want {
-			t.Errorf("hours(%d) = %q, want %q", sec, got, want)
+		if got := duration(sec); got != want {
+			t.Errorf("duration(%d) = %q, want %q", sec, got, want)
 		}
 	}
-	if got := activityLine(ExerciseStats{ActiveSeconds: 3600, Runs: 1, Hints: 2}); got != "1 h  ·  1 test run  ·  2 hints" {
+	if got := activityLine(ExerciseStats{ActiveSeconds: 3600, Runs: 1, Hints: 2}); got != "1 h, 1 test run, 2 hints" {
 		t.Errorf("activityLine = %q", got)
+	}
+}
+
+func TestNameFont(t *testing.T) {
+	pdf, err := newPDF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		"Ada Lovelace":        fontManualBold,
+		"Zoë Ångström-Çelik":  fontManualBold,
+		"Łukasz Dvořák":       fontNameWide,
+		"Анна":                fontNameWide,
+		"Ada (Countess) King": fontNameWide,
+	} {
+		if got := nameFont(pdf, name); got != want {
+			t.Errorf("nameFont(%q) = %s, want %s", name, got, want)
+		}
+	}
+}
+
+func TestNameErrorMessage(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"", "Use 1 to 70 characters."},
+		{"Ada 漢字", "The PDF cannot print 漢 and 字. Use Latin, Greek or Cyrillic letters."},
+		{"Ada\u0007", "The name has a character that does not print. Use letters, spaces and punctuation."},
+	}
+	for _, tt := range tests {
+		_, err := CleanName(tt.in)
+		var ne *NameError
+		if !errors.As(err, &ne) || !errors.Is(err, ErrName) {
+			t.Fatalf("CleanName(%q) = %v, want a *NameError", tt.in, err)
+		}
+		if got := ne.Message(); got != tt.want {
+			t.Errorf("CleanName(%q) message = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }

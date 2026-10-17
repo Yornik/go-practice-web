@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/yornik/go-practice-web/internal/auth"
 )
 
 func TestPagesRender(t *testing.T) {
@@ -15,17 +18,17 @@ func TestPagesRender(t *testing.T) {
 		as   *user
 		want []string
 	}{
-		{"/", nil, []string{"Learn Go", "Tier 1", "Sign in"}},
+		{"/", nil, []string{"Practice Go on real operations tasks", "Tier 1", "Sign in", "Figure 2", "is not declared where you use it"}},
 		{"/login", nil, []string{"Sign in with a passkey", `autocomplete="username webauthn"`}},
-		{"/guide", nil, []string{"How the course works", "The rules"}},
+		{"/guide", nil, []string{"The guide", "The rules", "How to read a Go error message", "Print the checklist"}},
 		{"/recover", nil, []string{"Recover your account"}},
 		{"/verify", nil, []string{"Verify a certificate"}},
 		{"/verify-email?token=x", nil, []string{"Confirm my address"}},
-		{"/learn", admin, []string{"Your progress", "Learning log", "01 · "}},
-		{"/learn/01-logfmt", admin, []string{"data-exercise=\"01-logfmt\"", "Run the tests", "Hint 1", "All tests"}},
+		{"/learn", admin, []string{"Your course", "learning log", "Parse logfmt log lines", `data-stat="passed"`}},
+		{"/learn/01-logfmt", admin, []string{"data-exercise=\"01-logfmt\"", "Run tests", "Hint 1", "All tests", "A nudge"}},
 		{"/account", admin, []string{"Passkeys", "ada@example.com", "Sign out everywhere"}},
-		{"/certificates", admin, []string{"Tier 1", "The complete course"}},
-		{"/admin", admin, []string{"Invite someone", "Ada Admin"}},
+		{"/certificates", admin, []string{"Tier 1", "The course", "3 to go: 01, 02, 03."}},
+		{"/admin", admin, []string{"Create an invite", "Ada Admin"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
@@ -49,11 +52,15 @@ func TestPagesRender(t *testing.T) {
 
 func TestLinkPages(t *testing.T) {
 	h := newHarness(t)
-	for _, p := range []string{"/join?invite=nope", "/setup?token=nope", "/recover/confirm?token=nope"} {
+	for p, want := range map[string]string{
+		"/join?invite=nope":           "This invite link does not work. Check that you copied all of it.",
+		"/setup?token=nope":           "This setup link does not work any more.",
+		"/recover/confirm?token=nope": "This recovery link does not work any more. It works once, for 15 minutes.",
+	} {
 		w := h.do(req{method: "GET", path: p})
 		wantStatus(t, w, http.StatusGone)
-		if !strings.Contains(w.Body.String(), "already used or has expired") {
-			t.Errorf("%s lacks the dead-link message", p)
+		if !strings.Contains(w.Body.String(), want) {
+			t.Errorf("%s lacks the dead-link message %q", p, want)
 		}
 	}
 	link, err := h.auth.EnsureSetupLink(t.Context())
@@ -75,6 +82,20 @@ func TestLinkPages(t *testing.T) {
 	if w.Header().Get("Location") != "/learn" {
 		t.Fatalf("open redirect: %s", w.Header().Get("Location"))
 	}
+
+	// An expired invite says when it expired.
+	inviter := admin
+	res, err := h.auth.CreateInvite(t.Context(), inviter.User, auth.InviteRequest{Days: 1}, auth.Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.clock.Advance(48 * time.Hour)
+	w = h.do(req{method: "GET", path: strings.TrimPrefix(res.Link, publicURL)})
+	wantStatus(t, w, http.StatusGone)
+	if body := w.Body.String(); !strings.Contains(body, "This invite link expired on 18") || !strings.Contains(body, "Oct 2026.") {
+		t.Error("the expired invite page lacks its date")
+	}
+
 }
 
 func TestNotFoundAndHealth(t *testing.T) {

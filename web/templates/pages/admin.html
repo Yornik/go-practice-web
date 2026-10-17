@@ -1,89 +1,111 @@
 {{define "content"}}
-<h1>Admin</h1>
-<section class="card" aria-labelledby="invite-title">
-  <h2 id="invite-title">Invite someone</h2>
-  <form id="invite-form" class="stack" novalidate>
-    <div class="field">
-      <label for="invite-email">Email address (optional)</label>
-      <input id="invite-email" name="email" type="email" maxlength="254" aria-describedby="invite-email-hint">
-      <p class="hint" id="invite-email-hint">With an address, the site emails the link. Without one, copy it yourself.</p>
-    </div>
-    <div class="field">
-      <label for="invite-note">Note (optional)</label>
-      <input id="invite-note" name="note" maxlength="500">
-    </div>
-    <div class="field">
-      <label for="invite-days">Valid for (days)</label>
-      <input id="invite-days" name="days" type="number" min="1" max="30" value="7" required>
-    </div>
-    <button type="submit" class="button button-primary">Create the invite</button>
-  </form>
-  <div class="invite-result" data-invite-result hidden>
-    <label for="invite-link">Invite link</label>
-    <div class="copy-row">
-      <input id="invite-link" readonly data-invite-link>
-      <button type="button" class="button" data-copy>Copy</button>
-    </div>
-  </div>
-  <p class="form-status" role="status" aria-live="polite" data-status="invite"></p>
-</section>
+<div class="wrap page admin">
+  <header class="page-head">
+    <h1>Admin</h1>
+  </header>
 
-<section class="card" aria-labelledby="invites-title">
-  <h2 id="invites-title">Invites</h2>
-  {{- if .Data.Invites}}
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th scope="col">Created</th><th scope="col">Sent to</th><th scope="col">Note</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
-      <tbody>
-        {{- range .Data.Invites}}
-        <tr data-invite="{{hex .TokenHash}}">
-          <td><time datetime="{{iso .CreatedAt}}">{{date .CreatedAt}}</time></td>
-          <td>{{or .Email "–"}}</td>
-          <td>{{or .Note "–"}}</td>
-          <td>
-            {{- if .Used}}Used by {{index $.Data.Names .UsedBy}} on {{date .UsedAt}}
-            {{- else if .Expired $.Data.Now}}Expired on {{date .ExpiresAt}}
-            {{- else}}Open until {{date .ExpiresAt}}{{end}}
-          </td>
-          <td class="actions">{{if not .Used}}<button type="button" class="button-ghost button-danger" data-revoke>Revoke</button>{{end}}</td>
-        </tr>
-        {{- end}}
-      </tbody>
-    </table>
-  </div>
-  {{- else}}
-  <p class="muted">No invites yet.</p>
-  {{- end}}
-</section>
+  <section class="section" aria-labelledby="invite-title">
+    <h2 id="invite-title">Create an invite</h2>
+    <p class="help">An invite link works once. With an email address, the site mails the link.</p>
+    <form id="invite-form" class="mt-4" novalidate>
+      <div class="admin-grid">
+        <div class="field">
+          <label for="invite-email">Email (optional)</label>
+          <input class="input" id="invite-email" name="email" type="email" maxlength="254" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="invite-note">Note (optional)</label>
+          <input class="input" id="invite-note" name="note" maxlength="500" autocomplete="off" aria-describedby="invite-note-help">
+          <p class="help" id="invite-note-help">The new learner sees it on the sign-up page.</p>
+        </div>
+        <div class="field">
+          <label for="invite-days">Valid for</label>
+          <select class="select" id="invite-days" name="days">
+            <option value="1">1 day</option>
+            <option value="3">3 days</option>
+            <option value="7" selected>7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+          </select>
+        </div>
+      </div>
+      <p class="mt-4"><button type="submit" class="btn btn-primary">Create the invite link</button></p>
+      <p class="form-status mt-3" role="status" aria-live="polite" data-status="invite"></p>
+    </form>
+    <div class="result-panel" data-invite-result hidden>
+      <label class="label" for="invite-link">Invite link</label>
+      <div class="copy-row">
+        <input class="input mono" id="invite-link" readonly data-invite-link>
+        <button type="button" class="btn" data-copy>Copy the link</button>
+      </div>
+      <p data-invite-mail></p>
+    </div>
+  </section>
 
-<section class="card" aria-labelledby="users-title">
-  <h2 id="users-title">Learners</h2>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th scope="col">User</th><th scope="col">Email</th><th scope="col">Passed</th><th scope="col">Started</th><th scope="col">Time</th><th scope="col">Runs</th><th scope="col">Reveals</th><th scope="col">Last run</th><th scope="col">Status</th></tr>
-      </thead>
-      <tbody>
-        {{- range .Data.Users}}
-        <tr data-user="{{.ID}}">
-          <th scope="row">{{.DisplayName}} <span class="muted">@{{.Username}}</span>{{if .IsAdmin}} <span class="badge">admin</span>{{end}}</th>
-          <td>{{or .Email "–"}}{{if and .Email (not .EmailVerified)}} <span class="muted">(unverified)</span>{{end}}</td>
-          <td>{{.Passed}}</td>
-          <td>{{.Started}}</td>
-          <td>{{duration .ActiveSeconds}}</td>
-          <td>{{.Runs}}</td>
-          <td>{{.Reveals}}</td>
-          <td>{{if .LastActive.IsZero}}–{{else}}{{date .LastActive}}{{end}}</td>
-          <td>
-            {{- if eq .ID $.User.ID}}You
-            {{- else if .Disabled}}<button type="button" class="button-ghost" data-enable>Enable</button> <span class="badge badge-warning">disabled</span>
-            {{- else}}<button type="button" class="button-ghost button-danger" data-disable>Disable</button>{{end}}
-          </td>
-        </tr>
-        {{- end}}
-      </tbody>
-    </table>
-  </div>
-  <p class="form-status" role="status" aria-live="polite" data-status="users"></p>
-</section>
+  <section class="section" aria-labelledby="invites-title">
+    <h2 id="invites-title">Invites</h2>
+    <div class="table-scroll"{{if not .Data.Invites}} hidden{{end}} data-invites-table>
+      <table class="table table-dense table-stack">
+        <thead><tr><th scope="col">Created</th><th scope="col">Status</th><th scope="col">Email</th><th scope="col">Note</th><th scope="col">Created by</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {{- range .Data.Invites}}
+          <tr data-invite="{{hex .TokenHash}}">
+            <td><time datetime="{{iso .CreatedAt}}">{{shortdate .CreatedAt}}</time></td>
+            <td data-label="Status">
+              {{- if .Used}}Used by {{index $.Data.Names .UsedBy}} on {{shortdate .UsedAt}}
+              {{- else if .Expired $.Data.Now}}<span class="muted">Expired on {{shortdate .ExpiresAt}}</span>
+              {{- else}}Open until {{shortdate .ExpiresAt}}{{end}}
+            </td>
+            <td data-label="Email">{{if .Email}}{{.Email}}{{else}}<span class="muted">none</span>{{end}}</td>
+            <td data-label="Note">{{if .Note}}{{.Note}}{{else}}<span class="muted">none</span>{{end}}</td>
+            <td data-label="Created by">{{index $.Data.Names .CreatedBy}}</td>
+            <td class="actions">{{if and (not .Used) (not (.Expired $.Data.Now))}}<button type="button" class="btn btn-sm btn-danger" data-revoke>Revoke invite<span class="visually-hidden"> of {{shortdate .CreatedAt}}{{with .Email}} for {{.}}{{end}}</span></button>{{end}}</td>
+          </tr>
+          {{- end}}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted"{{if .Data.Invites}} hidden{{end}} data-invites-empty>No invites yet. Create 1 above.</p>
+    <p class="form-status mt-3" role="status" aria-live="polite" data-status="invites"></p>
+  </section>
+
+  <section class="section" aria-labelledby="users-title">
+    <h2 id="users-title">Users</h2>
+    <div class="table-scroll">
+      <table class="table table-dense table-stack users">
+        <thead>
+          <tr><th scope="col">User</th><th scope="col">Email</th><th scope="col">Progress</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col">Last seen</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+        </thead>
+        <tbody>
+          {{- range .Data.Users}}
+          <tr data-user="{{.ID}}" data-name="{{.DisplayName}}">
+            <th scope="row">{{.DisplayName}} <span class="muted mono small">{{.Username}}</span></th>
+            <td data-label="Email">{{if .Email}}{{.Email}}{{if .EmailVerified}} <span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><span class="visually-hidden">verified</span></span>{{else}} <span class="muted">(not verified)</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
+            <td data-label="Progress"><span class="user-progress">{{template "strip" .Strip}}<span>{{.Passed}} of {{$.Data.Total}}</span></span></td>
+            <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
+            <td class="num" data-label="Runs">{{.Runs}}</td>
+            <td data-label="Last seen">{{if .LastSeen.IsZero}}<span class="muted">never</span>{{else}}{{shortdate .LastSeen}}{{end}}</td>
+            <td data-label="Role">{{if .IsAdmin}}admin{{else}}learner{{end}}</td>
+            <td data-label="Status">{{if .Disabled}}<span class="status status-fail"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>disabled</span>{{else}}active{{end}}</td>
+            <td class="actions">
+              {{- if eq .ID $.User.ID}}
+              <button type="button" class="btn btn-sm btn-danger" aria-disabled="true" aria-describedby="self-reason">Disable<span class="visually-hidden"> {{.DisplayName}}</span></button>
+              {{- else if .Disabled}}
+              <button type="button" class="btn btn-sm" data-enable>Enable<span class="visually-hidden"> {{.DisplayName}}</span></button>
+              {{- else}}
+              <button type="button" class="btn btn-sm btn-danger" data-disable>Disable<span class="visually-hidden"> {{.DisplayName}}</span></button>
+              {{- end}}
+              {{- if and (not .IsAdmin) (not .Disabled)}}
+              <button type="button" class="btn btn-sm" data-make-admin>Make admin<span class="visually-hidden">: {{.DisplayName}}</span></button>
+              {{- end}}
+            </td>
+          </tr>
+          {{- end}}
+        </tbody>
+      </table>
+    </div>
+    <p class="help mt-2" id="self-reason">You cannot disable your own account.</p>
+    <p class="form-status mt-3" role="status" aria-live="polite" data-status="users"></p>
+  </section>
+</div>
 {{end}}

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/yuin/goldmark/ast"
 )
@@ -70,6 +71,9 @@ type Exercise struct {
 
 	hidden *hidden
 	table  tableRow // the root README's row, kept for consistency tests
+
+	namesOnce sync.Once
+	names     map[string]bool // exported names the stubs declare, for StepLabel
 }
 
 // tableRow is an exercise's row in the root README's exercise table.

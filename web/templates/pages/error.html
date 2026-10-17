@@ -1,7 +1,18 @@
 {{define "content"}}
-<section class="card auth-card" aria-labelledby="error-title">
-  <h1 id="error-title">{{.Title}}</h1>
-  <p>{{.Data.Message}}</p>
-  <p><a href="{{if .User}}/learn{{else}}/{{end}}">Back to the start</a></p>
-</section>
+<div class="wrap page error-page">
+  <section aria-labelledby="error-title">
+    <header class="page-head">
+      <h1 id="error-title">{{.Data.Message}}</h1>
+      {{- with .Data.Detail}}
+      <p class="lede">{{.}}</p>
+      {{- end}}
+    </header>
+    <p>{{if eq .Data.Status 404}}Check the address, or go to:{{else}}Go to:{{end}}</p>
+    <p class="error-links mt-3">
+      {{- if .User}}<a href="/learn">Your course</a>{{else}}<a href="/">The start page</a>{{end}}
+      <a href="/guide">The guide</a>
+      <a href="/verify">Verify a certificate</a>
+    </p>
+  </section>
+</div>
 {{end}}

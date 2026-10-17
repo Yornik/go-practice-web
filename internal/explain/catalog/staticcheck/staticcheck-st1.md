@@ -18,7 +18,7 @@ The conventions of Go are written down in Effective Go and in the Go Code Review
 
 ## How to find it
 
-Read the message: it names the convention and often the fix. Look the rule up on the staticcheck page, searching for {{code}}, or in the Code Review Comments. When an exercise README or a test prescribes a name or a message, follow the README: the tests compare it.
+Read the message: it names the convention and often the fix. Look the rule up on the staticcheck page, searching for {{code}}, or in the Code Review Comments. When the spec or a test prescribes a name or a message, follow the spec: the tests compare it.
 
 ## Example
 

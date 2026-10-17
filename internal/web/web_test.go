@@ -542,6 +542,20 @@ func TestProgressMarking(t *testing.T) {
 	if err := json.Unmarshal(prog.LastResult, &last); err != nil || last["step"] != "all" || last["passed"] != 5.0 {
 		t.Fatalf("last result = %s", prog.LastResult)
 	}
+	// The IDE shows the last run's tree after a reload.
+	if tests, _ := last["tests"].(map[string]any); tests["TestParse"] != "pass" {
+		t.Fatalf("last result tests = %v", last["tests"])
+	}
+	h.runner.events = failingRun
+	run(map[string]any{"step": "all", "race": true})
+	prog, _ = h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+	last = nil
+	if err := json.Unmarshal(prog.LastResult, &last); err != nil {
+		t.Fatal(err)
+	}
+	if tests, _ := last["tests"].(map[string]any); tests["TestParse"] != "fail" {
+		t.Fatalf("last result tests after a failure = %v", last["tests"])
+	}
 }
 
 func TestOneRunAtATime(t *testing.T) {

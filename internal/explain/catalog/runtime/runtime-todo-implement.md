@@ -20,8 +20,8 @@ A panic that no deferred function recovers ends the program. The testing package
 
 In the stack trace under the panic, the first frame in the exercise package is `{{func}}` at {{file}}:{{line}}. The frame below it is the line in the test that called it. Then work in small steps:
 
-1. Read the doc comment above `{{func}}`. It is the spec for this function, together with the README.
-2. Choose the step for this function in the Steps tab, or run `go test -run` with the filter of that step, so that only its tests run.
+1. Read the doc comment above `{{func}}`. Together with the spec, it says what to build.
+2. Open the Steps tab and press the Run button of the step for this function, so that only its tests run.
 3. Replace the panic with code that compiles and returns something, even a zero value. The tests then fail with got and want messages instead of a crash, and those messages show you what to build next.
 
 ## Example

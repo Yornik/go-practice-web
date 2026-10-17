@@ -65,6 +65,21 @@ func toProgressJSON(p store.Progress) progressJSON {
 	}
 }
 
+// stepJSON is a step in the IDE bootstrap, with its label as safe HTML:
+// the names in it are marked as code.
+type stepJSON struct {
+	course.Step
+	LabelHTML template.HTML `json:"labelHTML"`
+}
+
+func stepsJSON(ex *course.Exercise) []stepJSON {
+	out := make([]stepJSON, len(ex.Steps))
+	for i, st := range ex.Steps {
+		out[i] = stepJSON{Step: st, LabelHTML: ex.StepLabel(st)}
+	}
+	return out
+}
+
 // revealJSON is a revealed level of the hint ladder.
 type revealJSON struct {
 	Level      int           `json:"level"`
@@ -115,7 +130,7 @@ func (s *Server) exerciseBootstrap(w http.ResponseWriter, r *http.Request) {
 			"slug": ex.Slug, "number": ex.Number, "title": ex.Title, "tier": ex.Tier, "time": ex.Time,
 			"package": ex.Package, "prev": slugOf(prev), "next": slugOf(next),
 		},
-		"steps":    ex.Steps,
+		"steps":    stepsJSON(ex),
 		"files":    files,
 		"progress": toProgressJSON(p),
 		"revealed": revealed,

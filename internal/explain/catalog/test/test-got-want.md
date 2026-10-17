@@ -1,8 +1,8 @@
 ---
 id: test-got-want
 source: test
-match: ^(?P<call>[^\n]+?) = (?P<got>[^\n]*?), want (?P<want>[^\n]+)(?:\n(?s:.*))?$
-match: (?s)^(?P<call>[^\n]+)\ngot:?[ \t]+(?P<got>.+?)\nwant:?[ \t]+(?P<want>.+)$
+match: ^(?:(?P<case>[^:()\n=]+): )?(?P<call>[^\n]+?) = (?P<got>[^\n]*?), want (?P<want>[^\n]+)(?:\n(?s:.*))?$
+match: (?s)^(?:(?P<case>[^:()\n=]+): )?(?P<call>[^\n]+)\ngot:?[ \t]+(?P<got>.+?)\nwant:?[ \t]+(?P<want>.+)$
 fallback: true
 title: {{call}} returned {{got}}, the test wants {{want}}
 links:
@@ -12,7 +12,7 @@ links:
 ---
 ## What it means
 
-The test called `{{call}}`. Your code returned `{{got}}`, and the test expected `{{want}}`. The test compared the 2 values at {{file}}:{{line}}; the lines above it show the input. When `{{test}}` has a slash, the name after it is the case: a row of a table-driven test, or in a fuzz test `seed#N`, the input of the `f.Add` call number N counted from 0, or a file in `testdata/fuzz` that holds an input that failed before.
+The test called `{{call}}`. Your code returned `{{got}}`, and the test expected `{{want}}`. The test compared the 2 values at {{file}}:{{line}}; the lines above it show the input. A table-driven test names the case, the row of its table, before the call or after a slash in the test name.
 
 ## Why Go does this
 
@@ -20,10 +20,10 @@ A Go test is plain code: it calls your function, compares the result with `==`, 
 
 ## How to find it
 
-1. Work this case by hand from the README: what should `{{call}}` return, and why?
+1. Work this case by hand from the spec: what should `{{call}}` return, and why?
 2. Compare got and want piece by piece: an off-by-one, a missing first or last element, a wrong order, a rounding difference.
 3. When the 2 look equal, the difference is invisible in this format: `%v` prints a nil slice and an empty slice both as `[]`, and it does not show spaces at the end of a string.
-4. Print the intermediate values in your function with `fmt.Printf` and run only this test, with the step filter or `-run`.
+4. Print the intermediate values in your function with `fmt.Printf`. Run only the step of this test: open the Steps tab and press its Run button. The Output tab shows what you printed.
 
 Fix the cause, not the case: an `if` for this exact input makes the next case fail.
 

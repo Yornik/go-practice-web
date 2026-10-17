@@ -38,7 +38,8 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 	if _, err := h.store.MarkPassed(t.Context(), admin.ID, tier1.Exercises[len(tier1.Exercises)-1].Slug); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := claim(map[string]any{"kind": "tier1", "name": "Ada 😀"}); code != http.StatusBadRequest || body["code"] != "bad_name" {
+	if code, body := claim(map[string]any{"kind": "tier1", "name": "Ada 😀"}); code != http.StatusBadRequest || body["code"] != "bad_name" ||
+		body["error"] != "The PDF cannot print 😀. Use Latin, Greek or Cyrillic letters." {
 		t.Fatalf("claim with an emoji = %d %v", code, body)
 	}
 	code, first := claim(map[string]any{"kind": "tier1", "name": "Ada Lovelace", "showStats": true})
@@ -50,7 +51,7 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 	w := h.do(req{method: "GET", path: first["url"]})
 	wantStatus(t, w, http.StatusOK)
 	page := w.Body.String()
-	for _, want := range []string{"Ada Lovelace", "Valid certificate", h.signer.Fingerprint(), tier1.Exercises[0].Title, "Statistics"} {
+	for _, want := range []string{"Ada Lovelace", "Valid.", h.signer.Fingerprint(), tier1.Exercises[0].Title, "Activity", "go test -race"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("verify page lacks %q", want)
 		}
@@ -77,7 +78,7 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 	if page := w.Body.String(); !strings.Contains(page, "Revoked") || !strings.Contains(page, second["id"]) {
 		t.Fatalf("revoked page lacks the replacement:\n%s", page)
 	}
-	if page := h.do(req{method: "GET", path: second["url"]}).Body.String(); strings.Contains(page, "Statistics") {
+	if page := h.do(req{method: "GET", path: second["url"]}).Body.String(); strings.Contains(page, "Activity") {
 		t.Fatal("stats shown although not chosen")
 	}
 

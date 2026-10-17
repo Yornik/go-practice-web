@@ -4,6 +4,6 @@
 <p style="{{template "p"}}">On {{when .E.When}}, a recovery link from this address added a new passkey, <strong>{{.E.Passkey}}</strong>, to your Go Practice account.</p>
 {{if .E.RemovedOthers}}<p style="{{template "p"}}">{{.E.RemovedOthers}} old {{plural .E.RemovedOthers "passkey was" "passkeys were"}} removed, and every session was signed out.</p>
 {{end}}<p style="{{template "p"}}">If this was you, you need to do nothing.</p>
-<p style="{{template "p"}}">If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know.</p>
+<p style="{{template "p"}}"><strong>WARNING:</strong> If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know.</p>
 <p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/recover" style="{{template "button"}}">Recover my account</a></p>
 {{end}}

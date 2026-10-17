@@ -8,7 +8,7 @@ On {{when .E.When}}, a recovery link from this address added a new passkey, "{{.
 {{end}}
 If this was you, you need to do nothing.
 
-If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know:
+WARNING: If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know:
 
 {{.SiteURL}}/recover
 {{end}}

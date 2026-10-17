@@ -1,36 +1,41 @@
 {{define "content"}}
-<h1>Certificates</h1>
-<p>Pass every exercise of a tier to claim its certificate, and all {{len .Course.Exercises}} for the course certificate. Each one is a signed PDF with a public verify page. Claim again to change the name or the statistics; the old one is then revoked.</p>
-<ul class="cert-list">
-  {{- range .Data.Kinds}}
-  <li class="card cert-card" data-kind="{{.Kind}}">
-    <h2>{{.Title}}</h2>
-    <div class="progress" role="progressbar" aria-label="{{.Title}}: exercises passed" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Passed}}">
-      <span style="width: {{pct .Passed .Total}}%"></span>
-    </div>
-    <p class="muted">{{.Passed}} of {{.Total}} exercises passed.</p>
-    {{- with .Certificate}}
-    <p class="notice notice-success">
-      Issued to <strong>{{.Name}}</strong> on {{date .IssuedAt}}.
-      <a href="{{.URL}}">Verify page</a> · <a href="{{.PDF}}">PDF</a> · ID <code>{{.ID}}</code>
-    </p>
-    {{- end}}
-    {{- if .Eligible}}
-    <form class="stack claim-form" data-claim="{{.Kind}}" novalidate>
-      <div class="field">
-        <label for="name-{{.Kind}}">Name on the certificate</label>
-        <input id="name-{{.Kind}}" name="name" maxlength="70" value="{{with .Certificate}}{{.Name}}{{else}}{{$.User.DisplayName}}{{end}}" required>
+<div class="wrap page">
+  <header class="page-head">
+    <h1>Certificates</h1>
+    <p class="lede">1 per tier and 1 for the course. Each one is a signed PDF with a public verify page. You choose if it shows your time and your hints.</p>
+  </header>
+  <ul class="cert-grid" data-display-name="{{.User.DisplayName}}">
+    {{- range .Data.Cards}}
+    <li class="cert-card{{if .Certificate}} grid-bg{{end}}" data-kind="{{.Kind}}" data-label="{{if eq .Kind "course"}}course{{else}}{{lower .Name}}{{end}} certificate"
+        {{- with .Certificate}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{end}}>
+      <h2>{{.Name}}</h2>
+      <p class="theme">{{.Theme}}</p>
+      {{- with .Certificate}}
+      <dl class="titleblock">
+        <div><dt>Issued</dt><dd>{{shortdate .IssuedAt}}</dd></div>
+        <div><dt>ID</dt><dd class="mono">{{.ID}}</dd></div>
+      </dl>
+      <p class="progress-line">Printed name: {{.Name}}. {{if .ShowStats}}Shows your activity.{{else}}Does not show your activity.{{end}}</p>
+      <p class="form-status" role="status" aria-live="polite" data-card-status></p>
+      <div class="cert-actions">
+        <a class="btn btn-sm" href="{{.PDF}}">Open the PDF</a>
+        <a href="{{.URL}}">Verify page</a>
+        <button type="button" class="link-button" data-copy-link>Copy the verify link</button>
+        <button type="button" class="link-button" data-claim="again">Issue again</button>
       </div>
-      <div class="field field-check">
-        <input id="stats-{{.Kind}}" name="showStats" type="checkbox"{{with .Certificate}}{{if .ShowStats}} checked{{end}}{{end}}>
-        <label for="stats-{{.Kind}}">Show my statistics: active time, test runs, hints, explanations, walkthroughs and solutions I revealed</label>
+      {{- else}}
+      {{- if .Eligible}}
+      <p class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
+      <div class="cert-actions">
+        <button type="button" class="btn btn-primary" data-claim="new">Claim the {{if eq .Kind "course"}}course{{else}}{{lower .Name}}{{end}} certificate</button>
       </div>
-      <button type="submit" class="button button-primary">{{if .Certificate}}Issue again{{else}}Claim the certificate{{end}}</button>
-      <p class="form-status" role="status" aria-live="polite"></p>
-    </form>
+      {{- else}}
+      <p class="progress-line">{{.Passed}} of {{.Total}} pass.{{with .Missing}} {{len .}} to go{{if le (len .) 6}}: {{join . ", "}}{{end}}.{{end}}</p>
+      {{- end}}
+      {{- end}}
+    </li>
     {{- end}}
-  </li>
-  {{- end}}
-</ul>
-<p class="muted">Signing key fingerprint: <code>{{.Data.Fingerprint}}</code>. The public key is at <a href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a>.</p>
+  </ul>
+  <p class="cert-foot">The verify page of a certificate shows the same facts as its PDF, as an accessible web page. Every certificate is signed with the key that has the fingerprint <span class="mono">{{.Data.Fingerprint}}</span>. The public key is at <a href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a>.</p>
+</div>
 {{end}}

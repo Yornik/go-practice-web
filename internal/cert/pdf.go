@@ -16,26 +16,28 @@ import (
 )
 
 // The fonts are static OFL instances (see fonts/*/OFL.txt): gopdf embeds
-// TrueType outlines and ignores variable-font axes.
+// TrueType outlines and ignores variable-font axes. B612 and Spline Sans
+// Mono are the woff2 files of web/static/fonts, decompressed with
+// fontTools (".design/FINAL.md", section 13.1).
 //
 //go:embed fonts
 var fontFS embed.FS
 
-// Font families registered in every PDF.
+// Font families registered in every PDF: the site's 2 families (B612 and
+// Spline Sans Mono, converted losslessly from the npm woff2 files), and
+// Inter Bold for a name with a letter outside B612's Latin-1 set.
 const (
-	fontDisplay       = "display"        // Cormorant Garamond SemiBold: title, date
-	fontDisplayItalic = "display-italic" // Cormorant Garamond Medium Italic: the name
-	fontSans          = "sans"           // Inter Regular: text
-	fontSansBold      = "sans-bold"      // Inter SemiBold: labels
-	fontMono          = "mono"           // JetBrains Mono: ID, fingerprint, URL
+	fontManual     = "manual"      // B612 Regular: text, labels
+	fontManualBold = "manual-bold" // B612 Bold: the name, headings, values
+	fontMono       = "mono"        // Spline Sans Mono: ID, fingerprint, URL, go test -race
+	fontNameWide   = "name-wide"   // Inter Bold: a name B612 cannot set
 )
 
 var fontFiles = map[string]string{
-	fontDisplay:       "fonts/cormorant-garamond/CormorantGaramond-SemiBold.ttf",
-	fontDisplayItalic: "fonts/cormorant-garamond/CormorantGaramond-MediumItalic.ttf",
-	fontSans:          "fonts/inter/Inter-Regular.ttf",
-	fontSansBold:      "fonts/inter/Inter-SemiBold.ttf",
-	fontMono:          "fonts/jetbrains-mono/JetBrainsMono-Regular.ttf",
+	fontManual:     "fonts/b612/B612-Regular.ttf",
+	fontManualBold: "fonts/b612/B612-Bold.ttf",
+	fontMono:       "fonts/spline-sans-mono/SplineSansMono-Regular.ttf",
+	fontNameWide:   "fonts/inter/Inter-Bold.ttf",
 }
 
 // Document is what a certificate PDF shows.
@@ -44,8 +46,10 @@ type Document struct {
 	Kind        Kind
 	Name        string
 	IssuedAt    time.Time
-	Heading     string // "Tier 2" or "The complete course"
+	Heading     string // "Tier 2" or "The course"
 	Theme       string // the tier's theme, or the course's tagline
+	Range       string // the exercises it covers, "04 to 09"
+	Bars        []Bar  // the course to scale, for the course certificate
 	Items       []Item // the tier's exercises, or the course's tiers
 	Count       int    // the number of exercises covered
 	VerifyURL   string // https://go-practice.dev/verify/GP-...
@@ -53,6 +57,12 @@ type Document struct {
 	Stats       *Stats // nil hides the activity
 	Revoked     bool   // stamps the page as revoked
 	ReplacedBy  string // the certificate that replaced a revoked one; may be ""
+}
+
+// Bar is 1 exercise of the course strip: as wide as its hours.
+type Bar struct {
+	Tier  int
+	Hours float64
 }
 
 // Item is a line of the "what was completed" list.
@@ -85,9 +95,21 @@ func NewDocument(c *course.Course, p Payload, siteURL, fingerprint string) (Docu
 			perExercise[e.Slug] = e
 		}
 	}
+	var nums []int
+	for _, slug := range p.Exercises {
+		if e, ok := c.Exercise(slug); ok {
+			nums = append(nums, e.Number)
+		}
+	}
+	if len(nums) > 0 {
+		d.Range = fmt.Sprintf("%02d to %02d", nums[0], nums[len(nums)-1])
+	}
 	if p.Kind == KindCourse {
-		d.Heading = "The complete course"
+		d.Heading = "The course"
 		d.Theme = fmt.Sprintf("%d exercises in %d tiers", len(c.Exercises), len(c.Tiers))
+		for _, e := range c.Exercises {
+			d.Bars = append(d.Bars, Bar{Tier: e.Tier, Hours: e.Hours})
+		}
 		for _, t := range c.Tiers {
 			it := Item{Number: fmt.Sprintf("Tier %d", t.N), Title: t.Theme}
 			if p.Stats != nil {
@@ -123,16 +145,20 @@ func NewDocument(c *course.Course, p Payload, siteURL, fingerprint string) (Docu
 
 // activityLine is the short stats text under an item.
 func activityLine(e ExerciseStats) string {
-	parts := []string{hours(e.ActiveSeconds), plural(e.Runs, "test run", "test runs"), plural(e.Hints, "hint", "hints")}
-	return strings.Join(parts, "  ·  ")
+	return strings.Join([]string{duration(e.ActiveSeconds), plural(e.Runs, "test run", "test runs"), plural(e.Hints, "hint", "hints")}, ", ")
 }
 
-func hours(sec int64) string {
-	h := float64(sec) / 3600
-	if h >= 10 {
-		return fmt.Sprintf("%.0f h", math.Round(h))
+// duration writes active time as the site does: "35 min", "2 h",
+// "21 h 40 min".
+func duration(sec int64) string {
+	m := sec / 60
+	switch {
+	case m < 60:
+		return fmt.Sprintf("%d min", m)
+	case m%60 == 0:
+		return fmt.Sprintf("%d h", m/60)
 	}
-	return strings.TrimSuffix(fmt.Sprintf("%.1f", h), ".0") + " h"
+	return fmt.Sprintf("%d h %d min", m/60, m%60)
 }
 
 func plural(n int, one, many string) string {
@@ -142,25 +168,35 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// Page geometry: A4 landscape in points.
+// Page geometry: A4 landscape in points. The certificate is a drawing
+// sheet: a frame 10 mm in, a drawing area with a 5 mm construction grid,
+// and the title block in the bottom right corner.
 const (
 	pageW = 841.89
 	pageH = 595.28
 	midX  = pageW / 2
+	mm    = 72 / 25.4
+
+	frameIn = 10 * mm
+	areaL   = frameIn + 5*mm
+	areaR   = pageW - frameIn - 5*mm
+	areaT   = 72.0
+	areaB   = 372.0
 )
 
 type rgb struct{ r, g, b uint8 }
 
-// The palette: deep slate ink on warm paper, Go cyan only for the
-// ornaments and the seal.
+// The colours of ".design/FINAL.md", section 13.1: graphite on white
+// paper, so a print does not waste ink; blue pencil only for the brand
+// mark and the QR label.
 var (
-	paper    = rgb{253, 252, 249}
-	ink      = rgb{27, 39, 48}
-	muted    = rgb{94, 106, 116}
-	hairline = rgb{196, 205, 211}
-	goCyan   = rgb{0, 173, 216} // #00ADD8
-	deepCyan = rgb{0, 125, 156} // #007D9C, for cyan text: enough contrast on paper
-	revoked  = rgb{178, 34, 52}
+	paper     = rgb{255, 255, 255}
+	graphite  = rgb{0x1E, 0x28, 0x21}
+	graphite2 = rgb{0x47, 0x5A, 0x4C}
+	blue      = rgb{0x23, 0x46, 0xA0}
+	gridLine  = rgb{0xDC, 0xE6, 0xD2}
+	redline   = rgb{0xB3, 0x25, 0x1A}
+	onRed     = rgb{0xF6, 0xF9, 0xF1}
 )
 
 // canvas wraps gopdf with a sticky error, so the layout code reads as a
@@ -176,9 +212,9 @@ func (c *canvas) fail(err error) {
 	}
 }
 
-func (c *canvas) font(family string, size, spacing float64) {
+func (c *canvas) font(family string, size float64) {
 	c.fail(c.pdf.SetFont(family, "", size))
-	c.fail(c.pdf.SetCharSpacing(spacing))
+	c.fail(c.pdf.SetCharSpacing(0))
 }
 
 func (c *canvas) textColor(col rgb)   { c.pdf.SetTextColor(col.r, col.g, col.b) }
@@ -219,21 +255,15 @@ func (c *canvas) circle(cx, cy, r, lw float64, col rgb) {
 	c.pdf.Oval(cx-r, cy-r, cx+r, cy+r)
 }
 
-// diamond draws a filled square on its point, centred at (cx, cy).
-func (c *canvas) diamond(cx, cy, r float64, col rgb) {
-	c.fillColor(col)
-	c.pdf.Polygon([]gopdf.Point{{X: cx, Y: cy - r}, {X: cx + r, Y: cy}, {X: cx, Y: cy + r}, {X: cx - r, Y: cy}}, "F")
-}
-
 // fitFont shrinks the size until s fits in maxW.
-func (c *canvas) fitFont(family string, size, minSize, spacing float64, s string, maxW float64) {
+func (c *canvas) fitFont(family string, size, minSize float64, s string, maxW float64) {
 	for ; size > minSize; size -= 0.5 {
-		c.font(family, size, spacing)
+		c.font(family, size)
 		if c.width(s) <= maxW {
 			return
 		}
 	}
-	c.font(family, minSize, spacing)
+	c.font(family, minSize)
 }
 
 // loadFonts reads the embedded fonts once; the bytes are shared read only.
@@ -264,25 +294,41 @@ func newPDF() (*gopdf.GoPdf, error) {
 	return pdf, nil
 }
 
-// missingGlyphs returns the runes of s that the name font cannot draw.
-func missingGlyphs(s string) []rune {
-	pdf, err := newPDF()
-	if err != nil {
+// missing returns the runes of s that a font cannot draw.
+func missing(pdf *gopdf.GoPdf, family, s string) []rune {
+	if err := pdf.SetFont(family, "", 12); err != nil {
 		return []rune(s)
 	}
-	if err := pdf.SetFont(fontDisplayItalic, "", 12); err != nil {
-		return []rune(s)
-	}
-	var missing []rune
+	var out []rune
 	for _, r := range s {
 		if r == ' ' {
 			continue
 		}
 		if ok, err := pdf.IsCurrFontContainGlyph(r); err != nil || !ok {
-			missing = append(missing, r)
+			out = append(out, r)
 		}
 	}
-	return missing
+	return out
+}
+
+// nameFont is the font of the printed name: B612 Bold when it has every
+// letter, otherwise Inter Bold for the whole name, so 1 name never
+// mixes 2 fonts. B612 draws "(" and ")" almost like "[" and "]", so a
+// name with parentheses is set in Inter too.
+func nameFont(pdf *gopdf.GoPdf, name string) string {
+	if !strings.ContainsAny(name, "()") && len(missing(pdf, fontManualBold, name)) == 0 {
+		return fontManualBold
+	}
+	return fontNameWide
+}
+
+// missingGlyphs returns the runes of s that no name font can draw.
+func missingGlyphs(s string) []rune {
+	pdf, err := newPDF()
+	if err != nil {
+		return []rune(s)
+	}
+	return missing(pdf, nameFont(pdf, s), s)
 }
 
 // Render writes the certificate as a 1-page PDF.
@@ -294,29 +340,22 @@ func Render(w io.Writer, d Document) error {
 	pdf.SetInfo(gopdf.PdfInfo{
 		Title:        "Go Practice certificate " + d.ID,
 		Author:       "Go Practice",
-		Subject:      d.Heading + " completed by " + d.Name,
-		Creator:      "go-practice.dev",
+		Subject:      d.Heading + " passed by " + d.Name,
+		Creator:      "Go Practice",
 		Producer:     "go-practice-web",
 		CreationDate: d.IssuedAt,
 	})
 	pdf.AddPage()
 	c := &canvas{pdf: pdf}
-
-	// With stats the page holds 1 more block: the header moves up a little.
-	shift := 0.0
-	switch {
-	case d.Stats != nil && d.Kind == KindCourse:
-		shift = -22
-	case d.Stats != nil:
-		shift = -14
-	}
-	drawFrame(c)
-	drawHeader(c, d, shift)
-	bottom := drawItems(c, d, 338+shift)
+	c.fillColor(paper)
+	pdf.RectFromUpperLeftWithStyle(0, 0, pageW, pageH, "F")
+	c.rect(frameIn, frameIn, pageW-2*frameIn, pageH-2*frameIn, 0.75, graphite)
+	drawHead(c)
+	drawArea(c, d)
 	if d.Stats != nil {
-		drawStats(c, *d.Stats, bottom+14)
+		drawActivity(c, *d.Stats)
 	}
-	drawFooter(c, d)
+	drawTitleBlock(c, d)
 	if d.Revoked {
 		drawRevoked(c, d.ReplacedBy)
 	}
@@ -329,352 +368,305 @@ func Render(w io.Writer, d Document) error {
 	return nil
 }
 
-// Frame geometry: an outer rule, a guilloche band, an inner rule.
-const (
-	frameOuter = 20.0
-	frameInner = 34.0
-)
-
-// drawFrame paints the paper, the double rule with a woven guilloche band
-// between the rules, and the corner ornaments.
-func drawFrame(c *canvas) {
-	c.fillColor(paper)
-	c.pdf.RectFromUpperLeftWithStyle(0, 0, pageW, pageH, "F")
-
-	drawBand(c)
-	c.rect(frameOuter, frameOuter, pageW-2*frameOuter, pageH-2*frameOuter, 1.2, ink)
-	c.rect(frameInner, frameInner, pageW-2*frameInner, pageH-2*frameInner, 0.6, ink)
-
-	// The band's corners hold a square with a diamond, like a stamp.
-	const half = (frameInner - frameOuter) / 2
-	for _, corner := range [][2]float64{
-		{frameOuter + half, frameOuter + half}, {pageW - frameOuter - half, frameOuter + half},
-		{frameOuter + half, pageH - frameOuter - half}, {pageW - frameOuter - half, pageH - frameOuter - half},
-	} {
-		x, y := corner[0], corner[1]
-		c.fillColor(paper)
-		c.pdf.RectFromUpperLeftWithStyle(x-half, y-half, 2*half, 2*half, "F")
-		c.rect(x-half, y-half, 2*half, 2*half, 0.6, ink)
-		c.diamond(x, y, 3.6, goCyan)
-	}
-
-	// Inner corner brackets.
-	const in = 44.0
-	for _, corner := range [][2]float64{{in, in}, {pageW - in, in}, {in, pageH - in}, {pageW - in, pageH - in}} {
-		x, y := corner[0], corner[1]
-		dx, dy := 1.0, 1.0
-		if x > midX {
-			dx = -1
-		}
-		if y > pageH/2 {
-			dy = -1
-		}
-		c.line(x, y, x+dx*28, y, 0.45, hairline)
-		c.line(x, y, x, y+dy*28, 0.45, hairline)
-		c.diamond(x, y, 1.6, hairline)
-	}
+// drawHead puts the brand mark (a balloon with "Go") and the sheet's
+// title in the top row of the frame.
+func drawHead(c *canvas) {
+	const y = 50.0
+	c.circle(areaL+9, y-4, 9, 1.2, blue)
+	c.font(fontManualBold, 7.5)
+	c.textColor(blue)
+	c.centered(areaL+9, y-1.4, "Go")
+	c.font(fontManualBold, 13)
+	c.textColor(graphite)
+	c.text(areaL+26, y, "Go Practice")
+	c.font(fontManual, 13)
+	c.right(areaR, y, "Certificate of completion")
 }
 
-// drawBand fills the space between the rules with phase-shifted sine waves
-// that weave into a guilloche, the line work of banknotes and diplomas.
-func drawBand(c *canvas) {
-	const (
-		copies = 3
-		period = 13.0 // points per wave along the edge
-	)
-	mid := (frameOuter + frameInner) / 2
-	amp := (frameInner - frameOuter) / 2 * 0.72
-	// Slate, not cyan, and translucent: the band frames the page without
-	// competing with the text. Cyan stays for the diamonds and the seal.
-	c.fail(c.pdf.SetTransparency(gopdf.Transparency{Alpha: 0.55, BlendModeType: gopdf.NormalBlendMode}))
-	defer c.pdf.ClearTransparency()
-	c.pdf.SetLineWidth(0.22)
-	c.strokeColor(muted)
-	// Each edge runs between the corner squares.
-	edges := []struct{ x0, y0, x1, y1 float64 }{
-		{frameInner, mid, pageW - frameInner, mid},
-		{frameInner, pageH - mid, pageW - frameInner, pageH - mid},
-		{mid, frameInner, mid, pageH - frameInner},
-		{pageW - mid, frameInner, pageW - mid, pageH - frameInner},
+// drawArea is the drawing: the construction grid, the name, what was
+// passed, and the list of exercises or tiers.
+func drawArea(c *canvas, d Document) {
+	const sq = 5 * mm
+	c.pdf.SetLineWidth(0.25)
+	c.strokeColor(gridLine)
+	for x := areaL + sq; x < areaR-0.1; x += sq {
+		c.pdf.Line(x, areaT, x, areaB)
 	}
-	for _, e := range edges {
-		length := math.Hypot(e.x1-e.x0, e.y1-e.y0)
-		ux, uy := (e.x1-e.x0)/length, (e.y1-e.y0)/length
-		nx, ny := -uy, ux
-		// Whole waves only, so that every edge looks the same at both ends.
-		waves := math.Round(length / period)
-		steps := int(waves) * 12
-		// Each wave runs out along +sin and back along -sin: a curve and
-		// its mirror form the chain of lenses that makes the weave, and 1
-		// closed path per pair keeps the PDF small. The closing strokes
-		// lie on the corner squares' borders, which hide them.
-		point := func(t, off float64) gopdf.Point {
-			return gopdf.Point{X: e.x0 + ux*length*t + nx*off, Y: e.y0 + uy*length*t + ny*off}
-		}
-		for k := range copies {
-			phase := math.Pi * float64(k) / copies
-			pts := make([]gopdf.Point, 2*(steps+1))
-			for i := 0; i <= steps; i++ {
-				t := float64(i) / float64(steps)
-				off := amp * math.Sin(2*math.Pi*waves*t+phase)
-				pts[i] = point(t, off)
-				pts[len(pts)-1-i] = point(t, -off)
-			}
-			c.pdf.Polygon(pts, "D")
-		}
+	for y := areaT + sq; y < areaB-0.1; y += sq {
+		c.pdf.Line(areaL, y, areaR, y)
 	}
+	c.rect(areaL, areaT, areaR-areaL, areaB-areaT, 0.5, graphite)
+
+	// The content block sits in the vertical middle of the area, so a tier
+	// with 3 exercises leaves no empty band of grid at the bottom.
+	top := areaT + math.Max(0, ((areaB-areaT)-(172+listHeight(d))-30)/2)
+
+	family := nameFont(c.pdf, d.Name)
+	c.fitFont(family, 40, 20, d.Name, areaR-areaL-60)
+	c.textColor(graphite)
+	c.centered(midX, top+62, d.Name)
+
+	c.font(fontManual, 13)
+	c.textColor(graphite)
+	what := fmt.Sprintf("passed the %d exercises of %s of the go-practice course.", d.Count, strings.ToLower(d.Heading))
+	if d.Kind == KindCourse {
+		what = fmt.Sprintf("passed all %d exercises of the go-practice course.", d.Count)
+	}
+	c.centered(midX, top+90, what)
+	// "go test -race" is the machine's own words: mono, inside the sentence.
+	pre, cmd, post := "Each exercise passed its full test suite with ", "go test -race", "."
+	c.font(fontManual, 13)
+	wPre, wPost := c.width(pre), c.width(post)
+	c.font(fontMono, 12)
+	wCmd := c.width(cmd)
+	x := midX - (wPre+wCmd+wPost)/2
+	c.font(fontManual, 13)
+	c.text(x, top+108, pre)
+	c.font(fontMono, 12)
+	c.text(x+wPre, top+108, cmd)
+	c.font(fontManual, 13)
+	c.text(x+wPre+wCmd, top+108, post)
+
+	title := d.Heading + ": " + d.Theme
+	if d.Kind == KindCourse {
+		title = "The course: " + d.Theme
+	}
+	c.fitFont(fontManualBold, 18, 11, title, areaR-areaL-60)
+	c.centered(midX, top+146, title)
+	if d.Kind == KindCourse {
+		drawTiers(c, d, top+172)
+		return
+	}
+	drawExercises(c, d, top+172)
 }
 
-func drawHeader(c *canvas, d Document, shift float64) {
-	y := func(v float64) float64 { return v + shift }
-
-	// Brand line, flanked by short rules.
-	c.font(fontSansBold, 8.5, 3.4)
-	c.textColor(deepCyan)
-	brand := "GO PRACTICE"
-	bw := c.width(brand) - 3.4 // the last letter's spacing is not visible
-	c.text(midX-bw/2, y(84), brand)
-	c.line(midX-bw/2-52, y(81), midX-bw/2-14, y(81), 0.5, hairline)
-	c.line(midX+bw/2+14, y(81), midX+bw/2+52, y(81), 0.5, hairline)
-
-	c.font(fontDisplay, 44, 0.3)
-	c.textColor(ink)
-	c.centered(midX, y(142), "Certificate of Completion")
-
-	// Ornament: rule, diamond, rule.
-	c.line(midX-74, y(162), midX-10, y(162), 0.5, hairline)
-	c.line(midX+10, y(162), midX+74, y(162), 0.5, hairline)
-	c.diamond(midX, y(162), 3.6, goCyan)
-
-	c.font(fontDisplayItalic, 17, 0.2)
-	c.textColor(muted)
-	c.centered(midX, y(198), "This certifies that")
-
-	c.fitFont(fontDisplayItalic, 50, 26, 0.3, d.Name, 620)
-	c.textColor(ink)
-	c.centered(midX, y(252), d.Name)
-	c.line(midX-200, y(267), midX+200, y(267), 0.5, hairline)
-
-	c.font(fontSans, 10.5, 0.1)
-	c.textColor(muted)
-	what := "has completed every exercise of"
+// listHeight is the height drawTiers or drawExercises takes below its top.
+func listHeight(d Document) float64 {
 	if d.Kind == KindCourse {
-		what = "has completed every exercise of the course"
+		h := float64(len(d.Items)) * 17
+		if len(d.Bars) > 0 {
+			h += 2 + 9
+		}
+		return h
 	}
-	c.centered(midX, y(293), what)
-
-	title := d.Heading + "  ·  " + d.Theme
-	if d.Kind == KindCourse {
-		title = "Go Practice  ·  " + d.Theme
-	}
-	c.fitFont(fontSansBold, 13.5, 9, 0.2, title, 640)
-	c.textColor(ink)
-	c.centered(midX, y(314), title)
-}
-
-// drawItems lists the exercises (2 columns) or the tiers (a table) from
-// top and returns the y below the list.
-func drawItems(c *canvas, d Document, top float64) float64 {
-	if d.Kind == KindCourse {
-		return drawTierTable(c, d, top)
-	}
-	rowH := 19.0
+	rowH := 18.0
 	if d.Stats != nil {
-		rowH = 25
+		rowH = 24
 	}
-	// The columns are as wide as the longest title needs, so a tier of
-	// short titles stays a compact, centred block.
-	const numW, gap, maxColW = 21.0, 34.0, 318.0
-	c.font(fontSans, 10.5, 0)
+	cols := 2
+	if len(d.Items) <= 3 {
+		cols = 1
+	}
+	rows := (len(d.Items) + cols - 1) / cols
+	return float64(rows) * rowH
+}
+
+// drawExercises lists a tier's exercises: 1 centred column up to 3, else
+// 2 columns as wide as the longest title needs.
+func drawExercises(c *canvas, d Document, top float64) {
+	rowH := 18.0
+	if d.Stats != nil {
+		rowH = 24
+	}
+	const numW, gap, maxColW = 24.0, 36.0, 350.0
+	c.font(fontManual, 11)
 	colW := 0.0
 	for _, it := range d.Items {
 		colW = math.Max(colW, numW+c.width(it.Title))
 	}
 	colW = math.Min(colW, maxColW)
-	// Up to 3 items read best as 1 centred column; more fill 2 columns,
-	// the first 1 the longer.
 	cols := 2
 	if len(d.Items) <= 3 {
 		cols = 1
 	}
 	rows := (len(d.Items) + cols - 1) / cols
 	left := midX - (float64(cols)*colW+float64(cols-1)*gap)/2
-	y := top + 10
 	for i, it := range d.Items {
 		col, row := i/rows, i%rows
 		x := left + float64(col)*(colW+gap)
-		yy := y + float64(row)*rowH
-		c.font(fontMono, 8.5, 0)
-		c.textColor(deepCyan)
-		c.text(x, yy, it.Number)
-		c.fitFont(fontSans, 10.5, 8, 0, it.Title, colW-numW)
-		c.textColor(ink)
-		c.text(x+numW, yy, it.Title)
+		y := top + float64(row)*rowH
+		c.font(fontManual, 11)
+		c.textColor(graphite2)
+		c.text(x, y, it.Number)
+		c.fitFont(fontManual, 11, 8, it.Title, colW-numW)
+		c.textColor(graphite)
+		c.text(x+numW, y, it.Title)
 		if it.Detail != "" {
-			c.font(fontSans, 7.5, 0.1)
-			c.textColor(muted)
-			c.text(x+numW, yy+10.5, it.Detail)
+			c.font(fontManual, 7.5)
+			c.textColor(graphite2)
+			c.text(x+numW, y+10, it.Detail)
 		}
 	}
-	bottom := y + float64(rows-1)*rowH
-	if d.Stats != nil {
-		bottom += 10.5
-	}
-	return bottom
 }
 
-// drawTierTable lists the 5 tiers for the course certificate, with the
-// activity per tier right-aligned on the same line when stats are shown.
-func drawTierTable(c *canvas, d Document, top float64) float64 {
-	const numW = 52.0
-	rowH := 19.0
-	if d.Stats != nil {
-		rowH = 17.5
-	}
-	c.font(fontSans, 10.5, 0)
-	titleW := 0.0
+// drawTiers lists the 5 tiers and draws the course to scale: 25 bars, each
+// as wide as its hours, grouped by tier.
+func drawTiers(c *canvas, d Document, top float64) {
+	rowH := 17.0
+	const numW = 46.0
+	c.font(fontManual, 11)
+	w := 0.0
 	for _, it := range d.Items {
-		titleW = math.Max(titleW, c.width(it.Title))
+		w = math.Max(w, numW+c.width(it.Title))
 	}
-	width := numW + titleW
 	if d.Stats != nil {
-		width = 560
+		w = 520
 	}
-	left := midX - width/2
-	y := top + 10
-	for _, it := range d.Items {
-		c.font(fontSansBold, 7.5, 1.3)
-		c.textColor(deepCyan)
-		c.text(left, y, strings.ToUpper(it.Number))
-		c.font(fontSans, 10.5, 0)
-		c.textColor(ink)
+	left := midX - w/2
+	for i, it := range d.Items {
+		y := top + float64(i)*rowH
+		c.font(fontManualBold, 11)
+		c.textColor(graphite)
+		c.text(left, y, it.Number)
+		c.font(fontManual, 11)
 		c.text(left+numW, y, it.Title)
 		if it.Detail != "" {
-			c.font(fontSans, 8, 0.1)
-			c.textColor(muted)
-			c.right(left+width, y, it.Detail)
+			c.font(fontManual, 8)
+			c.textColor(graphite2)
+			c.right(left+w, y, it.Detail)
 		}
-		y += rowH
 	}
-	return y - rowH
-}
-
-// drawStats shows the totals as a row of figures.
-func drawStats(c *canvas, s Stats, top float64) {
-	figures := []struct{ value, label string }{
-		{hours(s.ActiveSeconds), "active time"},
-		{fmt.Sprint(s.Runs), "test runs"},
-		{fmt.Sprint(s.Hints), "hints"},
-		{fmt.Sprint(s.Explanations), "explanations"},
-		{fmt.Sprint(s.Walkthroughs), "walkthroughs"},
-		{fmt.Sprint(s.Solutions), "solutions"},
+	if len(d.Bars) == 0 {
+		return
 	}
-	const cellW = 82.0
-	left := midX - cellW*float64(len(figures))/2
-	for i, f := range figures {
-		cx := left + cellW*(float64(i)+0.5)
-		// Inter, not Cormorant: Cormorant's old-style 1 reads as an I.
-		c.font(fontSans, 14, 0)
-		c.textColor(ink)
-		c.centered(cx, top+14, f.value)
-		c.font(fontSansBold, 5.8, 1.4)
-		c.textColor(muted)
-		c.centered(cx+0.7, top+25, strings.ToUpper(f.label))
+	// The strip: 2 pt between bars of a tier, 8 pt between tiers.
+	stripL, stripR := areaL+40, areaR-40
+	y := top + float64(len(d.Items))*rowH + 2
+	var total float64
+	gaps := 0.0
+	for i, b := range d.Bars {
+		total += b.Hours
 		if i > 0 {
-			x := left + cellW*float64(i)
-			c.line(x, top+2, x, top+26, 0.4, hairline)
+			if b.Tier != d.Bars[i-1].Tier {
+				gaps += 8
+			} else {
+				gaps += 2
+			}
 		}
+	}
+	scale := (stripR - stripL - gaps) / total
+	x := stripL
+	c.fillColor(graphite)
+	for i, b := range d.Bars {
+		if i > 0 {
+			if b.Tier != d.Bars[i-1].Tier {
+				x += 8
+			} else {
+				x += 2
+			}
+		}
+		c.pdf.RectFromUpperLeftWithStyle(x, y, b.Hours*scale, 9, "F")
+		x += b.Hours * scale
 	}
 }
 
-func drawFooter(c *canvas, d Document) {
-	const base = 478.0
-	const leftX = 82.0
-	label := func(x, y float64, s string, alignRight bool) {
-		c.font(fontSansBold, 6.5, 1.6)
-		c.textColor(muted)
-		s = strings.ToUpper(s)
-		if alignRight {
-			c.text(x-c.width(s)+1.6, y, s)
-		} else {
-			c.text(x, y, s)
-		}
+// drawActivity is the activity row under the drawing, as a 1-row title
+// block: only when the owner chose to show it.
+func drawActivity(c *canvas, s Stats) {
+	cells := []struct{ label, value string }{
+		{"Active", duration(s.ActiveSeconds)},
+		{"Runs", fmt.Sprint(s.Runs)},
+		{"Hints", fmt.Sprint(s.Hints)},
+		{"Explanations", fmt.Sprint(s.Explanations)},
+		{"Walkthroughs", fmt.Sprint(s.Walkthroughs)},
+		{"Solutions", fmt.Sprint(s.Solutions)},
 	}
+	const top, h = areaB + 14, 32.0
+	x := areaL
+	c.font(fontManual, 7)
+	widths := make([]float64, len(cells))
+	for i, cell := range cells {
+		c.font(fontManual, 7)
+		lw := c.width(cell.label)
+		c.font(fontManualBold, 10)
+		widths[i] = math.Max(lw, c.width(cell.value)) + 20
+	}
+	var total float64
+	for _, w := range widths {
+		total += w
+	}
+	c.rect(x, top, total, h, 0.75, graphite)
+	for i, cell := range cells {
+		if i > 0 {
+			c.line(x, top, x, top+h, 0.75, graphite)
+		}
+		c.font(fontManual, 7)
+		c.textColor(graphite2)
+		c.text(x+10, top+11, cell.label)
+		c.font(fontManualBold, 10)
+		c.textColor(graphite)
+		c.text(x+10, top+25, cell.value)
+		x += widths[i]
+	}
+}
 
-	// Left: date and ID.
-	label(leftX, base, "Issued", false)
-	c.font(fontDisplay, 17, 0.2)
-	c.textColor(ink)
-	c.text(leftX, base+20, d.IssuedAt.UTC().Format("2 January 2006"))
-	label(leftX, base+42, "Certificate ID", false)
-	c.font(fontMono, 10.5, 0.4)
-	c.textColor(ink)
-	c.text(leftX, base+58, d.ID)
+// drawTitleBlock puts the facts of the certificate in the bottom right
+// corner, like the title block of a drawing, with the QR code beside it.
+// The certificate ID is the drawing number.
+func drawTitleBlock(c *canvas, d Document) {
+	const (
+		w    = 300.0
+		rowH = 30.0
+		fpH  = 24.0
+	)
+	right := areaR
+	left := right - w
+	bottom := pageH - frameIn - 5*mm
+	top := bottom - (3*rowH + fpH)
+	c.rect(left, top, w, bottom-top, 0.75, graphite)
+	for _, y := range []float64{top + rowH, top + 2*rowH, top + 3*rowH} {
+		c.line(left, y, right, y, 0.75, graphite)
+	}
+	mid := left + w/2
+	c.line(mid, top, mid, top+2*rowH, 0.75, graphite)
+	cell := func(x, y, maxW float64, label, value, family string, size float64) {
+		c.font(fontManual, 7)
+		c.textColor(graphite2)
+		c.text(x+8, y+10, label)
+		c.fitFont(family, size, 6, value, maxW-16)
+		c.textColor(graphite)
+		c.text(x+8, y+23, value)
+	}
+	cell(left, top, w/2, "Name", d.Name, nameFont(c.pdf, d.Name), 10)
+	cell(mid, top, w/2, "Issued", d.IssuedAt.UTC().Format("2 January 2006"), fontManualBold, 10)
+	cell(left, top+rowH, w/2, "Checked by", "go test -race", fontMono, 9.5)
+	cell(mid, top+rowH, w/2, "Exercises", d.Range, fontManualBold, 10)
+	cell(left, top+2*rowH, w, "Certificate ID", d.ID, fontMono, 11)
+	c.font(fontManual, 7)
+	c.textColor(graphite2)
+	c.text(left+8, top+3*rowH+9, "Key fingerprint")
+	c.font(fontMono, 7)
+	c.textColor(graphite)
+	c.text(left+8, top+3*rowH+19, d.Fingerprint)
 
-	drawSeal(c, d, midX, base+24)
-
-	// Right: QR code and what it proves.
-	const qrSize = 72.0
-	qrX, qrY := pageW-leftX-qrSize, base-11
+	// The QR code left of the title block, 28 mm, with its URL under it.
+	const qrSize = 28 * mm
+	qrX, qrY := left-14-qrSize, top
 	drawQR(c, d.VerifyURL, qrX, qrY, qrSize)
 	c.pdf.AddExternalLink(d.VerifyURL, qrX, qrY, qrSize, qrSize)
-
-	tx := qrX - 16
-	label(tx, base, "Verify online", true)
-	c.font(fontMono, 7.5, 0)
-	c.textColor(deepCyan)
+	c.font(fontManual, 7)
+	c.textColor(blue)
+	c.right(qrX+qrSize, qrY+qrSize+11, "Scan to verify")
 	shown := strings.TrimPrefix(strings.TrimPrefix(d.VerifyURL, "https://"), "http://")
-	c.right(tx, base+13, shown)
-	c.pdf.AddExternalLink(d.VerifyURL, tx-c.width(shown), base+5, c.width(shown), 10)
-	label(tx, base+42, "Ed25519 signing key", true)
-	c.font(fontMono, 9, 0.3)
-	c.textColor(ink)
-	c.text(tx-c.width(d.Fingerprint)+0.3, base+57, d.Fingerprint)
+	c.font(fontMono, 8)
+	c.textColor(graphite)
+	c.right(qrX+qrSize, qrY+qrSize+22, shown)
+	c.pdf.AddExternalLink(d.VerifyURL, qrX+qrSize-c.width(shown), qrY+qrSize+14, c.width(shown), 10)
 }
 
-// drawSeal draws the round seal: a guilloche rosette between 2 rings, and
-// the tier number (or the number of exercises) in the middle.
-func drawSeal(c *canvas, d Document, cx, cy float64) {
-	const rOuter, rInner = 44.0, 27.5
-	c.circle(cx, cy, rOuter, 1.4, goCyan)
-	c.circle(cx, cy, rOuter-3, 0.35, goCyan)
-
-	// Rosette: circles whose centres run around a ring; their overlaps
-	// form the woven band of engraved seals.
-	c.pdf.SetLineWidth(0.24)
-	c.strokeColor(goCyan)
-	const petals = 44
-	const ringR, petalR = (rOuter - 3 + rInner) / 2, (rOuter - 3 - rInner) / 2
-	for i := range petals {
-		a := 2 * math.Pi * float64(i) / petals
-		px, py := cx+ringR*math.Cos(a), cy+ringR*math.Sin(a)
-		c.pdf.Oval(px-petalR, py-petalR, px+petalR, py+petalR)
+// drawRevoked puts a 12 mm band across the top: the certificate is
+// revoked, and the band names the one that replaced it.
+func drawRevoked(c *canvas, replacedBy string) {
+	h := 12 * mm
+	c.fillColor(redline)
+	c.pdf.RectFromUpperLeftWithStyle(frameIn, frameIn, pageW-2*frameIn, h, "F")
+	msg := "Revoked."
+	if replacedBy != "" {
+		msg = "Revoked. Replaced by " + replacedBy + "."
 	}
-	// Paper over the middle, then the inner ring on top.
-	c.fillColor(paper)
-	c.pdf.Polygon(circlePoints(cx, cy, rInner, 96), "F")
-	c.circle(cx, cy, rInner, 0.6, ink)
-	c.circle(cx, cy, rInner-2.5, 0.3, hairline)
-
-	label, value := "COURSE", fmt.Sprint(d.Count)
-	if n, ok := d.Kind.Tier(); ok {
-		label, value = "TIER", fmt.Sprint(n)
-	}
-	c.font(fontSansBold, 5.5, 1.6)
-	c.textColor(deepCyan)
-	c.centered(cx+0.8, cy-8, label)
-	c.font(fontSansBold, 21, 0)
-	c.textColor(ink)
-	c.centered(cx, cy+13, value)
-}
-
-func circlePoints(cx, cy, r float64, n int) []gopdf.Point {
-	pts := make([]gopdf.Point, n)
-	for i := range pts {
-		a := 2 * math.Pi * float64(i) / float64(n)
-		pts[i] = gopdf.Point{X: cx + r*math.Cos(a), Y: cy + r*math.Sin(a)}
-	}
-	return pts
+	c.font(fontManualBold, 13)
+	c.textColor(onRed)
+	c.centered(midX, frameIn+h/2+4.5, msg)
 }
 
 // drawQR draws the QR code as filled squares: vector, so it stays sharp
@@ -687,7 +679,7 @@ func drawQR(c *canvas, text string, x, y, size float64) {
 	}
 	const quiet = 0 // the paper around the code is the quiet zone
 	mod := size / float64(code.Size+2*quiet)
-	c.fillColor(ink)
+	c.fillColor(graphite)
 	for row := range code.Size {
 		for col := 0; col < code.Size; {
 			if !code.Black(col, row) {
@@ -721,21 +713,4 @@ func QRMatrix(text string) ([][]bool, error) {
 		}
 	}
 	return m, nil
-}
-
-// drawRevoked stamps a revoked certificate across the page.
-func drawRevoked(c *canvas, replacedBy string) {
-	c.fail(c.pdf.SetTransparency(gopdf.Transparency{Alpha: 0.82, BlendModeType: gopdf.NormalBlendMode}))
-	c.pdf.Rotate(14, midX, pageH/2)
-	c.fillColor(revoked)
-	c.pdf.RectFromUpperLeftWithStyle(-80, pageH/2-20, pageW+160, 40, "F")
-	c.pdf.SetTextColor(255, 255, 255)
-	msg := "REVOKED"
-	if replacedBy != "" {
-		msg += "  ·  REPLACED BY " + replacedBy
-	}
-	c.fitFont(fontSansBold, 17, 10, 4, msg, pageW-160)
-	c.centered(midX, pageH/2+6, msg)
-	c.pdf.RotateReset()
-	c.pdf.ClearTransparency()
 }

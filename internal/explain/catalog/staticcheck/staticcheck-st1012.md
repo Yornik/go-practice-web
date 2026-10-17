@@ -19,7 +19,7 @@ The standard library names its sentinel errors this way, such as `io.ErrUnexpect
 
 ## How to find it
 
-Go to {{file}}:{{line}} and rename `{{name}}` to the form {{form}}, then update every use. When an exercise README or a test already names the variable, keep that name: the tests refer to it.
+Go to {{file}}:{{line}} and rename `{{name}}` to the form {{form}}, then update every use. When the spec or a test already names the variable, keep that name: the tests refer to it.
 
 ## Example
 

@@ -25,7 +25,7 @@ Compare got and want line by line, and find the first line that differs. Then as
 - A line you did not expect at all: a debug print that you left in your code also lands in got.
 - Lines in a different order: a map range or goroutines. `fmt` prints maps sorted by key, but a `range` over a map has no fixed order.
 
-Run only this Example: pick its step, or run `go test -run '^{{test}}$'` on your own machine. Change your code, not the comment: the comment is the spec.
+Run only this Example: open the Steps tab and press the Run button of its step. Change your code, not the comment: the comment is the spec.
 
 ## Example
 

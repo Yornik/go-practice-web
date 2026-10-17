@@ -564,6 +564,7 @@ func render(body string) (string, []string, error) {
 			urls = append(urls, string(n.Destination))
 			n.SetAttributeString("target", []byte("_blank"))
 			n.SetAttributeString("rel", []byte("noopener noreferrer"))
+			n.AppendChild(n, newTabNote())
 		case *ast.AutoLink:
 			urls = append(urls, string(n.URL(src)))
 		case *ast.Image:
@@ -581,18 +582,28 @@ func render(body string) (string, []string, error) {
 	return buf.String(), urls, nil
 }
 
+// newTabNoteHTML tells a screen reader that a link opens a new tab.
+const newTabNoteHTML = `<span class="visually-hidden"> (opens in a new tab)</span>`
+
+// newTabNote is newTabNoteHTML as a node that the renderer writes as is.
+func newTabNote() ast.Node {
+	s := ast.NewString([]byte(newTabNoteHTML))
+	s.SetCode(true)
+	return s
+}
+
 // linksHTML renders the front matter links and the course exercise as the
 // list at the end of the Learn more section.
 func linksHTML(links []Link, course string) string {
 	var b strings.Builder
 	b.WriteString(`<ul class="explain-links">`)
 	for _, l := range links {
-		fmt.Fprintf(&b, `<li><a href="%s" target="_blank" rel="noopener noreferrer">%s</a></li>`,
-			html.EscapeString(l.URL), html.EscapeString(l.Label))
+		fmt.Fprintf(&b, `<li><a href="%s" target="_blank" rel="noopener noreferrer">%s%s</a></li>`,
+			html.EscapeString(l.URL), html.EscapeString(l.Label), newTabNoteHTML)
 	}
 	if course != "" {
-		fmt.Fprintf(&b, `<li><a href="%s" target="_blank" rel="noopener">Course exercise %s</a></li>`,
-			html.EscapeString(CourseURLPrefix+course), html.EscapeString(course))
+		fmt.Fprintf(&b, `<li><a href="%s" target="_blank" rel="noopener">Course exercise %s%s</a></li>`,
+			html.EscapeString(CourseURLPrefix+course), html.EscapeString(course), newTabNoteHTML)
 	}
 	b.WriteString("</ul>\n")
 	return b.String()

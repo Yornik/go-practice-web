@@ -38,7 +38,7 @@ async function check(res) {
  * @param {string} method
  * @param {string} path
  * @param {unknown} [body]
- * @param {{signal?: AbortSignal}} [opts]
+ * @param {{signal?: AbortSignal, keepalive?: boolean}} [opts] keepalive lets a save finish while the page closes
  */
 export async function api(method, path, body, opts = {}) {
   const hasBody = body !== undefined;
@@ -50,6 +50,7 @@ export async function api(method, path, body, opts = {}) {
       body: hasBody ? JSON.stringify(body) : undefined,
       credentials: "same-origin",
       signal: opts.signal,
+      keepalive: opts.keepalive || false,
     });
   } catch (err) {
     if (err.name === "AbortError") throw err;
@@ -105,11 +106,21 @@ export function setStatus(el, message, kind = "") {
   else delete el.dataset.kind;
 }
 
-/** The message to show for any error. */
-export function errorMessage(err) {
+/**
+ * The message to show for any error. context names the passkey task, so
+ * the browser's few error names become advice that fits: "login",
+ * "register" (a new account) or "add" (a passkey for a signed-in account).
+ */
+export function errorMessage(err, context = "") {
   if (err instanceof ApiError) return err.message;
-  if (err && err.name === "NotAllowedError") return "The passkey request was cancelled or timed out.";
-  if (err && err.name === "InvalidStateError") return "This device already holds a passkey for this account.";
-  if (err && err.name === "SecurityError") return "The browser refused the passkey for this site address.";
-  return (err && err.message) || "Something went wrong.";
+  if (err && err.name === "NotAllowedError") {
+    if (context === "login") return "You closed the passkey prompt, it timed out, or this device has no passkey for Go Practice. Try again, use your phone, or recover your account.";
+    return "You closed the passkey prompt, or it timed out. Try again when you are ready.";
+  }
+  if (err && err.name === "InvalidStateError") {
+    if (context === "add") return "This device already has a passkey for your account. Add the new one on another device or a security key.";
+    return "This device already holds a passkey for this account. Sign in with it.";
+  }
+  if (err && err.name === "SecurityError") return "The browser refused the passkey for this site address. Open the site at its own address and try again.";
+  return (err && err.message) || "The request failed. Try again.";
 }

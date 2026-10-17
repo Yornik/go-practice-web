@@ -2,6 +2,7 @@
 id: compile-undefined
 source: compile
 match: ^undefined: (?P<name>[^\s(]+)(?: \(but have (?P<have>[^)]+)\))?$
+fallback: true
 title: {{name}} is not declared where you use it
 links:
 - The Go spec: Declarations and scope | https://go.dev/ref/spec#Declarations_and_scope

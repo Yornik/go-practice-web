@@ -79,14 +79,17 @@ func (r *renderer) template(name string) (*template.Template, error) {
 
 // view is what every page template gets.
 type view struct {
-	Title  string      // the <title> before " · Go Practice"
+	Title  string      // the <title> before ", Go Practice"; "" for the landing page
 	User   *store.User // nil for a visitor
 	Nav    string      // the current item of the main navigation
 	Script string      // the page's ES module below /static/js/, or ""
-	Wide   bool        // the IDE: full width and height, no footer
+	Wide   bool        // the IDE: full width and height, its own top bar, no footer
+	Mono   bool        // the first screen shows code: preload the mono font
 	Data   any         // the page's own data
 	Course *course.Course
 	Dev    bool
+	// ImportMap maps every ES module path to its versioned URL.
+	ImportMap template.HTML
 }
 
 // render executes a page into a buffer first, so that a template error
@@ -97,6 +100,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 		v.User = &u
 	}
 	v.Course, v.Dev = s.cfg.Course, s.cfg.Dev
+	assets := s.static.current()
+	v.ImportMap = assets.importMap
 	t, err := s.pages.template(name)
 	if err != nil {
 		s.log.Error("template", "err", err)
@@ -110,17 +115,27 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", pageCSP(assets.cspHash))
 	// Pages show the user's own data; no shared cache may keep them.
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
 }
 
-// errorPage renders the error page with a message for people.
+// errorPage renders the error page: what happened as the heading, then
+// what to do.
 func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	var detail string
+	switch {
+	case status == http.StatusForbidden:
+		detail = "Admin pages need an admin account."
+	case status >= 500:
+		detail = "Try again in a minute. If it fails again, the site owner can find the cause in the server log with the time " +
+			s.now().UTC().Format("15:04:05") + " UTC."
+	}
 	s.render(w, r, status, "error", view{
 		Title: http.StatusText(status),
-		Data:  map[string]any{"Status": status, "Message": msg},
+		Data:  map[string]any{"Status": status, "Message": msg, "Detail": detail},
 	})
 }
 
@@ -132,17 +147,19 @@ func templateFuncs(static func(string) string) template.FuncMap {
 	return template.FuncMap{
 		"static":   static,
 		"duration": formatDuration,
+		// date is for sentences and the certificate, shortdate for tables.
 		"date": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
 			}
-			return t.UTC().Format("2 January 2006")
+			return t.UTC().Format("2" + nbsp + "January 2006")
 		},
+		"shortdate": shortDate,
 		"datetime": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
 			}
-			return t.UTC().Format("2 Jan 2006 15:04 UTC")
+			return t.UTC().Format("2 Jan 2006, 15:04 UTC")
 		},
 		"iso": func(t time.Time) string {
 			if t.IsZero() {
@@ -150,7 +167,7 @@ func templateFuncs(static func(string) string) template.FuncMap {
 			}
 			return t.UTC().Format(time.RFC3339)
 		},
-		"hours":  func(h float64) string { return strconv.FormatFloat(h, 'f', -1, 64) + " h" },
+		"hours":  formatHours,
 		"b64url": base64.RawURLEncoding.EncodeToString,
 		"hex":    hex.EncodeToString,
 		"pct": func(n, total int) int {
@@ -159,20 +176,75 @@ func templateFuncs(static func(string) string) template.FuncMap {
 			}
 			return n * 100 / total
 		},
-		"level": func(l int) string { return course.Level(l).String() },
-		"int":   func(l course.Level) int { return int(l) },
-		"pad2":  func(n int) string { return fmt.Sprintf("%02d", n) },
+		"level":    func(l int) string { return course.Level(l).String() },
+		"int":      func(l course.Level) int { return int(l) },
+		"pad2":     func(n int) string { return fmt.Sprintf("%02d", n) },
+		"initials": initials,
+		// catalogHTML marks the HTML of an explanation as safe: the catalog
+		// renders its Markdown without raw HTML (internal/explain).
+		"catalogHTML": func(s string) template.HTML { return template.HTML(s) }, //nolint:gosec // see above
+		// grow is the flex-grow of a bar in the course strip: 10 per hour.
+		"grow": func(h float64) string { return strconv.FormatFloat(h*10, 'f', -1, 64) },
+		"seq": func(n int) []int {
+			out := make([]int, n)
+			for i := range out {
+				out[i] = i + 1
+			}
+			return out
+		},
+		"lower":      strings.ToLower,
+		"trimPrefix": strings.TrimPrefix,
+		// json is for data attributes; html/template escapes the quotes.
+		"json": func(v any) (string, error) {
+			b, err := json.Marshal(v)
+			return string(b), err
+		},
+		"join":       strings.Join,
+		"sub":        func(a, b int) int { return a - b },
+		"inc":        func(n int) int { return n + 1 },
+		"helpLevels": func() []string { return []string{"1", "2", "3", "E", "W", "S"} },
+		"plural": func(n int, one, many string) string {
+			if n == 1 {
+				return "1 " + one
+			}
+			return itoa(n) + " " + many
+		},
 	}
 }
 
-// formatDuration writes active time the way the dashboard shows it:
-// "0 min", "25 min", "3 h 05 min".
+// nbsp keeps a number and its unit on 1 line.
+const nbsp = "\u00a0"
+
+// formatDuration writes active time the way the copy rules want it:
+// "0 min", "25 min", "3 h 5 min", "2 h".
 func formatDuration(secs int64) string {
 	m := secs / 60
 	if m < 60 {
-		return fmt.Sprintf("%d min", m)
+		return fmt.Sprintf("%d%smin", m, nbsp)
 	}
-	return fmt.Sprintf("%d h %02d min", m/60, m%60)
+	if m%60 == 0 {
+		return fmt.Sprintf("%d%sh", m/60, nbsp)
+	}
+	return fmt.Sprintf("%d%sh %d%smin", m/60, nbsp, m%60, nbsp)
+}
+
+// formatHours writes an estimate: "2.5 h".
+func formatHours(h float64) string { return strconv.FormatFloat(h, 'f', -1, 64) + nbsp + "h" }
+
+// initials are the avatar's letters: the first letters of the first and
+// the last word of the name, "AL" for "Ada Lovelace".
+func initials(name string) string {
+	words := strings.Fields(name)
+	if len(words) == 0 {
+		return "?"
+	}
+	first := []rune(words[0])
+	out := strings.ToUpper(string(first[0]))
+	if len(words) > 1 {
+		last := []rune(words[len(words)-1])
+		out += strings.ToUpper(string(last[0]))
+	}
+	return out
 }
 
 // apiError is a client error of the web layer itself.
@@ -274,3 +346,11 @@ func decode(w http.ResponseWriter, r *http.Request, limit int64, v any) error {
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// shortDate is a date for tables and short sentences: "24 Oct 2026".
+func shortDate(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("2" + nbsp + "Jan 2006")
+}

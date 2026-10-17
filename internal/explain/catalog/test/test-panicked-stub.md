@@ -21,8 +21,8 @@ The stubs panic so that the package compiles before you have written anything. M
 
 The function that panicked is the call that the message names, or a function it calls. A constructor such as `New` is often the first. Search for `TODO: implement` to see every stub that is left. Then work in small steps:
 
-1. Read the doc comment above the function. Together with the README it is the spec.
-2. Pick the step for this function in the Steps tab, or run `go test -run` with the filter of that step, so that only its tests run.
+1. Read the doc comment above the function. Together with the spec, it says what to build.
+2. Open the Steps tab and press the Run button of the step for this function, so that only its tests run.
 3. Replace the panic with code that compiles and returns something, even a zero value. The test then fails with a got and want message, and that message shows what to build next.
 
 ## Example
