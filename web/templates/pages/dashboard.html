@@ -20,7 +20,7 @@
     </div>
     {{- else}}
     <div class="course-next">
-      <p class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
+      <p class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
       <a class="btn btn-primary" href="/certificates">Claim the course certificate</a>
     </div>
     {{- end}}
@@ -68,7 +68,7 @@
             <td data-label="Help">{{if .Levels}}{{level .Levels}}{{if gt .Levels 1}}<span class="visually-hidden"> and the levels before it</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
             {{- end}}
             <td data-label="Passed">
-              {{- if eq .Status "passed"}}<span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><time datetime="{{iso .PassedAt}}">{{shortdate .PassedAt}}</time></span>
+              {{- if eq .Status "passed"}}<span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><time datetime="{{iso .PassedAt}}">{{shortdate .PassedAt}}</time></span>
               {{- else if eq .Status "started"}}<span>started</span>
               {{- else}}<span class="muted">not started</span>{{end}}
             </td>

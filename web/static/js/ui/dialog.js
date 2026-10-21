@@ -87,7 +87,7 @@ export async function confirmDialog({ title, text, warning = false, confirm, can
  */
 export async function promptDialog({ title, label, value = "", help = "", confirm, cancel = "Cancel", maxLength = 64, validate }) {
   const fid = `prompt-${++counter}`;
-  const input = h("input", { class: "input", id: fid, value, maxlength: maxLength, autocomplete: "off", "aria-describedby": help ? `${fid}-help` : null });
+  const input = h("input", { class: "text-input", id: fid, value, maxlength: maxLength, autocomplete: "off", "aria-describedby": help ? `${fid}-help` : null });
   const error = h("p", { class: "field-error", id: `${fid}-error`, hidden: true });
   const field = h("div", { class: "field" }, h("label", { for: fid }, label), input, help ? h("p", { class: "help", id: `${fid}-help` }, help) : null, error);
   const v = await openDialog({

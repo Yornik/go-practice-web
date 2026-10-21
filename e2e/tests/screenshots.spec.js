@@ -156,6 +156,8 @@ test("screenshots of every page", async ({ browser, page, context }) => {
   await page.getByLabel("Email (optional)").fill("grace@example.org");
   await page.getByLabel("Note (optional)").fill("Welcome to the course. Start with 01.");
   await page.getByRole("button", { name: "Create the invite link" }).click();
+  // The field fills when the API answers; inputValue does not wait for that.
+  await expect(page.locator("[data-invite-link]")).not.toHaveValue("");
   const invite = new URL(await page.locator("[data-invite-link]").inputValue());
   await shootAll(browser, "join", invite.pathname + invite.search, anon);
 

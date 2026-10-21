@@ -4,7 +4,7 @@
 // reference solution passing every test with -race, and the verify page of
 // a certificate lookup.
 import { test, expect } from "@playwright/test";
-import { confirmEmail, setupLink, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
+import { confirmEmail, setupLink, siteRulesOnMonaco, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
 
 test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context }) => {
   const errors = watchErrors(page);
@@ -65,6 +65,55 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await page.goto("/learn/01-logfmt");
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(page.locator("[data-file-tabs] [role=tab] .file-name").first()).toHaveText("logfmt.go");
+
+  // Monaco's widgets keep their own look: no site class is a Monaco class
+  // name, and no site rule matches the open suggest list, find widget,
+  // tooltip or problem hover. None of these steps changes the code.
+  await page.evaluate(() => {
+    const ed = window.monaco.editor.getEditors()[0];
+    const m = ed.getModel();
+    const line = m.getLinesContent().findIndex((l) => l.startsWith("package ")) + 1;
+    ed.setPosition({ lineNumber: line, column: m.getLineMaxColumn(line) });
+    ed.focus();
+  });
+  await page.keyboard.press("Control+Space");
+  const suggestion = page.locator(".suggest-widget .monaco-list-row").first();
+  await expect(suggestion.locator(".label-name")).not.toBeEmpty();
+  // The label sits inside its row, which hides what overflows.
+  expect(await suggestion.evaluate((row) => {
+    const r = row.getBoundingClientRect();
+    const l = row.querySelector(".label-name").getBoundingClientRect();
+    return l.top >= r.top && l.bottom <= r.bottom;
+  })).toBe(true);
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+f");
+  await expect(page.locator(".find-widget")).toBeVisible();
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  // A tooltip is a context view next to the editor, outside .monaco-editor.
+  await page.locator(".find-widget .monaco-custom-toggle").first().hover();
+  await expect(page.locator(".context-view .monaco-hover")).toBeVisible();
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".find-widget.visible")).toHaveCount(0);
+  // The hover of a problem has Monaco's own status bar.
+  const marked = await page.evaluate(() => {
+    const ed = window.monaco.editor.getEditors()[0];
+    const m = ed.getModel();
+    const line = m.getLinesContent().findIndex((l) => l.startsWith("package ")) + 1;
+    window.monaco.editor.setModelMarkers(m, "e2e", [
+      { severity: window.monaco.MarkerSeverity.Error, startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: m.getLineMaxColumn(line), message: "e2e" },
+    ]);
+    ed.revealLineInCenter(line);
+    const p = ed.getScrolledVisiblePosition({ lineNumber: line, column: 3 });
+    const box = ed.getDomNode().getBoundingClientRect();
+    return { x: box.left + p.left, y: box.top + p.top + p.height / 2 };
+  });
+  await page.mouse.move(marked.x, marked.y);
+  await expect(page.locator(".monaco-hover .hover-row.status-bar")).toBeVisible();
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  await page.evaluate(() => window.monaco.editor.setModelMarkers(window.monaco.editor.getEditors()[0].getModel(), "e2e", []));
+  await page.mouse.move(0, 0);
 
   // The ladder starts folded: the spec comes first.
   await expect(page.locator("[data-ladder-sub]")).toContainText("Nothing revealed.");

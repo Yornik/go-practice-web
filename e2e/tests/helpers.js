@@ -107,6 +107,92 @@ export async function virtualAuthenticator(context, page) {
   return { cdp, authenticatorId };
 }
 
+/**
+ * Site selectors whose class names are all Monaco's, yet that do not reach
+ * Monaco's DOM. Each entry gives the reason.
+ */
+const MONACO_ALLOWED = {
+  "svg.icon": "Monaco's .icon is a div, span or label; its icons are a font, never an svg.",
+  "pre.code": "Monaco's .code is a span in a hover, never a pre.",
+  ".visually-hidden": "Monaco's .visually-hidden has the same job: text off screen that screen readers still read.",
+};
+
+/**
+ * The selectors of site.css and ide.css that can reach Monaco's editor or its
+ * widgets. Monaco's widgets are part of the page, so a site class that Monaco
+ * also uses styles them: ".contents" once moved every suggestion out of its
+ * row. 2 checks, because most widgets are closed while a test runs:
+ *
+ * - "names": every class of the selector is a class of Monaco's own CSS, so
+ *   it can reach a widget that is not open now.
+ * - "live": the selector matches an element in the editor host or in a
+ *   context view now.
+ *
+ * Selectors without a class (the base element rules), the IDE's own
+ * decorations and MONACO_ALLOWED are left out. A selector the browser cannot
+ * test counts as a hit, so a parse error cannot hide a collision.
+ */
+export async function siteRulesOnMonaco(page) {
+  const { siteRules, monacoClasses, hits } = await page.evaluate((allowed) => {
+    const ours = /\.(eol-balloon|gm-problem|gm-advice|ln-problem|gpw-[\w-]+)(?![\w-])/;
+    // A list splits on its top-level commas only: ":is(.a, .b)" is 1 selector.
+    const split = (text) => {
+      const out = [];
+      let depth = 0;
+      let start = 0;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (c === "(" || c === "[") depth++;
+        else if (c === ")" || c === "]") depth--;
+        else if (c === "," && depth === 0) {
+          out.push(text.slice(start, i).trim());
+          start = i + 1;
+        }
+      }
+      out.push(text.slice(start).trim());
+      return out;
+    };
+    const walk = (rules, each) => {
+      for (const r of rules) {
+        if (r.selectorText) split(r.selectorText).forEach(each);
+        if (r.cssRules) walk(r.cssRules, each);
+      }
+    };
+    // The classes an element must have; a class inside :not() or an
+    // attribute value does not make the selector match.
+    const classes = (sel) => [...sel.replace(/\[[^\]]*\]/g, "").replace(/:not\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
+    const site = [];
+    const monaco = new Set();
+    for (const sheet of document.styleSheets) {
+      const href = sheet.href || "";
+      if (/\/(site|ide)\.css/.test(href)) walk(sheet.cssRules, (s) => site.push(s));
+      // Monaco's CSS file, and the style elements Monaco adds at run time.
+      else if (href.includes("/vendor/monaco/") || (!href && sheet.ownerNode?.tagName === "STYLE")) walk(sheet.cssRules, (s) => classes(s).forEach((c) => monaco.add(c)));
+    }
+    const live = [...document.querySelectorAll("[data-editor] *, .context-view, .context-view *, .quick-input-widget, .quick-input-widget *")];
+    // A pseudo-element or a state like :hover styles the same element.
+    const bare = (sel) => sel.replace(/::[\w-]+(\([^)]*\))?|:(before|after|first-line|first-letter)\b/g, "").replace(/:(hover|active|focus-visible|focus-within|focus|visited)\b/g, "");
+    const matches = (el, sel) => {
+      try {
+        return el.matches(bare(sel));
+      } catch {
+        return true;
+      }
+    };
+    const out = [];
+    for (const sel of site) {
+      if (!sel.includes(".") || ours.test(sel) || sel in allowed) continue;
+      const cls = classes(sel);
+      if (cls.length && cls.every((c) => monaco.has(c))) out.push(`names: ${sel}`);
+      else if (live.some((el) => matches(el, sel))) out.push(`live: ${sel}`);
+    }
+    return { siteRules: site.length, monacoClasses: monaco.size, hits: out };
+  }, MONACO_ALLOWED);
+  // An empty sheet list would pass every check; fail instead.
+  if (!siteRules || !monacoClasses) throw new Error(`siteRulesOnMonaco read ${siteRules} site selectors and ${monacoClasses} Monaco classes`);
+  return hits;
+}
+
 /** Collects page errors and CSP violations, so a test can assert none. */
 export function watchErrors(page) {
   const errors = [];
