@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1](https://github.com/Yornik/go-practice-web/compare/v0.1.0...v0.1.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* keep site CSS out of the editor's suggest list and find widget ([ae60a52](https://github.com/Yornik/go-practice-web/commit/ae60a5256b4920ff0562959c60ade75f635c832a))
+* keep site CSS out of the editor's suggest list and find widget ([c560f73](https://github.com/Yornik/go-practice-web/commit/c560f730b943f65dab494bb3dbf4ac3fce182670))
+* rename the remaining site classes that Monaco also uses ([1b1c1fc](https://github.com/Yornik/go-practice-web/commit/1b1c1fca687f0139183c617806097148fc0d0431))
+
 ## 0.1.0 (2026-10-17)
 
 
