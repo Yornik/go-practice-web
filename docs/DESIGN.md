@@ -270,7 +270,7 @@ tools find comes with an explanation that teaches, written for the course's medi
   behind it), *How to find it* (where to look, what to print, which part of the message points where), *Example* (a
   small generic snippet that shows the mistake and the fix; never the exercise's solution), *Learn more* (Go spec,
   Effective Go, the Go blog, pkg.go.dev, staticcheck.dev docs) and, when it exists, the course exercise that teaches
-  the concept (for example a data race points to 37-workerpool), by its current slug. A test fails on a slug that is not
+  the concept first (for example a data race points to 20-counters, not to the later 37-workerpool), by its current slug. A test fails on a slug that is not
   an exercise of the course, or that is a slug of the first course.
 - **Verified against the real tools.** Every entry has a fixture: a tiny program that triggers it, compiled with the
   toolchain of the runner image, so the matcher is tested against the exact message text. A test fails when a

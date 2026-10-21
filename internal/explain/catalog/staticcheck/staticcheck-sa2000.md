@@ -4,7 +4,7 @@ source: staticcheck
 code: SA2000
 match: ^should call (?P<call>.+) before starting the goroutine to avoid a race$
 title: Call {{call}} before the go statement, not inside the goroutine
-course: 37-workerpool
+course: 19-fanout
 links:
 - staticcheck: SA2000 | https://staticcheck.dev/docs/checks/#SA2000
 - Package sync: WaitGroup.Add | https://pkg.go.dev/sync#WaitGroup.Add

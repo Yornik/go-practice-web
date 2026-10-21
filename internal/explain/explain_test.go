@@ -257,7 +257,7 @@ func TestRaceReport(t *testing.T) {
 			t.Errorf("Captures[%q] = %q, want %q", k, got, v)
 		}
 	}
-	if e.Course != "37-workerpool" || !strings.Contains(e.HTML, `href="/learn/37-workerpool"`) {
+	if e.Course != "20-counters" || !strings.Contains(e.HTML, `href="/learn/20-counters"`) {
 		t.Errorf("Course = %q; HTML has no course link", e.Course)
 	}
 	if !strings.HasPrefix(e.Raw.Message, "WARNING: DATA RACE\nRead at") || strings.Contains(e.Raw.Message, "created at") {

@@ -3,7 +3,7 @@ id: vet-copylocks
 source: vet
 analyzer: copylocks
 title: This line copies a value that holds a lock
-course: 33-ratelimit
+course: 20-counters
 links:
 - Package sync: Mutex | https://pkg.go.dev/sync#Mutex
 - The Go spec: For statements with range clause | https://go.dev/ref/spec#For_range

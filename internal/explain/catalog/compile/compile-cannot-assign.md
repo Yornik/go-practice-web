@@ -44,4 +44,4 @@ Change a copy of the bytes, then build a new string:
 
 ## Learn more
 
-Exercise 01 treats a string as bytes in a hand-written scanner.
+The course exercise below treats a string as bytes in a hand-written scanner.

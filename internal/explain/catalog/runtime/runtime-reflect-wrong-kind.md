@@ -4,7 +4,7 @@ source: runtime
 match: ^panic: reflect: call of reflect\.Value\.(?P<method>\w+) on (?P<kind>bool|u?int(?:8|16|32|64|ptr)?|float32|float64|complex64|complex128|array|chan|func|interface|map|ptr|slice|string|struct|unsafe\.Pointer) Value$
 match: ^panic: reflect: (?P<method>\w+) of non-struct type (?P<kind>\S+)$
 title: reflect: {{method}} does not work on a {{kind}}
-course: 31-envconfig
+course: 18-tableprint
 links:
 - The Go blog: The Laws of Reflection | https://go.dev/blog/laws-of-reflection#the-first-law-of-reflection
 - Package reflect: Value | https://pkg.go.dev/reflect#Value

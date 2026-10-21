@@ -3,7 +3,7 @@ id: staticcheck-sa1012
 source: staticcheck
 code: SA1012
 title: A nil context is passed where a context.Context belongs
-course: 32-retry
+course: 21-rollout
 links:
 - staticcheck: SA1012 | https://staticcheck.dev/docs/checks/#SA1012
 - Package context | https://pkg.go.dev/context
@@ -41,4 +41,4 @@ func Get(ctx context.Context, url string) (*http.Request, error) {
 
 ## Learn more
 
-The course exercise below practises passing a context through a retry loop.
+The course exercise below practises a wait loop that watches its context.

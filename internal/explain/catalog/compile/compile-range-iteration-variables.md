@@ -47,4 +47,4 @@ Take the 1 value the iterator gives:
 
 ## Learn more
 
-Exercise 13 practises iter.Seq and iter.Seq2.
+The course exercise below practises `iter.Seq` and `iter.Seq2`.

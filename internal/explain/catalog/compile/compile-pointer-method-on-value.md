@@ -3,7 +3,7 @@ id: compile-pointer-method-on-value
 source: compile
 match: ^cannot call pointer method (?P<method>\S+) on (?P<type>.+)$
 title: {{method}} needs the address of a {{type}}, and this value has none
-course: 27-accesslog
+course: 09-statuspage
 links:
 - The Go spec: Calls | https://go.dev/ref/spec#Calls
 - The Go spec: Address operators | https://go.dev/ref/spec#Address_operators
@@ -45,4 +45,4 @@ func Bump(counters map[string]Counter, key string) {
 
 ## Learn more
 
-Exercise 02 practises maps of structs and of pointers.
+The course exercise below practises pointer receivers that change a struct.

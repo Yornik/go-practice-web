@@ -3,7 +3,7 @@ id: staticcheck-sa1032
 source: staticcheck
 code: SA1032
 title: The arguments of errors.Is are swapped
-course: 26-logfmt
+course: 06-semver
 links:
 - staticcheck: SA1032 | https://staticcheck.dev/docs/checks/#SA1032
 - Package errors: Is | https://pkg.go.dev/errors#Is

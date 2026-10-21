@@ -3,7 +3,7 @@ id: runtime-send-closed-channel
 source: runtime
 match: ^panic: send on closed channel$
 title: {{func}} sent on a channel that was already closed
-course: 46-broadcaster
+course: 19-fanout
 links:
 - The Go spec: Send statements | https://go.dev/ref/spec#Send_statements
 - The Go blog: Pipelines and cancellation | https://go.dev/blog/pipelines#explicit-cancellation

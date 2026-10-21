@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4015
 match: ^calling (?P<func>\S+) on a converted integer is pointless$
 title: {{func}} gets an integer, so there is nothing left to round
-course: 28-latency
+course: 13-nines
 links:
 - staticcheck: SA4015 | https://staticcheck.dev/docs/checks/#SA4015
 - The Go spec: Integer operators | https://go.dev/ref/spec#Integer_operators
@@ -36,4 +36,4 @@ pages := int(math.Ceil(float64(items) / float64(perPage)))
 
 ## Learn more
 
-The course exercise below practises rounding with math.Ceil.
+The course exercise below practises conversions between `float64` and `time.Duration`, and rounding.

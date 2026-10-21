@@ -3,7 +3,7 @@ id: runtime-negative-waitgroup
 source: runtime
 match: ^panic: sync: negative WaitGroup counter$
 title: WaitGroup.Done ran more often than Add in {{func}}
-course: 37-workerpool
+course: 19-fanout
 links:
 - Package sync: WaitGroup | https://pkg.go.dev/sync#WaitGroup
 - Package sync: WaitGroup.Add | https://pkg.go.dev/sync#WaitGroup.Add

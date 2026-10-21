@@ -46,4 +46,4 @@ Compare the byte with a rune literal:
 
 ## Learn more
 
-Exercise 01 practises strings as bytes in a hand-written scanner.
+The course exercise below practises strings as bytes in a hand-written scanner.

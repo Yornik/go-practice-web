@@ -3,7 +3,7 @@ id: runtime-concurrent-map
 source: runtime
 match: ^fatal error: concurrent map (?P<op>writes|read and map write|iteration and map write|clone and map write)$
 title: Concurrent map {{op}} in {{func}}
-course: 34-cache
+course: 20-counters
 links:
 - Go FAQ: Why are map operations not defined to be atomic? | https://go.dev/doc/faq#atomic_maps
 - The Go blog: Go maps in action | https://go.dev/blog/maps#concurrency

@@ -4,7 +4,7 @@ source: compile
 match: ^syntax error: unexpected name \S+, expected \]$
 match: ^missing ',' in type argument list(?: \(and \d+ more errors?\))?$
 title: A receiver lists type parameter names only, without constraints
-course: 34-cache
+course: 17-flightrec
 links:
 - The Go spec: Method declarations | https://go.dev/ref/spec#Method_declarations
 - The Go spec: Instantiations | https://go.dev/ref/spec#Instantiations
@@ -49,4 +49,4 @@ func (r *Ring[T]) Len() int {
 
 ## Learn more
 
-Exercise 09 practises methods on a generic type.
+The course exercise below practises methods on a generic type.

@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4005
 match: ^ineffective assignment to field (?P<field>\S+)$
 title: The assignment to {{field}} changes a copy and is lost
-course: 30-slo
+course: 09-statuspage
 links:
 - staticcheck: SA4005 | https://staticcheck.dev/docs/checks/#SA4005
 - Effective Go: Pointers vs. Values | https://go.dev/doc/effective_go#pointers_vs_values
@@ -45,4 +45,4 @@ func (p *Point) Move(dx, dy int) {
 
 ## Learn more
 
-The course exercise below practises value receivers on purpose, with methods that return results.
+The course exercise below practises pointer receivers that change a struct.

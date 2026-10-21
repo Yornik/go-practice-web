@@ -3,7 +3,7 @@ id: race-concurrent-map
 source: race
 match: (?s)^WARNING: DATA RACE\n.*?\n  runtime\.map\w*\(\)\n
 title: Data race on a map in {{test}}
-course: 34-cache
+course: 20-counters
 links:
 - Go FAQ: Why are map operations not defined to be atomic? | https://go.dev/doc/faq#atomic_maps
 - The Go blog: Go maps in action | https://go.dev/blog/maps#concurrency

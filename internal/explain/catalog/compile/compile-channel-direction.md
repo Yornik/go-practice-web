@@ -4,7 +4,7 @@ source: compile
 match: ^invalid operation: cannot (?P<op>send to|close|receive from) (?:receive|send)-only channel (?:(?:<-)?chan(?:<-)? .+? )?(?P<expr>\S+) \(.+\)$
 match: ^cannot range over (?P<expr>.+?) \(.+\): (?P<op>receive from) send-only channel .+$
 title: The channel {{expr}} only works in 1 direction, and you tried to {{op}} it
-course: 46-broadcaster
+course: 21-rollout
 links:
 - The Go spec: Channel types | https://go.dev/ref/spec#Channel_types
 - The Go spec: Close | https://go.dev/ref/spec#Close
@@ -53,4 +53,4 @@ func Drain(ch <-chan int) int {
 
 ## Learn more
 
-Exercise 21 practises who may send on and who may close a channel.
+The course exercise below takes a receive-only channel of ticks.

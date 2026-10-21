@@ -3,7 +3,7 @@ id: runtime-exit-log-fatal
 source: runtime
 match: ^exit: \d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (?P<message>(?s:.+))$
 title: log.Fatal ended the test binary: {{message}}
-course: 31-envconfig
+course: 15-checkdisk
 links:
 - Package log: Fatal | https://pkg.go.dev/log#Fatal
 - Package os: Exit | https://pkg.go.dev/os#Exit
@@ -47,4 +47,4 @@ func Hosts(path string) ([]string, error) {
 
 ## Learn more
 
-In the exercise, the library returns every problem in 1 error, and only `main` calls `log.Fatal`.
+The course exercise below puts a command in a testable `Run` that returns its exit code, so only `main` exits.

@@ -43,4 +43,4 @@ const usage = `usage: tool [flags]
 
 ## Learn more
 
-Exercise 01 parses quoted values with escapes.
+The course exercise below parses quoted values with escapes.

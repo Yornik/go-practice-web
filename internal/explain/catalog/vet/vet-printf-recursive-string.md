@@ -5,7 +5,7 @@ analyzer: printf
 match: ^(?P<call>\S+) format %\S+ with arg (?P<arg>\S+) causes recursive \(\*?(?:[^()]*\.)?(?P<type>[^().]+)\)\.(?P<method>\w+) method call$
 match: ^(?P<call>\S+) arg (?P<arg>\S+) causes recursive call to \(\*?(?:[^()]*\.)?(?P<type>[^().]+)\)\.(?P<method>\w+) method$
 title: {{type}}.{{method}} calls itself through {{call}}
-course: 26-logfmt
+course: 06-semver
 links:
 - Package fmt: Printing | https://pkg.go.dev/fmt#hdr-Printing
 - Package fmt: Stringer | https://pkg.go.dev/fmt#Stringer

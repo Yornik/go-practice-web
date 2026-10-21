@@ -3,7 +3,7 @@ id: compile-does-not-satisfy
 source: compile
 match: ^(?:in call to (?P<func>[^,]+), )?(?P<type>.+?) does not satisfy (?P<constraint>.+?)(?: \((?P<reason>.+)\))?$
 title: {{type}} does not satisfy the constraint {{constraint}}
-course: 34-cache
+course: 17-flightrec
 links:
 - The Go spec: Satisfying a type constraint | https://go.dev/ref/spec#Satisfying_a_type_constraint
 - The Go spec: Type constraints | https://go.dev/ref/spec#Type_constraints
@@ -42,4 +42,4 @@ s := Total([]float64{1.5, 2})
 
 ## Learn more
 
-Exercise 09 practises `comparable` keys.
+The course exercise below practises `comparable` keys.

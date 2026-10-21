@@ -52,4 +52,4 @@ Copy the element out, change the copy, and store it back:
 
 ## Learn more
 
-Exercise 02 practises maps of structs and of pointers.
+The course exercise below practises maps of structs.

@@ -3,7 +3,7 @@ id: vet-lostcancel
 source: vet
 analyzer: lostcancel
 title: A cancel function is not called on every path
-course: 48-leaderelection
+course: 21-rollout
 links:
 - Package context | https://pkg.go.dev/context
 - The Go spec: Defer statements | https://go.dev/ref/spec#Defer_statements

@@ -4,7 +4,7 @@ source: vet
 analyzer: structtag
 match: ^struct field (?P<field>\S+) has (?P<key>\S+) tag but is not exported$
 title: The field {{field}} has a {{key}} tag, but package {{key}} cannot see it
-course: 40-healthcheck
+course: 18-tableprint
 links:
 - The Go spec: Exported identifiers | https://go.dev/ref/spec#Exported_identifiers
 - Package encoding/json: Marshal | https://pkg.go.dev/encoding/json#Marshal
@@ -44,4 +44,4 @@ Export the field and keep the key in the tag:
 
 ## Learn more
 
-The course exercise below practises JSON output from a struct with tags.
+The course exercise below reads struct tags and leaves unexported fields out.

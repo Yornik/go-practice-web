@@ -4,7 +4,7 @@ source: vet
 analyzer: copylocks
 match: ^(?P<func>\S+) passes lock by value: (?P<what>.+)$
 title: {{func}} gets a copy of a lock, so the lock protects nothing
-course: 33-ratelimit
+course: 20-counters
 links:
 - Package sync: Mutex | https://pkg.go.dev/sync#Mutex
 - Effective Go: Pointers vs. Values | https://go.dev/doc/effective_go#pointers_vs_values

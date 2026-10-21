@@ -60,7 +60,7 @@ The block between the 2 `---` lines holds `key: value` lines. Values are literal
 | `analyzer` | vet: this, `match` or both | The `go vet` analyzer, for example `printf`. The loader knows the analyzers of Go 1.27 (`go tool vet help`). |
 | `code` | staticcheck: this, `match` or both | A check such as `SA4006`, or a category such as `SA4` that matches every `SA4xxx` without its own entry. |
 | `title` | yes | 1 line, at most 100 characters, no period at the end. It can use placeholders. |
-| `course` | no | The slug of the exercise that teaches the concept, for example `37-workerpool`. Only when the exercise really practises it; read its README first. |
+| `course` | no | The slug of the first exercise that teaches the concept, for example `20-counters` for a data race. Only when the exercise really practises it; read its README first. |
 | `fallback` | no | `true` for a broad pattern that should lose to every other entry that matches the same message, such as any got/want assertion or any race report. Only for compile, build, runtime, race and test entries. |
 | `links` | yes, at least 1 | 1 per line: `- label | https://...`. Only `https` links to `go.dev`, `pkg.go.dev` and `staticcheck.dev`. |
 

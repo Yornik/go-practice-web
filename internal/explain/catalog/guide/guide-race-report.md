@@ -2,7 +2,7 @@
 id: guide-race-report
 source: guide
 title: How to read a race report
-course: 37-workerpool
+course: 20-counters
 links:
 - Data Race Detector | https://go.dev/doc/articles/race_detector
 - The Go Memory Model | https://go.dev/ref/mem
