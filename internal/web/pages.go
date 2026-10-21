@@ -341,7 +341,10 @@ func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
 	if renamed {
 		// A bookmark or a link from before the course grew: the exercise
 		// lives on under its new number. The API takes only current slugs.
-		http.Redirect(w, r, "/learn/"+ex.Slug, http.StatusMovedPermanently)
+		// 302, not 301: a browser keeps a 301 for good, and after a
+		// rollback to the first course it would still send the old link
+		// to a slug that build does not have.
+		http.Redirect(w, r, "/learn/"+ex.Slug, http.StatusFound)
 		return
 	}
 	prev, next := s.cfg.Course.Neighbours(ex.Slug)

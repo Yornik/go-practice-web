@@ -36,8 +36,8 @@ func TestRenamedSlugRedirects(t *testing.T) {
 	admin = h.verify(admin)
 	for old, current := range map[string]string{"07-retry": "32-retry", "01-logfmt": "26-logfmt", "25-loadbalancer": "50-loadbalancer"} {
 		w = h.do(req{method: "GET", path: "/learn/" + old, as: admin})
-		if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != "/learn/"+current {
-			t.Errorf("GET /learn/%s = %d %q, want 301 to /learn/%s", old, w.Code, w.Header().Get("Location"), current)
+		if w.Code != http.StatusFound || w.Header().Get("Location") != "/learn/"+current {
+			t.Errorf("GET /learn/%s = %d %q, want 302 to /learn/%s", old, w.Code, w.Header().Get("Location"), current)
 		}
 	}
 	w = h.do(req{method: "GET", path: "/learn/32-retry", as: admin})

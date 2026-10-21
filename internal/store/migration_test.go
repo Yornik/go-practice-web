@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"maps"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -371,5 +373,80 @@ func TestMigrationCourseV2MatchesRenames(t *testing.T) {
 	}
 	if tables != 3 {
 		t.Errorf("found %d table updates, want 3", tables)
+	}
+}
+
+// TestMigrationBackupFirst checks the copy that Open takes before it
+// applies a migration to a database that has a schema: it holds the old
+// schema and rows, so a rollback to the previous build loses nothing. A
+// fresh database needs no copy.
+func TestMigrationBackupFirst(t *testing.T) {
+	ctx := context.Background()
+	path := openAtVersion(t, 2, firstCourseRows...)
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	backup := filepath.Join(filepath.Dir(path), "backups", "go-practice-before-0003.db")
+	db, err := sql.Open("sqlite", backup+"?mode=ro&_query_only=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	var version, old int
+	if err := db.QueryRowContext(ctx, `SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 2 {
+		t.Fatalf("the copy is at version %d, %v; want 2", version, err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM progress WHERE exercise = '01-logfmt'`).Scan(&old); err != nil || old == 0 {
+		t.Errorf("the copy has %d progress rows of 01-logfmt, %v", old, err)
+	}
+
+	// Opening again applies nothing and takes no new copy.
+	if err := os.Remove(backup); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+	again, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = again.Close()
+	if _, err := os.Stat(backup); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a database with every migration got a copy: %v", err)
+	}
+
+	fresh := filepath.Join(t.TempDir(), "fresh.db")
+	f, err := Open(ctx, fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	if _, err := os.Stat(filepath.Join(filepath.Dir(fresh), "backups")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a fresh database got a backup directory: %v", err)
+	}
+}
+
+// TestMigrationStopsWithoutBackup refuses to migrate when the copy before
+// the migration cannot be written.
+func TestMigrationStopsWithoutBackup(t *testing.T) {
+	ctx := context.Background()
+	path := openAtVersion(t, 2, firstCourseRows...)
+	// A file where the backup directory should be.
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "backups"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if s, err := Open(ctx, path); err == nil {
+		_ = s.Close()
+		t.Fatal("Open migrated without a backup")
+	}
+	db, err := sql.Open("sqlite", path+"?_query_only=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	var version int
+	if err := db.QueryRowContext(ctx, `SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 2 {
+		t.Errorf("the database is at version %d, %v; want 2", version, err)
 	}
 }

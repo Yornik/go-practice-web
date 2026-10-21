@@ -186,9 +186,20 @@ func (s *Store) migrate(ctx context.Context) error {
 		}
 	}
 
+	backedUp := false
 	for _, m := range ms {
 		if applied[m.version] {
 			continue
+		}
+		if len(applied) > 0 && !backedUp {
+			// A migration is one way: the previous build refuses the new
+			// schema, and the daily backup can be a day old. A copy from
+			// right before the first pending migration makes a rollback
+			// lose nothing; without it the start stops.
+			if _, err := s.backupTo(ctx, s.BackupDir(), fmt.Sprintf("go-practice-before-%04d.db", m.version)); err != nil {
+				return fmt.Errorf("store: before migration %04d_%s: %w", m.version, m.name, err)
+			}
+			backedUp = true
 		}
 		body, err := migrations.ReadFile(m.file)
 		if err != nil {
