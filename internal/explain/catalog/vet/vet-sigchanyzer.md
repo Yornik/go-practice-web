@@ -4,7 +4,7 @@ source: vet
 analyzer: sigchanyzer
 match: ^misuse of unbuffered os\.Signal channel as argument to signal\.Notify$
 title: signal.Notify needs a buffered channel, or it can drop the signal
-course: 15-healthcheck
+course: 40-healthcheck
 links:
 - Package os/signal: Notify | https://pkg.go.dev/os/signal#Notify
 - Package os/signal: NotifyContext | https://pkg.go.dev/os/signal#NotifyContext

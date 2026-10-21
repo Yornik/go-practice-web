@@ -4,7 +4,7 @@ source: vet
 analyzer: stdmethods
 match: ^method (?P<have>.+) should have signature (?P<want>.+)$
 title: The method {{have}} does not have the signature its name promises
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - Package errors | https://pkg.go.dev/errors
 - Effective Go: Interface checks | https://go.dev/doc/effective_go#blank_implements

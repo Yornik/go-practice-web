@@ -3,7 +3,7 @@ id: compile-pointer-method-on-value
 source: compile
 match: ^cannot call pointer method (?P<method>\S+) on (?P<type>.+)$
 title: {{method}} needs the address of a {{type}}, and this value has none
-course: 02-accesslog
+course: 27-accesslog
 links:
 - The Go spec: Calls | https://go.dev/ref/spec#Calls
 - The Go spec: Address operators | https://go.dev/ref/spec#Address_operators

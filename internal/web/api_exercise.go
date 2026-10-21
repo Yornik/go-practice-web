@@ -274,11 +274,11 @@ type diagnosticJSON struct {
 	Explain explain.Explanation `json:"explain"`
 }
 
-func explainAll(c *course.Course, ex *course.Exercise, ds []runnerapi.Diagnostic) []diagnosticJSON {
+func explainAll(ex *course.Exercise, ds []runnerapi.Diagnostic) []diagnosticJSON {
 	out := make([]diagnosticJSON, 0, len(ds))
 	for _, d := range ds {
 		e := []explain.Explanation{explain.Explain(d)}
-		prepare(c, ex, e)
+		markOpenable(ex, e)
 		out = append(out, diagnosticJSON{Diagnostic: d, Explain: e[0]})
 	}
 	return out
@@ -317,7 +317,7 @@ func (s *Server) check(w http.ResponseWriter, r *http.Request) {
 		s.runnerFailed(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"diagnostics": explainAll(s.cfg.Course, ex, res.Diagnostics), "durationMs": res.DurationMs})
+	writeJSON(w, http.StatusOK, map[string]any{"diagnostics": explainAll(ex, res.Diagnostics), "durationMs": res.DurationMs})
 }
 
 // errSuperseded cancels a check when the same user starts another one.
@@ -425,7 +425,7 @@ func (s *Server) format(w http.ResponseWriter, r *http.Request) {
 		s.runnerFailed(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"content": res.Content, "diagnostics": explainAll(s.cfg.Course, ex, res.Diagnostics)})
+	writeJSON(w, http.StatusOK, map[string]any{"content": res.Content, "diagnostics": explainAll(ex, res.Diagnostics)})
 }
 
 // gateError is the 409 of a soft time gate: the UI shows the numbers and

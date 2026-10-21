@@ -271,7 +271,7 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	out := newEventWriter(w)
 
-	tracker := newRunTracker(s.cfg.Course, ex)
+	tracker := newRunTracker(ex)
 	var done *runnerapi.Event
 	for stream.Next() {
 		ev := stream.Event()
@@ -437,7 +437,6 @@ func (e *eventWriter) send(v any) error {
 // shows nothing but its own "--- FAIL" line failed only because a subtest
 // did; the subtests' explanations say why, so the parent gets none.
 type runTracker struct {
-	course    *course.Course                   // names the exercise an explanation points to
 	ex        *course.Exercise                 // its files are the ones the editor can open
 	results   map[string]string                // top-level test: its last action (pass, fail or skip)
 	started   map[string]bool                  // every test that reported run
@@ -455,9 +454,8 @@ type runTracker struct {
 // of the output is the part that explains the failure.
 const maxTrackedOutput = 256 << 10
 
-func newRunTracker(c *course.Course, ex *course.Exercise) *runTracker {
+func newRunTracker(ex *course.Exercise) *runTracker {
 	return &runTracker{
-		course:    c,
 		ex:        ex,
 		results:   map[string]string{},
 		started:   map[string]bool{},
@@ -614,20 +612,16 @@ func (t *runTracker) emit(test string, items []explain.Explanation) []any {
 // event is the explain event for test with items, which it marks openable
 // where the editor can open their file.
 func (t *runTracker) event(test string, items []explain.Explanation) explainEvent {
-	prepare(t.course, t.ex, items)
+	markOpenable(t.ex, items)
 	return explainEvent{Type: eventExplain, Test: test, Items: items}
 }
 
-// prepare readies explanations for the IDE. It sets Raw.Openable on those
-// whose file is a stub or test file of the exercise: a file of the runtime
-// or the standard library, such as panic.go in a recovered runtime error,
-// stays plain text in the UI, because the editor has no such file. And it
-// names each course exercise by the slug the loaded course uses.
-func prepare(c *course.Course, ex *course.Exercise, items []explain.Explanation) {
+// markOpenable sets Raw.Openable on the explanations whose file is a stub
+// or test file of the exercise. A file of the runtime or the standard
+// library, such as panic.go in a recovered runtime error, stays plain text
+// in the UI: the editor has no such file.
+func markOpenable(ex *course.Exercise, items []explain.Explanation) {
 	for i := range items {
-		if c != nil {
-			items[i] = items[i].WithCourse(c.CurrentSlug(items[i].Course))
-		}
 		raw := &items[i].Raw
 		if ex == nil || raw.File == "" {
 			raw.Openable = false

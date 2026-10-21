@@ -3,7 +3,7 @@ id: runtime-reflect-not-assignable
 source: runtime
 match: ^panic: reflect\.Set: value of type (?P<from>.+) is not assignable to type (?P<to>.+)$
 title: reflect: a {{from}} cannot be stored in a {{to}}
-course: 06-envconfig
+course: 31-envconfig
 links:
 - The Go spec: Assignability | https://go.dev/ref/spec#Assignability
 - Package reflect: Value.Set | https://pkg.go.dev/reflect#Value.Set

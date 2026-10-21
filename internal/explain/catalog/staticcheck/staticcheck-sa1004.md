@@ -4,7 +4,7 @@ source: staticcheck
 code: SA1004
 match: ^sleeping for (?P<n>\d+) nanoseconds is probably a bug; be explicit if it isn't$
 title: time.Sleep({{n}}) sleeps for {{n}} nanoseconds
-course: 07-retry
+course: 32-retry
 links:
 - staticcheck: SA1004 | https://staticcheck.dev/docs/checks/#SA1004
 - Package time: Duration | https://pkg.go.dev/time#Duration

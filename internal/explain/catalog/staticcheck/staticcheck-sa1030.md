@@ -3,7 +3,7 @@ id: staticcheck-sa1030
 source: staticcheck
 code: SA1030
 title: An argument of this strconv call is out of its valid range
-course: 17-promtext
+course: 42-promtext
 links:
 - staticcheck: SA1030 | https://staticcheck.dev/docs/checks/#SA1030
 - Package strconv: ParseInt | https://pkg.go.dev/strconv#ParseInt

@@ -28,19 +28,19 @@ goroutine 6 [chan receive]:
 testing.(*T).Run(0xc00012c1c0, {0x720084, 0xb}, 0xc00006cbc0)
 	/usr/local/go1.24.7/src/testing/testing.go:1859 +0x91e
 github.com/yornik/go-practice/exercises/01-logfmt_test.runParseCases(0xc00012c1c0, {0xc000135a78, 0xb, 0xc000057850?})
-	exercises/01-logfmt/logfmt_test.go:37 +0xa5
+	exercises/26-logfmt/logfmt_test.go:37 +0xa5
 github.com/yornik/go-practice/exercises/01-logfmt_test.TestParseBareValues(0xc00012c1c0)
-	exercises/01-logfmt/logfmt_test.go:52 +0x1fd7
+	exercises/26-logfmt/logfmt_test.go:52 +0x1fd7
 testing.tRunner(0xc00012c1c0, 0x7308b0)
 	/usr/local/go1.24.7/src/testing/testing.go:1792 +0x226
 created by testing.(*T).Run in goroutine 1
 	/usr/local/go1.24.7/src/testing/testing.go:1851 +0x8f3
 
 goroutine 7 [chan send]:
-github.com/yornik/go-practice/exercises/01-logfmt.Parse(...)
-	exercises/01-logfmt/logfmt.go:46
+github.com/yornik/go-practice/exercises/26-logfmt.Parse(...)
+	exercises/26-logfmt/logfmt.go:46
 github.com/yornik/go-practice/exercises/01-logfmt_test.runParseCases.func1(0xc00012c540)
-	exercises/01-logfmt/logfmt_test.go:38 +0x65
+	exercises/26-logfmt/logfmt_test.go:38 +0x65
 testing.tRunner(0xc00012c540, 0xc00006cbc0)
 	/usr/local/go1.24.7/src/testing/testing.go:1792 +0x226
 created by testing.(*T).Run in goroutine 6

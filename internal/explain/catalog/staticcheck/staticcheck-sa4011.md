@@ -3,7 +3,7 @@ id: staticcheck-sa4011
 source: staticcheck
 code: SA4011
 title: This break leaves the select or switch, not the loop around it
-course: 12-workerpool
+course: 37-workerpool
 links:
 - staticcheck: SA4011 | https://staticcheck.dev/docs/checks/#SA4011
 - The Go spec: Break statements | https://go.dev/ref/spec#Break_statements

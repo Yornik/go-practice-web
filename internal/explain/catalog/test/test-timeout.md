@@ -3,7 +3,7 @@ id: test-timeout
 source: test
 match: ^panic: test timed out after (?P<after>\S+)$
 title: {{test}} was still running after {{after}}
-course: 12-workerpool
+course: 37-workerpool
 links:
 - go test flags: -timeout | https://pkg.go.dev/cmd/go#hdr-Testing_flags
 - The Go blog: Pipelines and cancellation | https://go.dev/blog/pipelines#stopping-short

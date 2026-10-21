@@ -3,7 +3,7 @@ id: staticcheck-sa5008
 source: staticcheck
 code: SA5008
 title: A struct tag has an option or format that its encoder does not know
-course: 15-healthcheck
+course: 40-healthcheck
 links:
 - staticcheck: SA5008 | https://staticcheck.dev/docs/checks/#SA5008
 - Package encoding/json: Marshal | https://pkg.go.dev/encoding/json#Marshal

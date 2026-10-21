@@ -22,7 +22,7 @@ Open {{file}} and look at its first lines:
 
 - The `package` line was deleted, or a paste replaced it. Add it back: `package` followed by the same name as the other files of the exercise.
 - The file starts with an `import` or a function that was meant to go further down.
-- A test file of the course uses `package name_test`. A stub file uses the name after the number of the exercise directory, for example `logfmt` for `01-logfmt`.
+- A test file of the course uses `package name_test`. A stub file uses the name after the number of the exercise directory, for example `logfmt` for `26-logfmt`.
 
 When you are not sure of the name, look at the first line of another file in the same exercise.
 

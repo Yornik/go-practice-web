@@ -257,7 +257,7 @@ func TestRaceReport(t *testing.T) {
 			t.Errorf("Captures[%q] = %q, want %q", k, got, v)
 		}
 	}
-	if e.Course != "12-workerpool" || !strings.Contains(e.HTML, `href="/learn/12-workerpool"`) {
+	if e.Course != "37-workerpool" || !strings.Contains(e.HTML, `href="/learn/37-workerpool"`) {
 		t.Errorf("Course = %q; HTML has no course link", e.Course)
 	}
 	if !strings.HasPrefix(e.Raw.Message, "WARNING: DATA RACE\nRead at") || strings.Contains(e.Raw.Message, "created at") {
@@ -541,7 +541,7 @@ func TestRefs(t *testing.T) {
 
 func TestShortFunc(t *testing.T) {
 	tests := []struct{ in, pkg, short string }{
-		{"github.com/yornik/go-practice/exercises/01-logfmt.Parse(...)", "github.com/yornik/go-practice/exercises/01-logfmt", "Parse"},
+		{"github.com/yornik/go-practice/exercises/26-logfmt.Parse(...)", "github.com/yornik/go-practice/exercises/26-logfmt", "Parse"},
 		{"example.com/x.(*SyntaxError).Error(0xc000010000)", "example.com/x", "(*SyntaxError).Error"},
 		{"example.com/y.Count.func1()", "example.com/y", "Count.func1"},
 		{"testing.(*T).Run", "testing", "(*T).Run"},
@@ -578,7 +578,7 @@ func TestExit(t *testing.T) {
 	const (
 		fatal  = "2026/10/17 11:28:32 missing address\n"
 		goFail = "FAIL\texample.com/x\t0.004s\n"
-		// A watchdog such as the guard of the course's 08-ratelimit tests
+		// A watchdog such as the guard of the course's 33-ratelimit tests
 		// prints every goroutine before it exits.
 		dump = "\nTestInc is still running after 10s: a call is blocked.\nStacks of all goroutines:\n\n" +
 			"goroutine 7 [sync.Mutex.Lock]:\n" +
@@ -854,37 +854,5 @@ func TestFrameWithRegisters(t *testing.T) {
 	fs := crashFindings("TestReach", lines)
 	if len(fs) != 1 || fs[0].raw.File != "x.go" || fs[0].raw.Line != 7 || fs[0].builtins["func"] != "Reach" {
 		t.Fatalf("findings = %+v", fs)
-	}
-}
-
-func TestWithCourse(t *testing.T) {
-	var e Explanation
-	for _, x := range sortedEntries(catalog()) {
-		if x.course == "12-workerpool" {
-			e = x.explanation(nil, Raw{}, false)
-			break
-		}
-	}
-	if e.Course == "" {
-		t.Fatal("no catalog entry points to 12-workerpool")
-	}
-	if !strings.Contains(e.HTML, `href="/learn/12-workerpool"`) {
-		t.Fatalf("the entry does not link its exercise:\n%s", e.HTML)
-	}
-	got := e.WithCourse("37-workerpool")
-	if got.Course != "37-workerpool" || strings.Contains(got.HTML, "12-workerpool") ||
-		!strings.Contains(got.HTML, `href="/learn/37-workerpool"`) || !strings.Contains(got.HTML, "Course exercise 37-workerpool") {
-		t.Errorf("WithCourse = %q\n%s", got.Course, got.HTML)
-	}
-	if e.Course != "12-workerpool" || !strings.Contains(e.HTML, "12-workerpool") {
-		t.Error("WithCourse changed its receiver")
-	}
-	for _, slug := range []string{"", "12-workerpool"} {
-		if same := e.WithCourse(slug); same.Course != e.Course || same.HTML != e.HTML {
-			t.Errorf("WithCourse(%q) changed the explanation", slug)
-		}
-	}
-	if none := (Explanation{HTML: "x"}).WithCourse("37-workerpool"); none.Course != "" || none.HTML != "x" {
-		t.Errorf("WithCourse on an explanation without a course = %+v", none)
 	}
 }

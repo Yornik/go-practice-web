@@ -58,7 +58,7 @@ type Explanation struct {
 	HTML  string `json:"html"`
 	Links []Link `json:"links"`
 	// Course is the slug of the exercise that teaches the concept, for
-	// example "12-workerpool", or empty.
+	// example "37-workerpool", or empty.
 	Course string `json:"course,omitempty"`
 	// Generic is true when no entry matched and this is a generic guide.
 	Generic bool `json:"generic,omitempty"`
@@ -276,18 +276,4 @@ func normalizeDiagnostic(d runnerapi.Diagnostic) (source, code, msg string) {
 		code = ""
 	}
 	return source, code, msg
-}
-
-// WithCourse returns e with its course exercise named slug. The catalog
-// names exercises by the slug they had when the entry was written; the
-// site passes the slug the loaded course uses now (01-logfmt became
-// 26-logfmt), so the link and its text follow. An empty slug or an
-// explanation without a course exercise returns e unchanged.
-func (e Explanation) WithCourse(slug string) Explanation {
-	if e.Course == "" || slug == "" || slug == e.Course {
-		return e
-	}
-	e.HTML = strings.Replace(e.HTML, linksHTML(e.Links, e.Course), linksHTML(e.Links, slug), 1)
-	e.Course = slug
-	return e
 }

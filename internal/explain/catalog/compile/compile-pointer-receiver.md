@@ -3,7 +3,7 @@ id: compile-pointer-receiver
 source: compile
 match: ^cannot use (?P<expr>.+?) \((?P<what>.+?)\) as (?P<iface>.+?) value in [^:\n]+: (?P<type>\S+) does not implement .+ \(method (?P<method>\S+) has pointer receiver\)$
 title: Only *{{type}} implements {{iface}}, because {{method}} has a pointer receiver
-course: 01-logfmt
+course: 26-logfmt
 links:
 - The Go spec: Method sets | https://go.dev/ref/spec#Method_sets
 - Go FAQ: Why do T and *T have different method sets? | https://go.dev/doc/faq#different_method_sets

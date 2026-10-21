@@ -15,12 +15,11 @@ import (
 )
 
 // figureSlug is the exercise of Figure 1 and Figure 2 on the landing
-// page: the retry loop. Its slug changed with the course of 50, so it is
-// looked up through the renames, never by its number.
-const figureSlug = "07-retry"
+// page: the retry loop.
+const figureSlug = "32-retry"
 
 func (s *Server) landingPage(w http.ResponseWriter, r *http.Request) {
-	fig, _, _ := s.cfg.Course.Resolve(figureSlug)
+	fig, _ := s.cfg.Course.Exercise(figureSlug)
 	states := map[string]string{}
 	label := fmt.Sprintf("The course to scale: %d exercises in %d tiers, about %s.",
 		len(s.cfg.Course.Exercises), len(s.cfg.Course.Tiers), formatHours(s.cfg.Course.Hours()))

@@ -4,7 +4,7 @@ source: vet
 analyzer: atomic
 match: ^direct assignment to atomic value$
 title: The result of an atomic operation is written back with a plain assignment
-course: 21-broadcaster
+course: 46-broadcaster
 links:
 - Package sync/atomic | https://pkg.go.dev/sync/atomic
 - The Go Memory Model | https://go.dev/ref/mem

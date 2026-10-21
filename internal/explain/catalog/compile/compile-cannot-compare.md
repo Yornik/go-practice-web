@@ -4,7 +4,7 @@ source: compile
 match: ^invalid operation: .+ \((?P<reason>(?:slice|map|func) can only be compared to nil|.+ cannot be compared|incomparable types in type set)\)$
 match: ^invalid map key type (?P<reason>.+)$
 title: These values have no ==, so Go cannot compare them or use them as map keys
-course: 19-alertgroup
+course: 44-alertgroup
 links:
 - The Go spec: Comparison operators | https://go.dev/ref/spec#Comparison_operators
 - The Go spec: Map types | https://go.dev/ref/spec#Map_types

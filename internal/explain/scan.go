@@ -393,7 +393,7 @@ func exitFindings(test string, lines []string) []finding {
 
 // dumpFinding handles an exit right after a goroutine dump, the last of
 // lines. A watchdog prints one when a call never returns and then exits,
-// as the guard of the course's 08-ratelimit tests does after 10 s: the
+// as the guard of the course's 33-ratelimit tests does after 10 s: the
 // code under test called no os.Exit, it hangs. So the finding is the guide
 // to stack traces, at the first exercise frame of the goroutine that hangs,
 // and its message is the paragraph printed just before the dump, which

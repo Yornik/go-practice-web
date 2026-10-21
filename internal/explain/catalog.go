@@ -221,7 +221,7 @@ func parseEntry(p string, data []byte) (*entry, error) {
 		fail("id %q must start with the source and a dash: %q", e.id, e.source+"-")
 	}
 	if e.course != "" && !courseRE.MatchString(e.course) {
-		fail("course %q must be an exercise slug such as 12-workerpool", e.course)
+		fail("course %q must be an exercise slug such as 37-workerpool", e.course)
 	}
 
 	// What the entry matches on.

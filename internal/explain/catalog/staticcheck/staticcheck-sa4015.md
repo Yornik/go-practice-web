@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4015
 match: ^calling (?P<func>\S+) on a converted integer is pointless$
 title: {{func}} gets an integer, so there is nothing left to round
-course: 03-latency
+course: 28-latency
 links:
 - staticcheck: SA4015 | https://staticcheck.dev/docs/checks/#SA4015
 - The Go spec: Integer operators | https://go.dev/ref/spec#Integer_operators

@@ -3,7 +3,7 @@ id: compile-does-not-satisfy
 source: compile
 match: ^(?:in call to (?P<func>[^,]+), )?(?P<type>.+?) does not satisfy (?P<constraint>.+?)(?: \((?P<reason>.+)\))?$
 title: {{type}} does not satisfy the constraint {{constraint}}
-course: 09-cache
+course: 34-cache
 links:
 - The Go spec: Satisfying a type constraint | https://go.dev/ref/spec#Satisfying_a_type_constraint
 - The Go spec: Type constraints | https://go.dev/ref/spec#Type_constraints

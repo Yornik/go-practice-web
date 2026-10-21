@@ -4,7 +4,7 @@ source: compile
 match: ^in call to (?P<func>.+?), cannot infer (?P<param>\S+)(?: \(declared at .+\))?$
 match: ^in call to (?P<func>.+?), .*\(cannot infer (?P<param>[^)]+)\)$
 title: Go cannot work out the type parameter {{param}} of {{func}}
-course: 09-cache
+course: 34-cache
 links:
 - The Go spec: Instantiations | https://go.dev/ref/spec#Instantiations
 - The Go spec: Type inference | https://go.dev/ref/spec#Type_inference

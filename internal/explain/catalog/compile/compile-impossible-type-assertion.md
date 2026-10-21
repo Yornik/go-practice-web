@@ -3,7 +3,7 @@ id: compile-impossible-type-assertion
 source: compile
 match: ^impossible type (?:assertion|switch case): (?P<expr>[^\n]+)(?:\n\s*(?P<reason>[\s\S]+))?$
 title: The type check {{expr}} can never succeed
-course: 01-logfmt
+course: 26-logfmt
 links:
 - The Go spec: Type assertions | https://go.dev/ref/spec#Type_assertions
 - The Go spec: Method sets | https://go.dev/ref/spec#Method_sets

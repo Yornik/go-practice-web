@@ -3,7 +3,7 @@ id: staticcheck-sa1012
 source: staticcheck
 code: SA1012
 title: A nil context is passed where a context.Context belongs
-course: 07-retry
+course: 32-retry
 links:
 - staticcheck: SA1012 | https://staticcheck.dev/docs/checks/#SA1012
 - Package context | https://pkg.go.dev/context

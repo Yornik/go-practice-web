@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4005
 match: ^ineffective assignment to field (?P<field>\S+)$
 title: The assignment to {{field}} changes a copy and is lost
-course: 05-slo
+course: 30-slo
 links:
 - staticcheck: SA4005 | https://staticcheck.dev/docs/checks/#SA4005
 - Effective Go: Pointers vs. Values | https://go.dev/doc/effective_go#pointers_vs_values

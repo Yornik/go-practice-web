@@ -3,7 +3,7 @@ id: compile-nil-value
 source: compile
 match: ^cannot use nil as (?P<type>.+) value in (?P<context>.+)$
 title: nil is not a value of type {{type}}
-course: 09-cache
+course: 34-cache
 links:
 - The Go spec: The zero value | https://go.dev/ref/spec#The_zero_value
 - The Go spec: Assignability | https://go.dev/ref/spec#Assignability

@@ -3,7 +3,7 @@ id: staticcheck-sa2001
 source: staticcheck
 code: SA2001
 title: The mutex is unlocked right after it is locked, so it protects nothing
-course: 08-ratelimit
+course: 33-ratelimit
 links:
 - staticcheck: SA2001 | https://staticcheck.dev/docs/checks/#SA2001
 - Package sync: Mutex | https://pkg.go.dev/sync#Mutex

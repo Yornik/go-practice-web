@@ -136,14 +136,13 @@ func TestCatalogStyle(t *testing.T) {
 			if e.source != SourceGuide && !strings.Contains(section(e.body, "Example"), "```") {
 				t.Errorf("%s: the Example section has no code block", e.path)
 			}
+			// The site links the course exercise as it is: an old slug of
+			// the first course would lead to a redirect, or to nothing.
+			if to, ok := course.Renamed(e.course); ok {
+				t.Errorf("%s: course %q is a slug of the first course; it is %q now", e.path, e.course, to)
+			}
 			if e.course != "" && haveCourse {
-				// The catalog may name an exercise by its slug of the first
-				// course; the site renames it (Explanation.WithCourse).
-				_, err := os.Stat(filepath.Join(courseDir, e.course))
-				if renamed, ok := course.Renamed(e.course); err != nil && ok {
-					_, err = os.Stat(filepath.Join(courseDir, renamed))
-				}
-				if err != nil {
+				if _, err := os.Stat(filepath.Join(courseDir, e.course)); err != nil {
 					t.Errorf("%s: course %q is not an exercise in course/exercises", e.path, e.course)
 				}
 			}

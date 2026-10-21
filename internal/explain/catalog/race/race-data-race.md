@@ -4,7 +4,7 @@ source: race
 match: ^WARNING: DATA RACE
 fallback: true
 title: Data race in {{func}}
-course: 12-workerpool
+course: 37-workerpool
 links:
 - Data Race Detector | https://go.dev/doc/articles/race_detector
 - The Go Memory Model | https://go.dev/ref/mem

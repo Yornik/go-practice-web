@@ -3,7 +3,7 @@ id: compile-wrong-method-signature
 source: compile
 match: ^cannot use (?P<expr>.+?) \((?P<what>.+?)\) as (?P<iface>.+?) value in [^:\n]+: (?P<type>.+?) does not implement .+? \(wrong type for method (?P<method>\S+)\)(?:\n\s*have (?P<have>.+)\n\s*want (?P<want>.+))?$
 title: {{type}} has a method {{method}}, but not with the signature {{iface}} needs
-course: 16-middleware
+course: 41-middleware
 links:
 - The Go spec: Implementing an interface | https://go.dev/ref/spec#Implementing_an_interface
 - The Go spec: Interface types | https://go.dev/ref/spec#Interface_types

@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4025
 match: ^the integer division '(?P<expr>[^']+)' results in zero$
 title: The integer division {{expr}} is 0
-course: 05-slo
+course: 30-slo
 links:
 - staticcheck: SA4025 | https://staticcheck.dev/docs/checks/#SA4025
 - The Go spec: Constant expressions | https://go.dev/ref/spec#Constant_expressions

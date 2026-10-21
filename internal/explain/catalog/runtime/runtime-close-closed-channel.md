@@ -3,7 +3,7 @@ id: runtime-close-closed-channel
 source: runtime
 match: ^panic: close of closed channel$
 title: {{func}} closed a channel that was already closed
-course: 21-broadcaster
+course: 46-broadcaster
 links:
 - The Go spec: Close | https://go.dev/ref/spec#Close
 - The Go blog: Pipelines and cancellation | https://go.dev/blog/pipelines#fan-out-fan-in

@@ -3,7 +3,7 @@ id: staticcheck-sa9004
 source: staticcheck
 code: SA9004
 title: Only the first constant of this group has the type you gave it
-course: 01-logfmt
+course: 26-logfmt
 links:
 - staticcheck: SA9004 | https://staticcheck.dev/docs/checks/#SA9004
 - The Go spec: Constant declarations | https://go.dev/ref/spec#Constant_declarations

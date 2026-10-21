@@ -4,7 +4,7 @@ source: vet
 analyzer: structtag
 match: ^struct field (?P<field>\S+) has (?P<key>\S+) tag but is not exported$
 title: The field {{field}} has a {{key}} tag, but package {{key}} cannot see it
-course: 15-healthcheck
+course: 40-healthcheck
 links:
 - The Go spec: Exported identifiers | https://go.dev/ref/spec#Exported_identifiers
 - Package encoding/json: Marshal | https://pkg.go.dev/encoding/json#Marshal

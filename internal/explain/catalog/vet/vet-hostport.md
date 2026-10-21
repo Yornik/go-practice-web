@@ -4,7 +4,7 @@ source: vet
 analyzer: hostport
 match: ^address format (?P<format>"[^"]*") does not work with IPv6(?: \(passed to (?P<call>\S+) at L(?P<at>\d+)\))?$
 title: The address format {{format}} breaks for IPv6 hosts
-course: 18-certcheck
+course: 43-certcheck
 links:
 - Package net: JoinHostPort | https://pkg.go.dev/net#JoinHostPort
 - Package net: SplitHostPort | https://pkg.go.dev/net#SplitHostPort

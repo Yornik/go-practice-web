@@ -3,7 +3,7 @@ id: runtime-close-nil-channel
 source: runtime
 match: ^panic: close of nil channel$
 title: {{func}} closed a channel that was never made
-course: 21-broadcaster
+course: 46-broadcaster
 links:
 - The Go spec: Close | https://go.dev/ref/spec#Close
 - The Go spec: Channel types | https://go.dev/ref/spec#Channel_types

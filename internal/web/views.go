@@ -125,7 +125,11 @@ func figureTwo(c *course.Course) landingFigure {
 			secs = append(secs, s)
 		}
 	}
-	return landingFigure{Title: codeCaptures(e.Title, e.Raw.Captures), Sections: secs, Course: c.CurrentSlug(e.Course)}
+	fig := landingFigure{Title: codeCaptures(e.Title, e.Raw.Captures), Sections: secs}
+	if _, ok := c.Exercise(e.Course); ok {
+		fig.Course = e.Course
+	}
+	return fig
 }
 
 // codeCaptures escapes a title and sets each captured value in <code>, as

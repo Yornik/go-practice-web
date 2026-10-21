@@ -3,7 +3,7 @@ id: compile-range-iteration-variables
 source: compile
 match: ^range over (?P<expr>.+?) \((?P<what>.+)\) permits only one iteration variable$
 title: A range over {{expr}} gives 1 value per iteration, not 2
-course: 13-logmerge
+course: 38-logmerge
 links:
 - The Go spec: For statements with range clause | https://go.dev/ref/spec#For_range
 - Package iter | https://pkg.go.dev/iter

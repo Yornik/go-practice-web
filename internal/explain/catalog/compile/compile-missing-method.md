@@ -3,7 +3,7 @@ id: compile-missing-method
 source: compile
 match: ^cannot use (?P<expr>.+?) \((?P<what>.+?)\) as (?P<iface>.+?) value in [^:\n]+: (?P<type>.+?) does not implement .+? \((?:missing|unexported) method (?P<method>\S+)\)(?:\n[\s\S]*)?$
 title: {{type}} does not implement {{iface}}: the method {{method}} is missing
-course: 04-grep
+course: 29-grep
 links:
 - The Go spec: Interface types | https://go.dev/ref/spec#Interface_types
 - Effective Go: Interfaces | https://go.dev/doc/effective_go#interfaces

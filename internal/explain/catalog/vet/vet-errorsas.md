@@ -4,7 +4,7 @@ source: vet
 analyzer: errorsas
 match: ^second argument to errors\.As (?P<problem>must be a non-nil pointer to either a type that implements error, or to any interface type|should not be \*error)$
 title: The second argument of errors.As is not a pointer to an error variable
-course: 01-logfmt
+course: 26-logfmt
 links:
 - Package errors: As | https://pkg.go.dev/errors#As
 - The Go blog: Working with Errors in Go 1.13 | https://go.dev/blog/go1.13-errors

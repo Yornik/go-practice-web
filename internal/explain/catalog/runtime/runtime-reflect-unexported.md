@@ -3,7 +3,7 @@ id: runtime-reflect-unexported
 source: runtime
 match: ^panic: reflect: reflect\.Value\.(?P<method>\w+) using value obtained using unexported field$
 title: reflect: {{method}} cannot change an unexported field
-course: 06-envconfig
+course: 31-envconfig
 links:
 - The Go spec: Exported identifiers | https://go.dev/ref/spec#Exported_identifiers
 - Package reflect: StructField.IsExported | https://pkg.go.dev/reflect#StructField.IsExported

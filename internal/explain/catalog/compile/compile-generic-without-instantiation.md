@@ -3,7 +3,7 @@ id: compile-generic-without-instantiation
 source: compile
 match: ^cannot use generic (?P<kind>type|function) (?P<name>.+?) without instantiation$
 title: The generic {{kind}} {{name}} needs type arguments here
-course: 09-cache
+course: 34-cache
 links:
 - The Go spec: Instantiations | https://go.dev/ref/spec#Instantiations
 - The Go spec: Method declarations | https://go.dev/ref/spec#Method_declarations

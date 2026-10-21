@@ -4,7 +4,7 @@ source: vet
 analyzer: structtag
 match: ^struct field tag (?P<tag>.+) not compatible with reflect\.StructTag\.Get: (?P<problem>.+)$
 title: The struct tag {{tag}} is not in the key:"value" format
-course: 06-envconfig
+course: 31-envconfig
 links:
 - The Go spec: Struct types | https://go.dev/ref/spec#Struct_types
 - Package reflect: StructTag | https://pkg.go.dev/reflect#StructTag

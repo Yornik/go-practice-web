@@ -3,7 +3,7 @@ id: runtime-deadlock
 source: runtime
 match: ^fatal error: all goroutines are asleep - deadlock!$
 title: Every goroutine is waiting: a deadlock in {{func}}
-course: 12-workerpool
+course: 37-workerpool
 links:
 - The Go spec: Channel types | https://go.dev/ref/spec#Channel_types
 - Effective Go: Channels | https://go.dev/doc/effective_go#channels

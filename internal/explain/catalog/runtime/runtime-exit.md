@@ -4,7 +4,7 @@ source: runtime
 match: ^exit: (?P<output>(?s:.+))$
 fallback: true
 title: The test binary exited before the tests reported a result
-course: 06-envconfig
+course: 31-envconfig
 links:
 - Package os: Exit | https://pkg.go.dev/os#Exit
 - Effective Go: Errors | https://go.dev/doc/effective_go#errors

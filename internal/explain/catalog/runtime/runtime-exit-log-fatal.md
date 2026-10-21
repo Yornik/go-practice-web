@@ -3,7 +3,7 @@ id: runtime-exit-log-fatal
 source: runtime
 match: ^exit: \d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (?P<message>(?s:.+))$
 title: log.Fatal ended the test binary: {{message}}
-course: 06-envconfig
+course: 31-envconfig
 links:
 - Package log: Fatal | https://pkg.go.dev/log#Fatal
 - Package os: Exit | https://pkg.go.dev/os#Exit
