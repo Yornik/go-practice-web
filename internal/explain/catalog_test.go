@@ -1,6 +1,7 @@
 package explain
 
 import (
+	"cmp"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +16,8 @@ import (
 	"testing"
 	"testing/fstest"
 	"time"
+
+	"github.com/yornik/go-practice-web/internal/course"
 )
 
 // Word limits for the prose of a body (code blocks and headings do not
@@ -113,7 +116,7 @@ func TestLoaderReportsCatalogProblems(t *testing.T) {
 // program can check.
 func TestCatalogStyle(t *testing.T) {
 	c := catalog()
-	courseDir := filepath.Join("..", "..", "course", "exercises")
+	courseDir := filepath.Join(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")), "exercises")
 	_, err := os.Stat(courseDir)
 	haveCourse := err == nil
 	for _, e := range sortedEntries(c) {
@@ -132,6 +135,11 @@ func TestCatalogStyle(t *testing.T) {
 			}
 			if e.source != SourceGuide && !strings.Contains(section(e.body, "Example"), "```") {
 				t.Errorf("%s: the Example section has no code block", e.path)
+			}
+			// The site links the course exercise as it is: an old slug of
+			// the first course would lead to a redirect, or to nothing.
+			if to, ok := course.Renamed(e.course); ok {
+				t.Errorf("%s: course %q is a slug of the first course; it is %q now", e.path, e.course, to)
 			}
 			if e.course != "" && haveCourse {
 				if _, err := os.Stat(filepath.Join(courseDir, e.course)); err != nil {

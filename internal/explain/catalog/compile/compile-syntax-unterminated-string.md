@@ -4,7 +4,7 @@ source: compile
 match: ^newline in string$
 match: ^(?:raw )?string(?: literal)? not terminated(?: \(and \d+ more errors?\))?$
 title: The string literal is not closed on this line
-course: 01-logfmt
+course: 26-logfmt
 links:
 - The Go spec: String literals | https://go.dev/ref/spec#String_literals
 - The Go spec: Rune literals | https://go.dev/ref/spec#Rune_literals
@@ -43,4 +43,4 @@ const usage = `usage: tool [flags]
 
 ## Learn more
 
-Exercise 01 parses quoted values with escapes.
+The course exercise below parses quoted values with escapes.

@@ -25,9 +25,9 @@ func TestPagesRender(t *testing.T) {
 		{"/verify", nil, []string{"Verify a certificate"}},
 		{"/verify-email?token=x", nil, []string{"Confirm my address"}},
 		{"/learn", admin, []string{"Your course", "learning log", "Parse logfmt log lines", `data-stat="passed"`}},
-		{"/learn/01-logfmt", admin, []string{"data-exercise=\"01-logfmt\"", "Run tests", "Hint 1", "All tests", "A nudge"}},
+		{"/learn/" + logfmt, admin, []string{"data-exercise=\"" + logfmt + "\"", "Run tests", "Hint 1", "All tests", "A nudge"}},
 		{"/account", admin, []string{"Passkeys", "ada@example.com", "Sign out everywhere"}},
-		{"/certificates", admin, []string{"Tier 1", "The course", "3 to go: 01, 02, 03."}},
+		{"/certificates", admin, []string{"Tier 1 · Badge In", "The complete course", "5 to go: 01, 02, 03, 04, 05."}},
 		{"/admin", admin, []string{"Create an invite", "Ada Admin"}},
 	}
 	for _, tt := range tests {

@@ -4,7 +4,7 @@ source: staticcheck
 code: SA9005
 match: ^struct type '(?P<type>[^']+)' doesn't have any exported fields, nor custom marshaling$
 title: The struct {{type}} has no exported fields, so it encodes as an empty object
-course: 15-healthcheck
+course: 40-healthcheck
 links:
 - staticcheck: SA9005 | https://staticcheck.dev/docs/checks/#SA9005
 - The Go spec: Exported identifiers | https://go.dev/ref/spec#Exported_identifiers

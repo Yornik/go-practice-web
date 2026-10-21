@@ -59,7 +59,7 @@ async function setValidate(page, body) {
   }, body);
 }
 
-/** Exercise 07 with a wrong Validate, a failing run, hint 1 and a compile error typed after the run. */
+/** Exercise 32 with a wrong Validate, a failing run, hint 1 and a compile error typed after the run. */
 async function ideScenario(page, size) {
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await setValidate(page, "\t// Check the fields first.\n\treturn nil");
@@ -168,7 +168,7 @@ test("screenshots of every page", async ({ browser, page, context }) => {
       const ctx = await browser.newContext({ viewport: v.viewport, colorScheme: theme, storageState: state });
       const p = await ctx.newPage();
       const errs = watchErrors(p);
-      await p.goto("/learn/07-retry");
+      await p.goto("/learn/32-retry");
       await expect(p.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
       await p.screenshot({ path: path.join(dir, `ide-start-${theme}-${v.size}.png`), fullPage: v.size === "mobile" });
       await p.locator("[data-step-select]").selectOption("all");
@@ -189,7 +189,7 @@ test("screenshots of every page", async ({ browser, page, context }) => {
       const ctx = await browser.newContext({ viewport: v.viewport, colorScheme: theme, storageState: state });
       const p = await ctx.newPage();
       const errs = watchErrors(p);
-      await p.goto("/learn/07-retry");
+      await p.goto("/learn/32-retry");
       await ideScenario(p, v.size);
       await p.screenshot({ path: path.join(dir, `ide-${theme}-${v.size}.png`), fullPage: v.size === "mobile" });
       if (v.size === "desktop") {
@@ -220,7 +220,7 @@ test("screenshots of every page", async ({ browser, page, context }) => {
   }
 
   // Tier 1 with the reference solutions, for a real certificate.
-  for (const slug of ["01-logfmt", "02-accesslog", "03-latency"]) await pass(page, slug);
+  for (const slug of ["01-loglevels", "02-repeated", "03-pagenoise", "04-waves", "05-envfile"]) await pass(page, slug);
   await shootAll(browser, "course", "/learn", signedIn);
   await shootAll(browser, "certificates-eligible", "/certificates", signedIn);
   await shootAll(browser, "claim-dialog", "/certificates", {

@@ -4,7 +4,7 @@ source: vet
 analyzer: slog
 match: ^(?P<call>\S+) arg "(?P<arg>[^"]*)" should (?:probably )?be a string or a slog\.Attr \((?P<reason>.+)\)$
 title: {{call}} expects a key where it finds the value {{arg}}
-course: 16-middleware
+course: 41-middleware
 links:
 - Package log/slog | https://pkg.go.dev/log/slog
 - Package log/slog: Logger.Log | https://pkg.go.dev/log/slog#Logger.Log

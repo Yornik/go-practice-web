@@ -4,7 +4,7 @@ source: staticcheck
 code: SA1003
 match: ^value of type (?P<type>.+) cannot be used with (?P<call>\S+)$
 title: {{call}} cannot encode a {{type}}, because its size is not fixed
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - staticcheck: SA1003 | https://staticcheck.dev/docs/checks/#SA1003
 - Package encoding/binary: Write | https://pkg.go.dev/encoding/binary#Write

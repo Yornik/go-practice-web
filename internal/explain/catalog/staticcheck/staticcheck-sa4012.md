@@ -3,7 +3,7 @@ id: staticcheck-sa4012
 source: staticcheck
 code: SA4012
 title: Nothing is equal to NaN, not even NaN itself
-course: 03-latency
+course: 13-nines
 links:
 - staticcheck: SA4012 | https://staticcheck.dev/docs/checks/#SA4012
 - Package math: IsNaN | https://pkg.go.dev/math#IsNaN

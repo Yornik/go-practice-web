@@ -3,7 +3,7 @@ id: runtime-stack-overflow
 source: runtime
 match: ^fatal error: stack overflow$
 title: Endless recursion: the stack outgrew its limit in {{func}}
-course: 11-tracetree
+course: 36-tracetree
 links:
 - Package runtime/debug: SetMaxStack | https://pkg.go.dev/runtime/debug#SetMaxStack
 - Go FAQ: Why goroutines instead of threads? | https://go.dev/doc/faq#goroutines

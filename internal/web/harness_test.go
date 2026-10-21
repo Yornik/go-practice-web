@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -32,13 +33,20 @@ const (
 	runnerToken = "test-runner-token-0123456789abcdef"
 )
 
-// testCourse is loaded once: Load renders every README.
+// testCourse is the real course, loaded once: Load renders every README.
 var testCourse *course.Course
 
+// logfmt is the exercise most tests use.
+const logfmt = "26-logfmt"
+
 func TestMain(m *testing.M) {
-	c, err := course.Load(filepath.Join("..", "..", "course"))
+	c, err := course.Load(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "load course:", err)
+		os.Exit(1)
+	}
+	if _, ok := c.Exercise(logfmt); !ok {
+		fmt.Fprintln(os.Stderr, "the course has no exercise", logfmt)
 		os.Exit(1)
 	}
 	testCourse = c
@@ -99,6 +107,7 @@ type fakeRunner struct {
 	block    chan struct{} // when set, a test run waits for it to close
 	started  chan struct{} // receives when a test run starts
 	failWith int           // when set, every call answers this status
+	failCode string        // the code of that answer; "" is queue_full
 
 	checkStarted chan struct{} // receives when a check starts
 	checkBlock   chan struct{} // when set, a check waits for it to close
@@ -115,12 +124,12 @@ func (f *fakeRunner) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.mu.Lock()
-	failWith := f.failWith
+	failWith, failCode := f.failWith, cmp.Or(f.failCode, "queue_full")
 	f.mu.Unlock()
 	if failWith != 0 {
 		w.Header().Set("Retry-After", "5")
 		w.WriteHeader(failWith)
-		_ = json.NewEncoder(w).Encode(runnerapi.Error{Error: "queue is full", Code: "queue_full"})
+		_ = json.NewEncoder(w).Encode(runnerapi.Error{Error: failCode, Code: failCode})
 		return
 	}
 	switch r.URL.Path {
@@ -244,8 +253,8 @@ func failingRun(runnerapi.TestRequest) []runnerapi.Event {
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "panic: TODO: implement [recovered]\n"},
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\tpanic: TODO: implement\n"},
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\ngoroutine 7 [running]:\n"},
-		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "example.com/exercises/01-logfmt.Parse(...)\n"},
-		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\texercises/01-logfmt/logfmt.go:30 +0x25\n"},
+		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "example.com/exercises/26-logfmt.Parse(...)\n"},
+		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\texercises/26-logfmt/logfmt.go:30 +0x25\n"},
 		{Type: runnerapi.EventTest, Action: "fail", Test: "TestParse", Elapsed: 0.01},
 		{Type: runnerapi.EventDone, ExitCode: 1, Failed: 1, DurationMs: 800},
 	}

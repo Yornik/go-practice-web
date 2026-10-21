@@ -95,7 +95,7 @@ func serve(log *slog.Logger) error {
 		return err
 	}
 	accounts, err := auth.New(st, mail.NewMailer(sender, cfg.PublicURL), auth.Config{
-		PublicURL: cfg.PublicURL, Dev: cfg.Dev, Logger: log,
+		PublicURL: cfg.PublicURL, Dev: cfg.Dev, Logger: log, Exercises: len(crs.Exercises),
 	})
 	if err != nil {
 		return err
@@ -232,7 +232,7 @@ func every(ctx context.Context, first, period time.Duration, fn func()) {
 // backup writes the daily copy next to the database.
 func backup(ctx context.Context, log *slog.Logger, st *store.Store) {
 	start := time.Now()
-	path, err := st.Backup(ctx, filepath.Join(filepath.Dir(st.Path()), "backups"))
+	path, err := st.Backup(ctx, st.BackupDir())
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Error("backup failed", "err", err)

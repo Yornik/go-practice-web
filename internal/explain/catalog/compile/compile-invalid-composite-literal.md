@@ -3,7 +3,7 @@ id: compile-invalid-composite-literal
 source: compile
 match: ^invalid composite literal type (?P<type>[^(\n]+?)(?: \((?P<reason>[^)]+)\))?$
 title: {{type}} cannot be built with a composite literal
-course: 09-cache
+course: 17-flightrec
 links:
 - The Go spec: Composite literals | https://go.dev/ref/spec#Composite_literals
 - The Go spec: The zero value | https://go.dev/ref/spec#The_zero_value
@@ -45,4 +45,4 @@ func Zero[T any]() T {
 
 ## Learn more
 
-Exercise 09 practises the zero value of a type parameter.
+The course exercise below practises the zero value of a type parameter.

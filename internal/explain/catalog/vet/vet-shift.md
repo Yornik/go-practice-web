@@ -4,7 +4,7 @@ source: vet
 analyzer: shift
 match: ^(?P<expr>.+) \((?:\w+ )*(?P<bits>\d+) bits\) too small for shift of (?P<shift>\d+)$
 title: {{expr}} has {{bits}} bits, so a shift by {{shift}} pushes every bit out
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - The Go spec: Arithmetic operators | https://go.dev/ref/spec#Arithmetic_operators
 - The Go spec: Integer overflow | https://go.dev/ref/spec#Integer_overflow

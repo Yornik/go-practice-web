@@ -3,7 +3,7 @@ id: vet-structtag
 source: vet
 analyzer: structtag
 title: A struct tag breaks a rule of the package that reads it
-course: 06-envconfig
+course: 31-envconfig
 links:
 - Package reflect: StructTag | https://pkg.go.dev/reflect#StructTag
 - Package encoding/json: Marshal | https://pkg.go.dev/encoding/json#Marshal

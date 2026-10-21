@@ -3,7 +3,7 @@ id: test-waited-for
 source: test
 match: ^timed out after (?P<limit>(?:\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h))+) waiting (?:until|for) (?P<what>[^\n]+)$
 title: The test waited {{limit}} for this to happen: {{what}}
-course: 12-workerpool
+course: 37-workerpool
 links:
 - The Go spec: Go statements | https://go.dev/ref/spec#Go_statements
 - Package sync: WaitGroup | https://pkg.go.dev/sync#WaitGroup

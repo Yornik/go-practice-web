@@ -11,13 +11,14 @@ import (
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
 
-// strip is the course to scale: 25 bars as wide as their hours, grouped
-// by tier (".design/FINAL.md", section 6.15).
+// strip is the course to scale: 1 bar per exercise, as wide as its hours,
+// grouped by tier (".design/FINAL.md", section 6.15).
 type strip struct {
 	Tiers []stripTier
-	Class string // "strip-lg" on the landing page, "strip-mini" in the admin table
-	Links bool   // each bar links to its exercise
-	Label string // the accessible name of the whole strip when the bars are not links
+	Class string  // "strip-lg" on the landing page, "strip-mini" in the admin table
+	Links bool    // each bar links to its exercise
+	Label string  // the accessible name of the whole strip when the bars are not links
+	Max   float64 // the hours of the longest tier: on a narrow screen it is the full width
 }
 
 type stripTier struct {
@@ -38,15 +39,30 @@ func (b stripBar) Name() string {
 	return fmt.Sprintf("%02d %s, %s, %s", b.Number, b.Title, formatHours(b.Hours), state)
 }
 
-// courseStrip builds the strip; states maps a slug to "started", "passed"
-// or "here".
+// courseStrip builds the strip of the whole course; states maps a slug to
+// "started", "passed" or "here".
 func courseStrip(c *course.Course, states map[string]string) strip {
+	return coveredStrip(c.Tiers, states, nil)
+}
+
+// coveredStrip builds the strip of the given tiers. With a non-nil only,
+// it draws only the exercises in it: a certificate of the first course
+// covers 25 of the 50.
+func coveredStrip(tiers []*course.Tier, states map[string]string, only map[string]bool) strip {
 	var s strip
-	for _, t := range c.Tiers {
-		st := stripTier{N: t.N, Hours: t.Hours()}
+	for _, t := range tiers {
+		st := stripTier{N: t.N}
 		for _, e := range t.Exercises {
+			if only != nil && !only[e.Slug] {
+				continue
+			}
+			st.Hours += e.Hours
 			st.Bars = append(st.Bars, stripBar{Exercise: e, State: states[e.Slug]})
 		}
+		if len(st.Bars) == 0 {
+			continue
+		}
+		s.Max = max(s.Max, st.Hours)
 		s.Tiers = append(s.Tiers, st)
 	}
 	return s
@@ -98,7 +114,7 @@ type landingFigure struct {
 	Course   string
 }
 
-func figureTwo() landingFigure {
+func figureTwo(c *course.Course) landingFigure {
 	e := explain.Explain(runnerapi.Diagnostic{
 		File: "retry.go", Line: 120, Column: 11, Severity: runnerapi.SeverityError,
 		Source: runnerapi.SourceCompile, Message: "undefined: sleepContext",
@@ -109,7 +125,11 @@ func figureTwo() landingFigure {
 			secs = append(secs, s)
 		}
 	}
-	return landingFigure{Title: codeCaptures(e.Title, e.Raw.Captures), Sections: secs, Course: e.Course}
+	fig := landingFigure{Title: codeCaptures(e.Title, e.Raw.Captures), Sections: secs}
+	if _, ok := c.Exercise(e.Course); ok {
+		fig.Course = e.Course
+	}
+	return fig
 }
 
 // codeCaptures escapes a title and sets each captured value in <code>, as

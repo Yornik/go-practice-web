@@ -55,12 +55,12 @@ func TestCSRFAndOrigin(t *testing.T) {
 func TestAuthRequired(t *testing.T) {
 	h := newHarness(t)
 	for _, r := range []req{
-		{method: "GET", path: "/api/exercises/01-logfmt"},
-		{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": "x"}},
-		{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{}},
-		{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}},
-		{method: "POST", path: "/api/exercises/01-logfmt/reveal", body: map[string]int{"level": 1}},
-		{method: "POST", path: "/api/exercises/01-logfmt/heartbeat", body: map[string]any{}},
+		{method: "GET", path: "/api/exercises/" + logfmt},
+		{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": "x"}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/reveal", body: map[string]int{"level": 1}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/heartbeat", body: map[string]any{}},
 		{method: "GET", path: "/api/certificates"},
 		{method: "POST", path: "/api/certificates", body: map[string]string{"kind": "tier1"}},
 		{method: "PUT", path: "/api/account", body: map[string]string{}},
@@ -73,7 +73,7 @@ func TestAuthRequired(t *testing.T) {
 			t.Errorf("%s %s = %d, want 401", r.method, r.path, w.Code)
 		}
 	}
-	for _, p := range []string{"/learn", "/learn/01-logfmt", "/account", "/certificates", "/admin"} {
+	for _, p := range []string{"/learn", "/learn/" + logfmt, "/account", "/certificates", "/admin"} {
 		w := h.do(req{method: "GET", path: p})
 		if w.Code != http.StatusSeeOther || !strings.HasPrefix(w.Header().Get("Location"), "/login?next=") {
 			t.Errorf("GET %s = %d %s, want a redirect to /login", p, w.Code, w.Header().Get("Location"))
@@ -134,7 +134,7 @@ func TestLoginLogoutAndDisable(t *testing.T) {
 	// Disabling signs bob out at once.
 	w = h.do(req{method: "PUT", path: "/api/admin/users/" + itoa(bob.ID), body: map[string]bool{"disabled": true}, as: admin})
 	wantStatus(t, w, http.StatusOK)
-	if w := h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: bob}); w.Code != http.StatusUnauthorized {
+	if w := h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: bob}); w.Code != http.StatusUnauthorized {
 		t.Fatalf("disabled user API = %d", w.Code)
 	}
 	w = h.do(req{method: "PUT", path: "/api/admin/users/" + itoa(admin.ID), body: map[string]bool{"disabled": true}, as: admin})
@@ -146,16 +146,16 @@ func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 func TestFilesSaveAndReset(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
-	w := h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": "package logfmt\n// mine\n"}, as: admin})
+	w := h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": "package logfmt\n// mine\n"}, as: admin})
 	wantStatus(t, w, http.StatusOK)
 	for _, p := range []string{"logfmt_test.go", "..%2Fgo.mod", "nope.go"} {
-		w := h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/files/" + p, body: map[string]string{"content": "x"}, as: admin})
+		w := h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/files/" + p, body: map[string]string{"content": "x"}, as: admin})
 		if w.Code != http.StatusNotFound {
 			t.Errorf("save %s = %d, want 404", p, w.Code)
 		}
 	}
 	big := strings.Repeat("x", runnerapi.MaxFileBytes+1)
-	w = h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": big}, as: admin})
+	w = h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": big}, as: admin})
 	wantStatus(t, w, http.StatusRequestEntityTooLarge)
 
 	boot := decodeJSON[struct {
@@ -170,7 +170,7 @@ func TestFilesSaveAndReset(t *testing.T) {
 			Status string `json:"status"`
 		} `json:"progress"`
 		Steps []course.Step `json:"steps"`
-	}](t, h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: admin}))
+	}](t, h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: admin}))
 	if boot.Progress.Status != "started" {
 		t.Fatalf("opening did not start the exercise: %+v", boot.Progress)
 	}
@@ -190,9 +190,9 @@ func TestFilesSaveAndReset(t *testing.T) {
 		t.Fatalf("bootstrap files = %+v", boot.Files)
 	}
 
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/files/logfmt.go/reset", body: map[string]any{}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/files/logfmt.go/reset", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusOK)
-	ex, _ := testCourse.Exercise("01-logfmt")
+	ex, _ := testCourse.Exercise(logfmt)
 	stub, _ := ex.File("logfmt.go")
 	if got := decodeJSON[map[string]string](t, w)["content"]; got != stub.Content {
 		t.Fatal("reset did not return the stub")
@@ -203,7 +203,7 @@ func TestFilesSaveAndReset(t *testing.T) {
 func TestBootstrapHasNoHiddenMaterial(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
-	ex, _ := testCourse.Exercise("01-logfmt")
+	ex, _ := testCourse.Exercise(logfmt)
 	hint, err := ex.Hidden(course.Hint1)
 	if err != nil {
 		t.Fatal(err)
@@ -218,7 +218,7 @@ func TestBootstrapHasNoHiddenMaterial(t *testing.T) {
 		firstLongLine(ex.SolutionFiles()[0].Content, visible.String()),
 		firstLongLine(stripTags(string(hint)), visible.String()),
 	}
-	for _, p := range []string{"/learn/01-logfmt", "/api/exercises/01-logfmt"} {
+	for _, p := range []string{"/learn/" + logfmt, "/api/exercises/" + logfmt} {
 		body := h.do(req{method: "GET", path: p, as: admin}).Body.String()
 		for _, n := range needles {
 			if strings.Contains(body, n) {
@@ -257,7 +257,7 @@ func TestRevealOrderAndGates(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
 	reveal := func(level int, confirm bool) (int, map[string]any) {
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/reveal", body: map[string]any{"level": level, "confirm": confirm}, as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/reveal", body: map[string]any{"level": level, "confirm": confirm}, as: admin})
 		return w.Code, decodeJSON[map[string]any](t, w)
 	}
 
@@ -313,7 +313,7 @@ func TestRevealOrderAndGates(t *testing.T) {
 			Level int    `json:"level"`
 			HTML  string `json:"html"`
 		} `json:"revealed"`
-	}](t, h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: admin}))
+	}](t, h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: admin}))
 	if len(boot.Revealed) != 2 || boot.Revealed[1].Level != 2 || boot.Revealed[1].HTML == "" {
 		t.Fatalf("bootstrap revealed = %+v", boot.Revealed)
 	}
@@ -323,7 +323,7 @@ func TestHeartbeatCredit(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
 	beat := func() int64 {
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/heartbeat", body: map[string]any{}, as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/heartbeat", body: map[string]any{}, as: admin})
 		wantStatus(t, w, http.StatusOK)
 		return int64(decodeJSON[map[string]float64](t, w)["activeSeconds"])
 	}
@@ -343,7 +343,7 @@ func TestHeartbeatCredit(t *testing.T) {
 func TestCheckExplainsDiagnostics(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{"files": map[string]string{"logfmt.go": "package logfmt\n"}}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{"files": map[string]string{"logfmt.go": "package logfmt\n"}}, as: admin})
 	wantStatus(t, w, http.StatusOK)
 	res := decodeJSON[struct {
 		Diagnostics []struct {
@@ -366,16 +366,16 @@ func TestCheckExplainsDiagnostics(t *testing.T) {
 		t.Fatalf("explain raw = %+v, want logfmt.go and openable", raw)
 	}
 	// The runner got every stub: the sent one, and the others as stubs.
-	ex, _ := testCourse.Exercise("01-logfmt")
+	ex, _ := testCourse.Exercise(logfmt)
 	got := h.runner.checks[len(h.runner.checks)-1]
-	if got.Exercise != "01-logfmt" || len(got.Files) != len(ex.StubFiles()) || got.Files["logfmt.go"] != "package logfmt\n" {
+	if got.Exercise != logfmt || len(got.Files) != len(ex.StubFiles()) || got.Files["logfmt.go"] != "package logfmt\n" {
 		t.Fatalf("runner request = %+v", got)
 	}
 
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{"files": map[string]string{"logfmt_test.go": "package logfmt"}}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{"files": map[string]string{"logfmt_test.go": "package logfmt"}}, as: admin})
 	wantStatus(t, w, http.StatusBadRequest)
 
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/format", body: map[string]string{"file": "logfmt.go", "content": "package logfmt\n"}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/format", body: map[string]string{"file": "logfmt.go", "content": "package logfmt\n"}, as: admin})
 	wantStatus(t, w, http.StatusOK)
 	if got := decodeJSON[map[string]any](t, w)["content"]; got != "// formatted\npackage logfmt\n" {
 		t.Fatalf("format = %v", got)
@@ -385,10 +385,28 @@ func TestCheckExplainsDiagnostics(t *testing.T) {
 	h.runner.mu.Lock()
 	h.runner.failWith = http.StatusTooManyRequests
 	h.runner.mu.Unlock()
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{"files": map[string]string{}}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{"files": map[string]string{}}, as: admin})
 	wantStatus(t, w, http.StatusTooManyRequests)
 	if w.Header().Get("Retry-After") != "5" || decodeJSON[map[string]string](t, w)["code"] != "runner_busy" {
 		t.Fatalf("busy runner = %v %s", w.Header(), w.Body.String())
+	}
+
+	// A runner that does not know an exercise of the site's course serves
+	// another version of the course: web and runner roll out one after the
+	// other. The learner hears that it is updating, not a refusal.
+	h.runner.mu.Lock()
+	h.runner.failWith, h.runner.failCode = http.StatusBadRequest, "unknown_exercise"
+	h.runner.mu.Unlock()
+	for _, r := range []req{
+		{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{"files": map[string]string{}}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}},
+	} {
+		r.as = admin
+		w = h.do(r)
+		body := decodeJSON[map[string]string](t, w)
+		if w.Code != http.StatusServiceUnavailable || body["code"] != "runner_updating" || !strings.Contains(body["error"], "updated") || w.Header().Get("Retry-After") == "" {
+			t.Errorf("%s with an older runner = %d %v %v", r.path, w.Code, w.Header(), body)
+		}
 	}
 }
 
@@ -400,7 +418,7 @@ func TestRunnerDown(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.handler = srv
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusServiceUnavailable)
 	if code := decodeJSON[map[string]string](t, w)["code"]; code != "runner_unavailable" {
 		t.Fatalf("code = %s", code)
@@ -413,9 +431,9 @@ func TestTestStream(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
 	h.runner.events = failingRun
-	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": "package logfmt\n// saved\n"}, as: admin}), http.StatusOK)
+	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": "package logfmt\n// saved\n"}, as: admin}), http.StatusOK)
 
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{"step": "step-1"}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{"step": "step-1"}, as: admin})
 	wantStatus(t, w, http.StatusOK)
 	if ct := w.Header().Get("Content-Type"); ct != "application/x-ndjson" {
 		t.Fatalf("Content-Type = %q", ct)
@@ -441,7 +459,7 @@ func TestTestStream(t *testing.T) {
 	}
 
 	// The runner got the saved file and the step's filter.
-	ex, _ := testCourse.Exercise("01-logfmt")
+	ex, _ := testCourse.Exercise(logfmt)
 	step, _ := ex.Step("step-1")
 	got := h.runner.lastTest()
 	if got.Files["logfmt.go"] != "package logfmt\n// saved\n" || got.Run != step.Run || got.Race != step.Race {
@@ -464,7 +482,7 @@ func TestTestStream(t *testing.T) {
 			{Type: runnerapi.EventDone, ExitCode: 1, Failed: 1},
 		}
 	}
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	var explains []map[string]any
 	for _, ev := range ndjson(t, w.Body.String()) {
 		if ev["type"] == "explain" {
@@ -479,9 +497,9 @@ func TestTestStream(t *testing.T) {
 	}
 
 	// A hand-written filter and an unknown step.
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{"run": "TestX(", "race": true}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{"run": "TestX(", "race": true}, as: admin})
 	wantStatus(t, w, http.StatusBadRequest)
-	w = h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{"step": "step-99"}, as: admin})
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{"step": "step-99"}, as: admin})
 	wantStatus(t, w, http.StatusBadRequest)
 }
 
@@ -490,7 +508,7 @@ func TestProgressMarking(t *testing.T) {
 	admin := h.admin()
 	run := func(body map[string]any) map[string]any {
 		t.Helper()
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: body, as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: body, as: admin})
 		wantStatus(t, w, http.StatusOK)
 		events := ndjson(t, w.Body.String())
 		last := events[len(events)-1]
@@ -500,7 +518,7 @@ func TestProgressMarking(t *testing.T) {
 		return last
 	}
 	status := func() string {
-		p, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+		p, err := h.store.Progress(t.Context(), admin.ID, logfmt)
 		if err != nil {
 			return ""
 		}
@@ -537,7 +555,7 @@ func TestProgressMarking(t *testing.T) {
 	if p["status"] != "passed" || p["firstPass"] != false || p["runs"] != 6.0 {
 		t.Fatalf("second pass = %v", p)
 	}
-	prog, _ := h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+	prog, _ := h.store.Progress(t.Context(), admin.ID, logfmt)
 	var last map[string]any
 	if err := json.Unmarshal(prog.LastResult, &last); err != nil || last["step"] != "all" || last["passed"] != 5.0 {
 		t.Fatalf("last result = %s", prog.LastResult)
@@ -548,7 +566,7 @@ func TestProgressMarking(t *testing.T) {
 	}
 	h.runner.events = failingRun
 	run(map[string]any{"step": "all", "race": true})
-	prog, _ = h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+	prog, _ = h.store.Progress(t.Context(), admin.ID, logfmt)
 	last = nil
 	if err := json.Unmarshal(prog.LastResult, &last); err != nil {
 		t.Fatal(err)
@@ -565,7 +583,7 @@ func TestOneRunAtATime(t *testing.T) {
 	h.runner.started = make(chan struct{}, 1)
 	done := make(chan int, 1)
 	go func() {
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 		done <- w.Code
 	}()
 	select {
@@ -573,7 +591,7 @@ func TestOneRunAtATime(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the first run did not start")
 	}
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusConflict)
 	close(h.runner.block)
 	select {
@@ -586,19 +604,19 @@ func TestOneRunAtATime(t *testing.T) {
 	}
 	h.runner.block = nil
 	h.runner.started = nil
-	wantStatus(t, h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin}), http.StatusOK)
+	wantStatus(t, h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin}), http.StatusOK)
 }
 
 func TestTestRateLimit(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
 	for i := range 10 {
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 		if w.Code != http.StatusOK {
 			t.Fatalf("run %d = %d", i, w.Code)
 		}
 	}
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusTooManyRequests)
 	if w.Header().Get("Retry-After") == "" {
 		t.Fatal("no Retry-After")

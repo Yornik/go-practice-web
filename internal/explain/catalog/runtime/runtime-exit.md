@@ -4,7 +4,7 @@ source: runtime
 match: ^exit: (?P<output>(?s:.+))$
 fallback: true
 title: The test binary exited before the tests reported a result
-course: 06-envconfig
+course: 15-checkdisk
 links:
 - Package os: Exit | https://pkg.go.dev/os#Exit
 - Effective Go: Errors | https://go.dev/doc/effective_go#errors
@@ -49,4 +49,4 @@ func Port(s string) (int, error) {
 
 ## Learn more
 
-In the exercise, the library reports every problem in 1 error, and only `main` decides to stop.
+The course exercise below puts a command in a testable `Run` that returns its exit code, so only `main` ends the process.

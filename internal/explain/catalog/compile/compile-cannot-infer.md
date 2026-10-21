@@ -4,7 +4,7 @@ source: compile
 match: ^in call to (?P<func>.+?), cannot infer (?P<param>\S+)(?: \(declared at .+\))?$
 match: ^in call to (?P<func>.+?), .*\(cannot infer (?P<param>[^)]+)\)$
 title: Go cannot work out the type parameter {{param}} of {{func}}
-course: 09-cache
+course: 17-flightrec
 links:
 - The Go spec: Instantiations | https://go.dev/ref/spec#Instantiations
 - The Go spec: Type inference | https://go.dev/ref/spec#Type_inference
@@ -45,4 +45,4 @@ n := Zero[int]()
 
 ## Learn more
 
-Exercise 09 practises generic types and functions.
+The course exercise below practises generic types and functions.

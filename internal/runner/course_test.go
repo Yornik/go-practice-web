@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -8,8 +9,10 @@ import (
 	"testing"
 )
 
-// courseDir is the course submodule, relative to this package.
-const courseDir = "../../course"
+// courseDir is the course submodule, relative to this package, or the
+// checkout GO_PRACTICE_COURSE names, as for the other packages that test
+// the course the site serves.
+var courseDir = cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course"))
 
 func loadTestCourse(t *testing.T) *Course {
 	t.Helper()
@@ -22,8 +25,8 @@ func loadTestCourse(t *testing.T) *Course {
 
 func TestLoadCourseIndexesExercises(t *testing.T) {
 	c := loadTestCourse(t)
-	if n := len(c.Exercises()); n != 25 {
-		t.Errorf("%d exercises, want 25", n)
+	if n := len(c.Exercises()); n != 50 {
+		t.Errorf("%d exercises, want 50", n)
 	}
 	tests := []struct {
 		name         string
@@ -31,9 +34,10 @@ func TestLoadCourseIndexesExercises(t *testing.T) {
 		wantTests    []string
 		wantTestdata bool
 	}{
-		{name: "01-logfmt", wantStubs: []string{"logfmt.go"}, wantTests: []string{"logfmt_test.go", "record_test.go"}},
-		{name: "02-accesslog", wantTestdata: true},
-		{name: "12-workerpool", wantStubs: []string{"group.go", "workerpool.go"}},
+		{name: "01-loglevels", wantStubs: []string{"loglevels.go"}, wantTestdata: true},
+		{name: "26-logfmt", wantStubs: []string{"logfmt.go"}, wantTests: []string{"logfmt_test.go", "record_test.go"}},
+		{name: "27-accesslog", wantTestdata: true},
+		{name: "37-workerpool", wantStubs: []string{"group.go", "workerpool.go"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -57,7 +61,7 @@ func TestLoadCourseIndexesExercises(t *testing.T) {
 			}
 		})
 	}
-	if _, ok := c.Exercise("../exercises/01-logfmt"); ok {
+	if _, ok := c.Exercise("../exercises/26-logfmt"); ok {
 		t.Error("a path-like exercise name was found")
 	}
 }
@@ -87,7 +91,7 @@ func TestLoadCourseRejectsBrokenCheckouts(t *testing.T) {
 
 func TestNewWorkspaceLayout(t *testing.T) {
 	c := loadTestCourse(t)
-	ex, _ := c.Exercise("02-accesslog")
+	ex, _ := c.Exercise("27-accesslog")
 	files := map[string]string{}
 	for _, name := range ex.Stubs {
 		files[name] = "package accesslog\n"
@@ -99,10 +103,10 @@ func TestNewWorkspaceLayout(t *testing.T) {
 	}
 	want := []string{
 		"mod/go.mod",
-		"mod/exercises/02-accesslog/testdata/incident.log",
+		"mod/exercises/27-accesslog/testdata/incident.log",
 	}
 	for _, name := range append(ex.Stubs, ex.Tests...) {
-		want = append(want, "mod/exercises/02-accesslog/"+name)
+		want = append(want, "mod/exercises/27-accesslog/"+name)
 	}
 	for _, rel := range want {
 		if _, err := os.Stat(filepath.Join(ws.root, rel)); err != nil {

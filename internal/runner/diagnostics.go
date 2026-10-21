@@ -13,8 +13,8 @@ import (
 )
 
 // compileLineRE matches a compiler or type checker error as go vet prints
-// it, for example "exercises/07-retry/retry.go:12:5: undefined: foo" or,
-// for the external test package, "vet: exercises/07-retry/retry_test.go:3:2:
+// it, for example "exercises/32-retry/retry.go:12:5: undefined: foo" or,
+// for the external test package, "vet: exercises/32-retry/retry_test.go:3:2:
 // ...". The column is optional because some errors have only a line.
 var compileLineRE = regexp.MustCompile(`^(?:vet: )?([^\s:][^:]*\.go):(\d+)(?::(\d+))?: (.*)$`)
 

@@ -3,7 +3,7 @@ id: staticcheck-sa1029
 source: staticcheck
 code: SA1029
 title: A context key of a built-in type can collide with other packages
-course: 16-middleware
+course: 41-middleware
 links:
 - staticcheck: SA1029 | https://staticcheck.dev/docs/checks/#SA1029
 - Package context: WithValue | https://pkg.go.dev/context#WithValue

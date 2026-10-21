@@ -3,7 +3,7 @@ id: runtime-out-of-memory
 source: runtime
 match: ^fatal error: (?:runtime: )?out of memory$
 title: {{func}} asked for more memory than the system can give
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - The Go spec: Making slices, maps and channels | https://go.dev/ref/spec#Making_slices_maps_and_channels
 - Package io: LimitReader | https://pkg.go.dev/io#LimitReader

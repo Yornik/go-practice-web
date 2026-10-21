@@ -3,7 +3,7 @@ id: compile-range-func-signature
 source: compile
 match: ^cannot range over (?P<expr>.+?) \((?P<what>.+?)\): func must be func\(yield func\(\.\.\.\) bool\): (?P<reason>.+)$
 title: {{expr}} is a function, but not an iterator that range can use
-course: 13-logmerge
+course: 38-logmerge
 links:
 - The Go spec: For statements with range clause | https://go.dev/ref/spec#For_range
 - Package iter | https://pkg.go.dev/iter
@@ -59,4 +59,4 @@ func Evens(limit int) iter.Seq[int] {
 
 ## Learn more
 
-Exercise 13 practises iterators that clean up when the loop stops early.
+The course exercise below practises iterators that clean up when the loop stops early.

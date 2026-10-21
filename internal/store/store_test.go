@@ -100,7 +100,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 2 {
+	if err != nil || v != 3 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 	// Every connection of the pool has the pragmas, not only the first.
@@ -142,7 +142,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 3 {
 		t.Errorf("schema_migrations has %d rows, %v", n, err)
 	}
 	// A schema from a newer build stops an older one.
@@ -197,7 +197,7 @@ func TestMigrationInviteMailed(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	if v, err := s.SchemaVersion(ctx); err != nil || v != 2 {
+	if v, err := s.SchemaVersion(ctx); err != nil || v != 3 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 	var name string
@@ -877,31 +877,31 @@ func TestCode(t *testing.T) {
 	s, clk := newStore(t)
 	ctx := context.Background()
 	u := register(t, s, "alice")
-	if _, err := s.SaveCode(ctx, u.ID, "07-retry", "retry.go", "v1"); err != nil {
+	if _, err := s.SaveCode(ctx, u.ID, "32-retry", "retry.go", "v1"); err != nil {
 		t.Fatal(err)
 	}
 	clk.Advance(time.Second)
-	at, err := s.SaveCode(ctx, u.ID, "07-retry", "retry.go", "v2")
+	at, err := s.SaveCode(ctx, u.ID, "32-retry", "retry.go", "v2")
 	if err != nil || at != t0.Add(time.Second) {
 		t.Fatalf("SaveCode = %v, %v", at, err)
 	}
-	if _, err := s.SaveCode(ctx, u.ID, "07-retry", "retryafter.go", "x"); err != nil {
+	if _, err := s.SaveCode(ctx, u.ID, "32-retry", "retryafter.go", "x"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.SaveCode(ctx, u.ID, "01-logfmt", "logfmt.go", "other"); err != nil {
+	if _, err := s.SaveCode(ctx, u.ID, "26-logfmt", "logfmt.go", "other"); err != nil {
 		t.Fatal(err)
 	}
-	files, err := s.Code(ctx, u.ID, "07-retry")
+	files, err := s.Code(ctx, u.ID, "32-retry")
 	if err != nil || len(files) != 2 || files["retry.go"].Content != "v2" || files["retry.go"].UpdatedAt != at {
 		t.Fatalf("Code = %+v, %v", files, err)
 	}
-	if err := s.DeleteCode(ctx, u.ID, "07-retry", "retry.go"); err != nil {
+	if err := s.DeleteCode(ctx, u.ID, "32-retry", "retry.go"); err != nil {
 		t.Fatal(err)
 	}
-	if files, _ := s.Code(ctx, u.ID, "07-retry"); len(files) != 1 {
+	if files, _ := s.Code(ctx, u.ID, "32-retry"); len(files) != 1 {
 		t.Errorf("after DeleteCode: %+v", files)
 	}
-	if _, err := s.SaveCode(ctx, 999, "07-retry", "retry.go", "x"); err == nil {
+	if _, err := s.SaveCode(ctx, 999, "32-retry", "retry.go", "x"); err == nil {
 		t.Error("SaveCode for an unknown user succeeded (foreign keys off?)")
 	}
 }
@@ -911,66 +911,66 @@ func TestProgress(t *testing.T) {
 	ctx := context.Background()
 	u := register(t, s, "alice")
 
-	if _, err := s.Progress(ctx, u.ID, "07-retry"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.Progress(ctx, u.ID, "32-retry"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Progress before start: %v", err)
 	}
-	p, err := s.StartExercise(ctx, u.ID, "07-retry")
+	p, err := s.StartExercise(ctx, u.ID, "32-retry")
 	if err != nil || p.Status != StatusStarted || p.StartedAt != t0 {
 		t.Fatalf("StartExercise = %+v, %v", p, err)
 	}
 	clk.Advance(time.Minute)
-	if p, _ := s.StartExercise(ctx, u.ID, "07-retry"); p.StartedAt != t0 {
+	if p, _ := s.StartExercise(ctx, u.ID, "32-retry"); p.StartedAt != t0 {
 		t.Errorf("second StartExercise moved StartedAt to %v", p.StartedAt)
 	}
 
 	for range 3 {
-		if err := s.AddActiveTime(ctx, u.ID, "07-retry", 15*time.Second+500*time.Millisecond); err != nil {
+		if err := s.AddActiveTime(ctx, u.ID, "32-retry", 15*time.Second+500*time.Millisecond); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := s.AddActiveTime(ctx, u.ID, "07-retry", -time.Second); err == nil {
+	if err := s.AddActiveTime(ctx, u.ID, "32-retry", -time.Second); err == nil {
 		t.Error("negative active time accepted")
 	}
 	result := json.RawMessage(`{"passed":3,"failed":1}`)
-	if err := s.RecordRun(ctx, u.ID, "07-retry", result); err != nil {
+	if err := s.RecordRun(ctx, u.ID, "32-retry", result); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordRun(ctx, u.ID, "07-retry", json.RawMessage(`{bad`)); err == nil {
+	if err := s.RecordRun(ctx, u.ID, "32-retry", json.RawMessage(`{bad`)); err == nil {
 		t.Error("RecordRun accepted bad JSON")
 	}
-	if err := s.SetNotes(ctx, u.ID, "07-retry", "jitter is [0, backoff)"); err != nil {
+	if err := s.SetNotes(ctx, u.ID, "32-retry", "jitter is [0, backoff)"); err != nil {
 		t.Fatal(err)
 	}
 	// Any update starts an exercise.
-	if err := s.RecordRun(ctx, u.ID, "08-ratelimit", nil); err != nil {
+	if err := s.RecordRun(ctx, u.ID, "33-ratelimit", nil); err != nil {
 		t.Fatal(err)
 	}
 
-	p, err = s.Progress(ctx, u.ID, "07-retry")
+	p, err = s.Progress(ctx, u.ID, "32-retry")
 	if err != nil || p.ActiveSeconds != 45 || p.Runs != 1 || p.LastRunAt != t0.Add(time.Minute) ||
 		string(p.LastResult) != string(result) || p.Notes != "jitter is [0, backoff)" || p.Passed() {
 		t.Fatalf("Progress = %+v, %v", p, err)
 	}
 
 	clk.Advance(time.Hour)
-	first, err := s.MarkPassed(ctx, u.ID, "07-retry")
+	first, err := s.MarkPassed(ctx, u.ID, "32-retry")
 	if err != nil || !first {
 		t.Fatalf("MarkPassed = %v, %v", first, err)
 	}
 	clk.Advance(time.Hour)
-	if first, _ := s.MarkPassed(ctx, u.ID, "07-retry"); first {
+	if first, _ := s.MarkPassed(ctx, u.ID, "32-retry"); first {
 		t.Error("second MarkPassed reported first")
 	}
-	p, _ = s.Progress(ctx, u.ID, "07-retry")
+	p, _ = s.Progress(ctx, u.ID, "32-retry")
 	if !p.Passed() || p.PassedAt != t0.Add(time.Minute+time.Hour) {
 		t.Errorf("passed progress = %+v", p)
 	}
 	all, err := s.UserProgress(ctx, u.ID)
-	if err != nil || len(all) != 2 || all[0].Exercise != "07-retry" || all[1].Runs != 1 {
+	if err != nil || len(all) != 2 || all[0].Exercise != "32-retry" || all[1].Runs != 1 {
 		t.Errorf("UserProgress = %+v, %v", all, err)
 	}
 	passed, err := s.PassedExercises(ctx, u.ID)
-	if err != nil || !slices.Equal(passed, []string{"07-retry"}) {
+	if err != nil || !slices.Equal(passed, []string{"32-retry"}) {
 		t.Errorf("PassedExercises = %v, %v", passed, err)
 	}
 }
@@ -983,7 +983,7 @@ func TestMarkPassedRace(t *testing.T) {
 	var firsts atomic.Int32
 	for range 8 {
 		wg.Go(func() {
-			first, err := s.MarkPassed(ctx, u.ID, "01-logfmt")
+			first, err := s.MarkPassed(ctx, u.ID, "26-logfmt")
 			if err != nil {
 				t.Error(err)
 			}
@@ -1020,7 +1020,7 @@ func TestReveals(t *testing.T) {
 	}
 	for i, st := range steps {
 		clk.Advance(time.Minute)
-		r, created, err := s.RecordReveal(ctx, u.ID, "07-retry", st.level)
+		r, created, err := s.RecordReveal(ctx, u.ID, "32-retry", st.level)
 		if !errors.Is(err, st.err) || created != st.created {
 			t.Errorf("step %d: reveal %d = %v, %v; want %v, %v", i, st.level, created, err, st.created, st.err)
 			continue
@@ -1030,22 +1030,22 @@ func TestReveals(t *testing.T) {
 		}
 	}
 	for _, bad := range []int{0, 7} {
-		if _, _, err := s.RecordReveal(ctx, u.ID, "07-retry", bad); err == nil {
+		if _, _, err := s.RecordReveal(ctx, u.ID, "32-retry", bad); err == nil {
 			t.Errorf("level %d accepted", bad)
 		}
 	}
-	rs, err := s.Reveals(ctx, u.ID, "07-retry")
+	rs, err := s.Reveals(ctx, u.ID, "32-retry")
 	if err != nil || len(rs) != 6 {
 		t.Fatalf("Reveals = %v, %v", rs, err)
 	}
 	if rs[0].RevealedAt != t0.Add(2*time.Minute) {
 		t.Errorf("level 1 revealed at %v, want the first reveal", rs[0].RevealedAt)
 	}
-	if _, _, err := s.RecordReveal(ctx, u.ID, "01-logfmt", 1); err != nil {
+	if _, _, err := s.RecordReveal(ctx, u.ID, "26-logfmt", 1); err != nil {
 		t.Fatal(err)
 	}
 	all, err := s.UserReveals(ctx, u.ID)
-	if err != nil || len(all) != 7 || all[0].Exercise != "01-logfmt" {
+	if err != nil || len(all) != 7 || all[0].Exercise != "26-logfmt" {
 		t.Errorf("UserReveals = %v, %v", all, err)
 	}
 }
@@ -1108,7 +1108,7 @@ func TestCertificates(t *testing.T) {
 	if _, err := s.IssueCertificate(ctx, dup); !errors.Is(err, ErrConflict) {
 		t.Errorf("duplicate ID: %v", err)
 	}
-	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-X", UserID: u.ID, Kind: "tier9", IssuedAt: t0, Payload: []byte("{}"), Signature: []byte("s")}); err == nil {
+	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-X", UserID: u.ID, Kind: "tier11", IssuedAt: t0, Payload: []byte("{}"), Signature: []byte("s")}); err == nil {
 		t.Error("unknown kind accepted")
 	}
 	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-Y", UserID: u.ID, Kind: "tier2", IssuedAt: t0, Payload: []byte("{"), Signature: []byte("s")}); err == nil {
@@ -1216,16 +1216,16 @@ func TestUserSummaries(t *testing.T) {
 	ctx := context.Background()
 	a := register(t, s, "alice")
 	register(t, s, "bob")
-	if err := s.AddActiveTime(ctx, a.ID, "01-logfmt", time.Minute); err != nil {
+	if err := s.AddActiveTime(ctx, a.ID, "26-logfmt", time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordRun(ctx, a.ID, "02-accesslog", nil); err != nil {
+	if err := s.RecordRun(ctx, a.ID, "27-accesslog", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.MarkPassed(ctx, a.ID, "01-logfmt"); err != nil {
+	if _, err := s.MarkPassed(ctx, a.ID, "26-logfmt"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.RecordReveal(ctx, a.ID, "01-logfmt", 1); err != nil {
+	if _, _, err := s.RecordReveal(ctx, a.ID, "26-logfmt", 1); err != nil {
 		t.Fatal(err)
 	}
 	sums, err := s.UserSummaries(ctx)
@@ -1277,7 +1277,7 @@ func TestBackup(t *testing.T) {
 
 	var paths []string
 	for day := range 8 {
-		if _, err := s.SaveCode(ctx, u.ID, "01-logfmt", "logfmt.go", fmt.Sprint("day ", day)); err != nil {
+		if _, err := s.SaveCode(ctx, u.ID, "26-logfmt", "logfmt.go", fmt.Sprint("day ", day)); err != nil {
 			t.Fatal(err)
 		}
 		p, err := s.Backup(ctx, dir)
@@ -1306,7 +1306,7 @@ func TestBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = b.Close() }()
-	files, err := b.Code(ctx, u.ID, "01-logfmt")
+	files, err := b.Code(ctx, u.ID, "26-logfmt")
 	if err != nil || files["logfmt.go"].Content != "day 7" {
 		t.Errorf("backup content = %+v, %v", files, err)
 	}

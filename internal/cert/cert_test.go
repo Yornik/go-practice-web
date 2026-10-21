@@ -79,7 +79,7 @@ func TestParseID(t *testing.T) {
 
 func TestKinds(t *testing.T) {
 	c := loadCourse(t)
-	want := []Kind{"tier1", "tier2", "tier3", "tier4", "tier5", "course"}
+	want := []Kind{"tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9", "tier10", "course"}
 	if got := Kinds(c); !slices.Equal(got, want) {
 		t.Errorf("Kinds = %v", got)
 	}
@@ -90,11 +90,12 @@ func TestKinds(t *testing.T) {
 		count int
 		title string
 	}{
-		{"tier1", true, 1, 3, "Tier 1: Warm-up: Go idioms on real data"},
-		{"tier2", true, 2, 6, "Tier 2: Streams, state, time, types, errors and locks"},
-		{"tier5", true, 5, 6, "Tier 5: Distributed-systems building blocks"},
-		{"course", true, 0, 25, "The complete course"},
-		{"tier6", false, 0, 0, ""},
+		{"tier1", true, 1, 5, "Tier 1 · Badge In"},
+		{"tier2", true, 2, 5, "Tier 2 · The Key"},
+		{"tier6", true, 6, 3, "Tier 6 · Forensics"},
+		{"tier10", true, 10, 6, "Tier 10 · The Key Turns"},
+		{"course", true, 0, 50, "The complete course"},
+		{"tier11", false, 0, 0, ""},
 		{"tier0", false, 0, 0, ""},
 		{"tier01", false, 0, 0, ""},
 		{"Tier1", false, 0, 0, ""},
@@ -123,8 +124,8 @@ func TestKinds(t *testing.T) {
 			t.Errorf("Title(%s) = %q, %v", k, title, err)
 		}
 	}
-	if _, err := Exercises(c, "tier9"); !errors.Is(err, ErrKind) {
-		t.Errorf("Exercises(tier9): %v", err)
+	if _, err := Exercises(c, "tier11"); !errors.Is(err, ErrKind) {
+		t.Errorf("Exercises(tier11): %v", err)
 	}
 	if _, err := Title(c, "nope"); !errors.Is(err, ErrKind) {
 		t.Errorf("Title(nope): %v", err)
@@ -149,13 +150,14 @@ func TestEligibility(t *testing.T) {
 	}{
 		{"nothing", nil, nil},
 		{"2 of tier 1", slugs(1, 2), nil},
-		{"tier 1", slugs(1, 3), []Kind{"tier1"}},
-		{"tier 1 and most of tier 2", slugs(1, 8), []Kind{"tier1"}},
-		{"tiers 1 and 2", slugs(1, 9), []Kind{"tier1", "tier2"}},
-		{"tier 3 alone", slugs(10, 14), []Kind{"tier3"}},
-		{"all but 25", slugs(1, 24), []Kind{"tier1", "tier2", "tier3", "tier4"}},
-		{"everything", slugs(1, 25), []Kind{"tier1", "tier2", "tier3", "tier4", "tier5", "course"}},
-		{"everything plus unknown slugs", append(slugs(1, 25), "99-extra", "../x"), []Kind{"tier1", "tier2", "tier3", "tier4", "tier5", "course"}},
+		{"tier 1", slugs(1, 5), []Kind{"tier1"}},
+		{"tier 1 and most of tier 2", slugs(1, 9), []Kind{"tier1"}},
+		{"tiers 1 and 2", slugs(1, 10), []Kind{"tier1", "tier2"}},
+		{"tier 3 alone", slugs(11, 15), []Kind{"tier3"}},
+		{"tier 6 alone", slugs(26, 28), []Kind{"tier6"}},
+		{"all but 50", slugs(1, 49), []Kind{"tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9"}},
+		{"everything", slugs(1, 50), append(tiers(10), "course")},
+		{"everything plus unknown slugs", append(slugs(1, 50), "99-extra", "../x"), append(tiers(10), "course")},
 	}
 	for _, tt := range tests {
 		var got []Kind
@@ -177,9 +179,18 @@ func TestEligibility(t *testing.T) {
 			}
 		}
 	}
-	if _, err := Eligible(c, "tier7", nil); !errors.Is(err, ErrKind) {
-		t.Errorf("Eligible(tier7): %v", err)
+	if _, err := Eligible(c, "tier11", nil); !errors.Is(err, ErrKind) {
+		t.Errorf("Eligible(tier11): %v", err)
 	}
+}
+
+// tiers returns the kinds tier1 to tier n.
+func tiers(n int) []Kind {
+	out := make([]Kind, n)
+	for i := range out {
+		out[i] = TierKind(i + 1)
+	}
+	return out
 }
 
 func TestBuildStats(t *testing.T) {
@@ -214,8 +225,8 @@ var issuedAt = time.Date(2026, 10, 19, 9, 30, 15, 123456789, time.FixedZone("CES
 
 func TestIssueAndVerify(t *testing.T) {
 	s := testSigner(t)
-	stats := BuildStats([]string{"01-logfmt"}, map[string]Activity{"01-logfmt": {ActiveSeconds: 60, Runs: 2, Levels: []int{1}}})
-	crt, err := s.Issue(Request{Kind: "tier1", Name: "  Ada   Lovelace <&> ", Exercises: []string{"01-logfmt", "02-accesslog", "03-latency"}, Stats: stats, IssuedAt: issuedAt})
+	stats := BuildStats([]string{"01-loglevels"}, map[string]Activity{"01-loglevels": {ActiveSeconds: 60, Runs: 2, Levels: []int{1}}})
+	crt, err := s.Issue(Request{Kind: "tier1", Name: "  Ada   Lovelace <&> ", Exercises: []string{"01-loglevels", "02-repeated", "03-pagenoise"}, Stats: stats, IssuedAt: issuedAt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,8 +235,8 @@ func TestIssueAndVerify(t *testing.T) {
 		t.Errorf("payload = %+v", p)
 	}
 	wantJSON := `{"id":"` + p.ID + `","kind":"tier1","name":"Ada Lovelace <&>","issuedAt":"2026-10-19T07:30:15Z",` +
-		`"exercises":["01-logfmt","02-accesslog","03-latency"],"stats":{"activeSeconds":60,"runs":2,"hints":1,` +
-		`"explanations":0,"walkthroughs":0,"solutions":0,"exercises":[{"slug":"01-logfmt","activeSeconds":60,` +
+		`"exercises":["01-loglevels","02-repeated","03-pagenoise"],"stats":{"activeSeconds":60,"runs":2,"hints":1,` +
+		`"explanations":0,"walkthroughs":0,"solutions":0,"exercises":[{"slug":"01-loglevels","activeSeconds":60,` +
 		`"runs":2,"hints":1,"explanation":false,"walkthrough":false,"solution":false}]}}`
 	if string(crt.Canonical) != wantJSON {
 		t.Errorf("canonical payload\n got %s\nwant %s", crt.Canonical, wantJSON)
@@ -249,7 +260,7 @@ func TestIssueAndVerify(t *testing.T) {
 	}
 
 	// Without stats the field is absent, not null.
-	plain, err := s.Issue(Request{Kind: KindCourse, Name: "Grace", Exercises: []string{"01-logfmt"}})
+	plain, err := s.Issue(Request{Kind: KindCourse, Name: "Grace", Exercises: []string{"01-loglevels"}})
 	if err != nil || bytes.Contains(plain.Canonical, []byte("stats")) {
 		t.Errorf("payload without stats: %s, %v", plain.Canonical, err)
 	}
@@ -266,7 +277,7 @@ func TestIssueAndVerify(t *testing.T) {
 
 func TestTamperDetection(t *testing.T) {
 	s := testSigner(t)
-	crt, err := s.Issue(Request{Kind: "tier2", Name: "Ada Lovelace", Exercises: []string{"04-grep", "05-slo"}, IssuedAt: issuedAt})
+	crt, err := s.Issue(Request{Kind: "tier2", Name: "Ada Lovelace", Exercises: []string{"06-semver", "07-rollcall"}, IssuedAt: issuedAt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,9 +491,9 @@ func TestNewDocument(t *testing.T) {
 			}
 		}
 	}
-	bad := Payload{ID: "GP-0000-0000-0000", Kind: "tier9", Name: "x", IssuedAt: "2026-10-19T07:30:15Z"}
+	bad := Payload{ID: "GP-0000-0000-0000", Kind: "nope", Name: "x", IssuedAt: "2026-10-19T07:30:15Z"}
 	if _, err := NewDocument(c, bad, "https://go-practice.dev", ""); !errors.Is(err, ErrKind) {
-		t.Errorf("NewDocument(tier9): %v", err)
+		t.Errorf("NewDocument(nope): %v", err)
 	}
 	bad.Kind, bad.IssuedAt = "tier1", "yesterday"
 	if _, err := NewDocument(c, bad, "https://go-practice.dev", ""); err == nil {

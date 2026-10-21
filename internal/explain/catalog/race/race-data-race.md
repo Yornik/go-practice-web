@@ -4,7 +4,7 @@ source: race
 match: ^WARNING: DATA RACE
 fallback: true
 title: Data race in {{func}}
-course: 12-workerpool
+course: 20-counters
 links:
 - Data Race Detector | https://go.dev/doc/articles/race_detector
 - The Go Memory Model | https://go.dev/ref/mem
@@ -53,4 +53,4 @@ mu.Unlock()
 
 ## Learn more
 
-The course exercise below practises goroutines that share their results safely.
+The course exercise below practises counters that goroutines share, checked with `-race`.

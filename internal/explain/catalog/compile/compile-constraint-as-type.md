@@ -3,7 +3,7 @@ id: compile-constraint-as-type
 source: compile
 match: ^cannot use type (?P<name>\S+) outside a type constraint: (?P<reason>.+)$
 title: {{name}} is a constraint, so it can only be used in a type parameter list
-course: 09-cache
+course: 17-flightrec
 links:
 - The Go spec: General interfaces | https://go.dev/ref/spec#General_interfaces
 - The Go spec: Type constraints | https://go.dev/ref/spec#Type_constraints
@@ -45,4 +45,4 @@ type entry[K comparable, V any] struct {
 
 ## Learn more
 
-Exercise 09 practises comparable keys in a generic type.
+The course exercise below practises `comparable` keys in a generic type.

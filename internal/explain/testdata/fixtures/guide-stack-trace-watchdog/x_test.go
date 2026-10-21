@@ -10,7 +10,7 @@ import (
 )
 
 // guard stops the test binary when the test hangs, after it prints every
-// goroutine, as the guard of the course's 08-ratelimit tests does. Inc
+// goroutine, as the guard of the course's 33-ratelimit tests does. Inc
 // never returns, so the timer always fires.
 func guard(t *testing.T) func() {
 	name := t.Name()

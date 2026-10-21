@@ -4,7 +4,7 @@ source: staticcheck
 code: SA9002
 match: ^file mode '(?P<mode>\d+)' evaluates to (?P<octal>0\d+); did you mean '(?P<want>0\d+)'\?$
 title: The file mode {{mode}} is a decimal number; you likely meant {{want}}
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - staticcheck: SA9002 | https://staticcheck.dev/docs/checks/#SA9002
 - The Go spec: Integer literals | https://go.dev/ref/spec#Integer_literals

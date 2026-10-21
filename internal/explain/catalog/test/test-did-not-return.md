@@ -4,7 +4,7 @@ source: test
 match: ^(?P<call>[^\n]+?) did not (?P<action>[^\n]+?) within (?P<limit>(?:\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h))+)(?:\W[^\n]*)?(?:\n(?s:.*))?$
 match: ^(?P<call>[^\n]+?): no (?P<action>answer) within (?P<limit>(?:\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h))+)(?:\W[^\n]*)?(?:\n(?s:.*))?$
 title: {{call}} did not {{action}} in time: something blocks
-course: 09-cache
+course: 34-cache
 links:
 - Package sync: Mutex.Lock | https://pkg.go.dev/sync#Mutex.Lock
 - Effective Go: Channels | https://go.dev/doc/effective_go#channels

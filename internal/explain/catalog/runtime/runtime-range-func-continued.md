@@ -3,7 +3,7 @@ id: runtime-range-func-continued
 source: runtime
 match: ^panic: runtime error: range function continued iteration after (?P<when>function for loop body returned false|loop body panic|whole loop exit)$
 title: An iterator called yield again after the loop had stopped
-course: 13-logmerge
+course: 38-logmerge
 links:
 - The Go spec: For statements with range clause | https://go.dev/ref/spec#For_range
 - Package iter | https://pkg.go.dev/iter

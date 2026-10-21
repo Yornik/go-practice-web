@@ -45,7 +45,7 @@ type Course struct {
 	Intro  template.HTML // the root README's paragraph below the title
 	Guide  []Section     // the GuideSections that the root README has
 
-	Tiers     []*Tier     // tiers 1 to 5, in order
+	Tiers     []*Tier     // tiers 1 to N, in order
 	Exercises []*Exercise // in directory order, which is number order
 
 	// levels describes each level of the hint ladder, from the root
@@ -58,6 +58,7 @@ type Course struct {
 // Tier is a group of exercises from the root README's tier table.
 type Tier struct {
 	N           int
+	Name        string // "The Key"; "" when the table has no Name column
 	Theme       string // "Warm-up: Go idioms on real data"
 	First, Last int    // exercise numbers, inclusive
 	Exercises   []*Exercise
@@ -65,6 +66,15 @@ type Tier struct {
 
 // Title is "Tier N".
 func (t *Tier) Title() string { return fmt.Sprintf("Tier %d", t.N) }
+
+// Label is the title with the tier's name, "Tier 2 · The Key",
+// or only the title when the tier has no name.
+func (t *Tier) Label() string {
+	if t.Name == "" {
+		return t.Title()
+	}
+	return t.Title() + " · " + t.Name
+}
 
 // Range is the exercise range as the course writes it, "01–03".
 func (t *Tier) Range() string { return fmt.Sprintf("%02d–%02d", t.First, t.Last) }
@@ -87,7 +97,7 @@ func (c *Course) Version() string {
 	return "sha256-" + c.Digest[:12]
 }
 
-// Exercise returns the exercise with the given slug, for example "07-retry".
+// Exercise returns the exercise with the given slug, for example "32-retry".
 func (c *Course) Exercise(slug string) (*Exercise, bool) {
 	e, ok := c.bySlug[slug]
 	return e, ok
@@ -102,7 +112,7 @@ func (c *Course) ExerciseByNumber(n int) (*Exercise, bool) {
 	return c.Exercises[i], true
 }
 
-// Tier returns tier n (1 to 5).
+// Tier returns tier n (1 to len(c.Tiers)).
 func (c *Course) Tier(n int) (*Tier, bool) {
 	if n < 1 || n > len(c.Tiers) {
 		return nil, false
@@ -228,7 +238,7 @@ func (c *Course) loadRoot(md *markdown) error {
 			return ast.WalkContinue, nil
 		}
 		switch strings.Join(headerCells(t, src), "|") {
-		case "Tier|Exercises|Theme":
+		case "Tier|Exercises|Theme", "Tier|Exercises|Name|Theme":
 			tierTable = t
 		case "#|Exercise|Tier|Time|Go you practice|The real-life skill":
 			exerciseTable = t
@@ -238,7 +248,7 @@ func (c *Course) loadRoot(md *markdown) error {
 		return ast.WalkSkipChildren, nil
 	})
 	if tierTable == nil {
-		return fmt.Errorf("no tier table (| Tier | Exercises | Theme |)")
+		return fmt.Errorf("no tier table (| Tier | Exercises | Name | Theme |)")
 	}
 	if err := c.parseTiers(tierTable, src); err != nil {
 		return err
@@ -307,10 +317,13 @@ func rows(t *east.Table) [][]ast.Node {
 
 var tierRange = regexp.MustCompile(`^([0-9]+)\s*[–-]\s*([0-9]+)$`)
 
+// parseTiers reads the tier table. The course added the Name column with
+// its 10 tiers; the 3-column table of the first course still loads.
 func (c *Course) parseTiers(t *east.Table, src []byte) error {
+	cols := len(headerCells(t, src))
 	for _, row := range rows(t) {
-		if len(row) != 3 {
-			return fmt.Errorf("tier table row has %d cells, want 3", len(row))
+		if len(row) != cols {
+			return fmt.Errorf("tier table row has %d cells, want %d", len(row), cols)
 		}
 		n, err := strconv.Atoi(plainText(row[0], src))
 		if err != nil || n != len(c.Tiers)+1 {
@@ -320,7 +333,15 @@ func (c *Course) parseTiers(t *east.Table, src []byte) error {
 		if m == nil {
 			return fmt.Errorf("tier table: tier %d: range %q", n, plainText(row[1], src))
 		}
-		tier := &Tier{N: n, Theme: plainText(row[2], src)}
+		tier := &Tier{N: n, Theme: plainText(row[cols-1], src)}
+		if cols == 4 {
+			tier.Name = plainText(row[2], src)
+		}
+		// GFM pads a short row with empty cells; a tier without its theme
+		// or name is a broken table, not a tier.
+		if tier.Theme == "" || cols == 4 && tier.Name == "" {
+			return fmt.Errorf("tier table: tier %d has an empty cell", n)
+		}
 		tier.First, _ = strconv.Atoi(m[1])
 		tier.Last, _ = strconv.Atoi(m[2])
 		c.Tiers = append(c.Tiers, tier)

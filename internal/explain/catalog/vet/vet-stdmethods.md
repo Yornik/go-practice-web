@@ -4,7 +4,7 @@ source: vet
 analyzer: stdmethods
 match: ^method (?P<have>.+) should have signature (?P<want>.+)$
 title: The method {{have}} does not have the signature its name promises
-course: 24-diskbuffer
+course: 08-deploynote
 links:
 - Package errors | https://pkg.go.dev/errors
 - Effective Go: Interface checks | https://go.dev/doc/effective_go#blank_implements
@@ -36,4 +36,4 @@ func (e *ParseError) Unwrap() error { return e.Err }
 
 ## Learn more
 
-The course exercise below practises error types with Is and Unwrap methods.
+The course exercise below practises an error type with an `Unwrap` method.

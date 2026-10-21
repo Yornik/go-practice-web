@@ -4,7 +4,7 @@ source: vet
 analyzer: waitgroup
 match: ^WaitGroup\.Add called from inside new goroutine$
 title: WaitGroup.Add runs inside the new goroutine, so Wait may return too early
-course: 12-workerpool
+course: 19-fanout
 links:
 - Package sync: WaitGroup.Add | https://pkg.go.dev/sync#WaitGroup.Add
 - The Go Memory Model | https://go.dev/ref/mem

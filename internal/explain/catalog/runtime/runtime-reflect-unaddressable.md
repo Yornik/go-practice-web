@@ -3,7 +3,7 @@ id: runtime-reflect-unaddressable
 source: runtime
 match: ^panic: reflect: reflect\.Value\.(?P<method>\w+) using unaddressable value$
 title: reflect: {{method}} cannot change a copy
-course: 06-envconfig
+course: 31-envconfig
 links:
 - The Go blog: The Laws of Reflection | https://go.dev/blog/laws-of-reflection#the-third-law-of-reflection
 - Package reflect: Value.CanSet | https://pkg.go.dev/reflect#Value.CanSet

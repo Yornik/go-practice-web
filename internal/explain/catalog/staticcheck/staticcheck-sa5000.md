@@ -3,7 +3,7 @@ id: staticcheck-sa5000
 source: staticcheck
 code: SA5000
 title: A value is written to a nil map, which panics
-course: 02-accesslog
+course: 01-loglevels
 links:
 - staticcheck: SA5000 | https://staticcheck.dev/docs/checks/#SA5000
 - The Go spec: Map types | https://go.dev/ref/spec#Map_types

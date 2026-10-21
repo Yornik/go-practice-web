@@ -17,7 +17,8 @@ import (
 	"github.com/yornik/go-practice-web/internal/course"
 )
 
-// Kind is what a certificate covers: "tier1" to "tier5", or "course".
+// Kind is what a certificate covers: "tier1" to "tierN" for the course's
+// N tiers, or "course".
 type Kind string
 
 // KindCourse is the certificate for the whole course.
@@ -74,15 +75,16 @@ func Exercises(c *course.Course, k Kind) ([]*course.Exercise, error) {
 	return nil, fmt.Errorf("%w: %q", ErrKind, k)
 }
 
-// Title is the name of a kind for people, for example
-// "Tier 2: Streams, state, time, types, errors and locks".
+// Title is the name of a kind for people: the tier's label, "Tier 2 ·
+// The Key" ("Tier 2" when the course names no tiers), or "The
+// complete course".
 func Title(c *course.Course, k Kind) (string, error) {
 	if k == KindCourse {
-		return "The complete course", nil
+		return courseTitle, nil
 	}
 	if n, ok := k.Tier(); ok {
 		if t, ok := c.Tier(n); ok {
-			return fmt.Sprintf("Tier %d: %s", t.N, t.Theme), nil
+			return t.Label(), nil
 		}
 	}
 	return "", fmt.Errorf("%w: %q", ErrKind, k)

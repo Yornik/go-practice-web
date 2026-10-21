@@ -4,7 +4,7 @@ source: staticcheck
 code: SA4003
 match: ^(?:no|every) value of type (?P<type>\S+) is .+$
 title: This comparison of a {{type}} always has the same result
-course: 24-diskbuffer
+course: 49-diskbuffer
 links:
 - staticcheck: SA4003 | https://staticcheck.dev/docs/checks/#SA4003
 - The Go spec: Numeric types | https://go.dev/ref/spec#Numeric_types

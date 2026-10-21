@@ -3,7 +3,7 @@ id: test-goroutine-leak
 source: test
 match: ^\d+ goroutines?(?:\(s\))? (?:are )?still running (?P<wait>(?:\d+(?:\.\d+)?(?:ns|µs|us|ms|s|m|h))+) after (?P<call>[^\n]+?) returned(?s:.*)$
 title: A goroutine started by {{call}} never ended
-course: 12-workerpool
+course: 19-fanout
 links:
 - The Go blog: Pipelines and cancellation | https://go.dev/blog/pipelines#explicit-cancellation
 - Package runtime: NumGoroutine | https://pkg.go.dev/runtime#NumGoroutine

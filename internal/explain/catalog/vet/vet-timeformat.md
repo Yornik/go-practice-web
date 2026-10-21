@@ -4,7 +4,7 @@ source: vet
 analyzer: timeformat
 match: ^(?P<bad>2006-02-01) should be (?P<good>2006-01-02)$
 title: The layout {{bad}} means year, day, month; you likely meant {{good}}
-course: 01-logfmt
+course: 25-syslog
 links:
 - Package time: Constants | https://pkg.go.dev/time#pkg-constants
 - Package time: Parse | https://pkg.go.dev/time#Parse

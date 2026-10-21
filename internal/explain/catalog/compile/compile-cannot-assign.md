@@ -3,7 +3,7 @@ id: compile-cannot-assign
 source: compile
 match: ^cannot assign to (?P<expr>.+) \(neither addressable nor a map index expression\)$
 title: {{expr}} cannot be assigned to
-course: 01-logfmt
+course: 26-logfmt
 links:
 - The Go spec: Assignment statements | https://go.dev/ref/spec#Assignment_statements
 - The Go spec: String types | https://go.dev/ref/spec#String_types
@@ -44,4 +44,4 @@ Change a copy of the bytes, then build a new string:
 
 ## Learn more
 
-Exercise 01 treats a string as bytes in a hand-written scanner.
+The course exercise below treats a string as bytes in a hand-written scanner.

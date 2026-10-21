@@ -4,7 +4,7 @@ source: compile
 match: ^invalid operation: (?P<expr>.+) \(mismatched types (?P<left>.+?) and (?P<right>untyped .+)\)$
 match: ^invalid operation: (?P<expr>.+) \(mismatched types (?P<left>untyped [^)]+?) and (?P<right>(?:[^u]|u[^n]|un[^t]).*)\)$
 title: In {{expr}}, a constant does not fit the type of the other side
-course: 01-logfmt
+course: 26-logfmt
 links:
 - The Go spec: Constants | https://go.dev/ref/spec#Constants
 - The Go blog: Constants | https://go.dev/blog/constants
@@ -46,4 +46,4 @@ Compare the byte with a rune literal:
 
 ## Learn more
 
-Exercise 01 practises strings as bytes in a hand-written scanner.
+The course exercise below practises strings as bytes in a hand-written scanner.

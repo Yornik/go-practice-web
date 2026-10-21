@@ -3,7 +3,7 @@ id: compile-impossible-type-assertion
 source: compile
 match: ^impossible type (?:assertion|switch case): (?P<expr>[^\n]+)(?:\n\s*(?P<reason>[\s\S]+))?$
 title: The type check {{expr}} can never succeed
-course: 01-logfmt
+course: 18-tableprint
 links:
 - The Go spec: Type assertions | https://go.dev/ref/spec#Type_assertions
 - The Go spec: Method sets | https://go.dev/ref/spec#Method_sets
@@ -48,4 +48,4 @@ Look for the pointer type, also in wrapped errors:
 
 ## Learn more
 
-Exercise 01 practises errors.As with a custom error type.
+The course exercise below asserts values to `fmt.Stringer`, which only a type with the method in its method set satisfies.

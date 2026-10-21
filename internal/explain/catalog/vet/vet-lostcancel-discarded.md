@@ -4,7 +4,7 @@ source: vet
 analyzer: lostcancel
 match: ^the cancel function returned by (?P<call>\S+) should be called, not discarded, to avoid a context leak$
 title: The cancel function of {{call}} is thrown away
-course: 23-leaderelection
+course: 21-rollout
 links:
 - Package context | https://pkg.go.dev/context
 - The Go blog: Go Concurrency Patterns: Context | https://go.dev/blog/context
@@ -37,4 +37,4 @@ defer cancel()
 
 ## Learn more
 
-The course exercise below practises a tree of contexts and who cancels each of them.
+The course exercise below practises contexts with a deadline and who cancels them.

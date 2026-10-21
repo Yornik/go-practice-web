@@ -3,7 +3,7 @@ id: compile-wrong-method-signature
 source: compile
 match: ^cannot use (?P<expr>.+?) \((?P<what>.+?)\) as (?P<iface>.+?) value in [^:\n]+: (?P<type>.+?) does not implement .+? \(wrong type for method (?P<method>\S+)\)(?:\n\s*have (?P<have>.+)\n\s*want (?P<want>.+))?$
 title: {{type}} has a method {{method}}, but not with the signature {{iface}} needs
-course: 16-middleware
+course: 16-redact
 links:
 - The Go spec: Implementing an interface | https://go.dev/ref/spec#Implementing_an_interface
 - The Go spec: Interface types | https://go.dev/ref/spec#Interface_types
@@ -57,4 +57,4 @@ func (t *Tally) Write(p []byte) (int, error) {
 
 ## Learn more
 
-Exercise 16 wraps http.ResponseWriter, whose methods must match exactly.
+The course exercise below adds the methods that `fmt`, `encoding/json` and `log/slog` look for, and each signature must match exactly.

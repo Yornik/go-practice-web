@@ -14,15 +14,27 @@ import (
 	"github.com/yornik/go-practice-web/internal/store"
 )
 
+// figureSlug is the exercise of Figure 1 and Figure 2 on the landing
+// page: the retry loop.
+const figureSlug = "32-retry"
+
 func (s *Server) landingPage(w http.ResponseWriter, r *http.Request) {
-	// Figure 1 is the retry loop of exercise 07; its bar is the blue one.
-	st := courseStrip(s.cfg.Course, map[string]string{"07-retry": "here"})
-	st.Class = "strip-lg"
-	st.Label = fmt.Sprintf("The course to scale: %d exercises in %d tiers, about %s. The blue bar is exercise 07.",
+	fig, _ := s.cfg.Course.Exercise(figureSlug)
+	states := map[string]string{}
+	label := fmt.Sprintf("The course to scale: %d exercises in %d tiers, about %s.",
 		len(s.cfg.Course.Exercises), len(s.cfg.Course.Tiers), formatHours(s.cfg.Course.Hours()))
+	if fig != nil {
+		// Figure 1 is the retry loop of this exercise; its bar is the blue one.
+		states[fig.Slug] = "here"
+		label += fmt.Sprintf(" The blue bar is exercise %02d.", fig.Number)
+	}
+	st := courseStrip(s.cfg.Course, states)
+	st.Class = "strip-lg"
+	st.Label = label
 	s.render(w, r, http.StatusOK, "landing", view{Nav: "home", Mono: true, Script: "pages/landing.js", Data: map[string]any{
-		"Strip":  st,
-		"Figure": figureTwo(),
+		"Strip":    st,
+		"Figure":   figureTwo(s.cfg.Course),
+		"Exercise": fig,
 	}})
 }
 
@@ -292,7 +304,7 @@ func (s *Server) buildDashboard(ctx context.Context, userID int64) (dashboard, e
 		states[row.Slug] = row.Status
 	}
 	d.Strip = courseStrip(s.cfg.Course, states)
-	// A picture, not 25 more links: the tables below link every exercise.
+	// A picture, not 1 more link per exercise: the tables below link them all.
 	d.Strip.Label = fmt.Sprintf("The course to scale: %d of %d exercises pass, %d started.", d.Passed, d.Total, d.Started)
 	return d, nil
 }
@@ -321,9 +333,18 @@ func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
-	ex, ok := s.cfg.Course.Exercise(r.PathValue("exercise"))
+	ex, renamed, ok := s.cfg.Course.Resolve(r.PathValue("exercise"))
 	if !ok {
 		s.errorPage(w, r, http.StatusNotFound, "This exercise does not exist.")
+		return
+	}
+	if renamed {
+		// A bookmark or a link from before the course grew: the exercise
+		// lives on under its new number. The API takes only current slugs.
+		// 302, not 301: a browser keeps a 301 for good, and after a
+		// rollback to the first course it would still send the old link
+		// to a slug that build does not have.
+		http.Redirect(w, r, "/learn/"+ex.Slug, http.StatusFound)
 		return
 	}
 	prev, next := s.cfg.Course.Neighbours(ex.Slug)
@@ -358,6 +379,8 @@ func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
 			"GoVersion": goVersion(),
 			"Count":     len(s.cfg.Course.Exercises),
 			"Titles":    exerciseTitles(s.cfg.Course),
+			// The IDE moves what the browser kept under the old slug.
+			"RenamedFrom": s.cfg.Course.RenamedFrom(ex.Slug),
 		},
 	})
 }

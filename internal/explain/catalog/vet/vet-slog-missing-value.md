@@ -4,7 +4,7 @@ source: vet
 analyzer: slog
 match: ^call to (?P<call>\S+) (?:missing a final value|has a missing or misplaced value)$
 title: A key passed to {{call}} has no value
-course: 16-middleware
+course: 41-middleware
 links:
 - Package log/slog | https://pkg.go.dev/log/slog
 - Package log/slog: Logger.Log | https://pkg.go.dev/log/slog#Logger.Log

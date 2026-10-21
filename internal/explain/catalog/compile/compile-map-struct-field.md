@@ -4,7 +4,7 @@ source: compile
 match: ^cannot assign to struct field (?P<expr>.+) in map$
 match: ^invalid operation: cannot take address of (?P<expr>.+) \(map index expression of (?:\w+ )?type .+\)$
 title: A struct inside a map cannot be changed in place
-course: 02-accesslog
+course: 27-accesslog
 links:
 - The Go spec: Index expressions | https://go.dev/ref/spec#Index_expressions
 - The Go spec: Address operators | https://go.dev/ref/spec#Address_operators
@@ -52,4 +52,4 @@ Copy the element out, change the copy, and store it back:
 
 ## Learn more
 
-Exercise 02 practises maps of structs and of pointers.
+The course exercise below practises maps of structs.

@@ -43,10 +43,21 @@ func (s *Store) BackupName() string {
 // weekday's file. A failed or corrupt copy never replaces a good backup. It
 // returns the path of the backup.
 func (s *Store) Backup(ctx context.Context, dir string) (string, error) {
+	return s.backupTo(ctx, dir, s.BackupName())
+}
+
+// BackupDir is the directory of the backups: backups/ next to the
+// database file.
+func (s *Store) BackupDir() string {
+	return filepath.Join(filepath.Dir(s.path), "backups")
+}
+
+// backupTo writes the checked copy of Backup to dir/name.
+func (s *Store) backupTo(ctx context.Context, dir, name string) (string, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", fmt.Errorf("store: backup: %w", err)
 	}
-	final := filepath.Join(dir, s.BackupName())
+	final := filepath.Join(dir, name)
 	tmp := final + ".tmp"
 	// VACUUM INTO refuses to overwrite; a leftover is from a crashed backup.
 	if err := os.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {

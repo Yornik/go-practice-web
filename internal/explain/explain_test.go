@@ -257,7 +257,7 @@ func TestRaceReport(t *testing.T) {
 			t.Errorf("Captures[%q] = %q, want %q", k, got, v)
 		}
 	}
-	if e.Course != "12-workerpool" || !strings.Contains(e.HTML, `href="/learn/12-workerpool"`) {
+	if e.Course != "20-counters" || !strings.Contains(e.HTML, `href="/learn/20-counters"`) {
 		t.Errorf("Course = %q; HTML has no course link", e.Course)
 	}
 	if !strings.HasPrefix(e.Raw.Message, "WARNING: DATA RACE\nRead at") || strings.Contains(e.Raw.Message, "created at") {
@@ -541,7 +541,7 @@ func TestRefs(t *testing.T) {
 
 func TestShortFunc(t *testing.T) {
 	tests := []struct{ in, pkg, short string }{
-		{"github.com/yornik/go-practice/exercises/01-logfmt.Parse(...)", "github.com/yornik/go-practice/exercises/01-logfmt", "Parse"},
+		{"github.com/yornik/go-practice/exercises/26-logfmt.Parse(...)", "github.com/yornik/go-practice/exercises/26-logfmt", "Parse"},
 		{"example.com/x.(*SyntaxError).Error(0xc000010000)", "example.com/x", "(*SyntaxError).Error"},
 		{"example.com/y.Count.func1()", "example.com/y", "Count.func1"},
 		{"testing.(*T).Run", "testing", "(*T).Run"},
@@ -578,7 +578,7 @@ func TestExit(t *testing.T) {
 	const (
 		fatal  = "2026/10/17 11:28:32 missing address\n"
 		goFail = "FAIL\texample.com/x\t0.004s\n"
-		// A watchdog such as the guard of the course's 08-ratelimit tests
+		// A watchdog such as the guard of the course's 33-ratelimit tests
 		// prints every goroutine before it exits.
 		dump = "\nTestInc is still running after 10s: a call is blocked.\nStacks of all goroutines:\n\n" +
 			"goroutine 7 [sync.Mutex.Lock]:\n" +

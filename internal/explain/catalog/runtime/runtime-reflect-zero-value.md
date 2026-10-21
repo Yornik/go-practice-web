@@ -3,7 +3,7 @@ id: runtime-reflect-zero-value
 source: runtime
 match: ^panic: reflect: call of reflect\.Value\.(?P<method>\w+) on zero Value$
 title: reflect: {{method}} was called on an empty reflect.Value
-course: 06-envconfig
+course: 18-tableprint
 links:
 - Package reflect: Value | https://pkg.go.dev/reflect#Value
 - Package reflect: Value.IsValid | https://pkg.go.dev/reflect#Value.IsValid

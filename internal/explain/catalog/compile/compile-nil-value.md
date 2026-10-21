@@ -3,7 +3,7 @@ id: compile-nil-value
 source: compile
 match: ^cannot use nil as (?P<type>.+) value in (?P<context>.+)$
 title: nil is not a value of type {{type}}
-course: 09-cache
+course: 17-flightrec
 links:
 - The Go spec: The zero value | https://go.dev/ref/spec#The_zero_value
 - The Go spec: Assignability | https://go.dev/ref/spec#Assignability
@@ -46,4 +46,4 @@ Return the zero value of the struct:
 
 ## Learn more
 
-Exercise 09 practises the zero value of a type parameter.
+The course exercise below practises the zero value of a type parameter.

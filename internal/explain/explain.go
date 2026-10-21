@@ -58,7 +58,7 @@ type Explanation struct {
 	HTML  string `json:"html"`
 	Links []Link `json:"links"`
 	// Course is the slug of the exercise that teaches the concept, for
-	// example "12-workerpool", or empty.
+	// example "37-workerpool", or empty.
 	Course string `json:"course,omitempty"`
 	// Generic is true when no entry matched and this is a generic guide.
 	Generic bool `json:"generic,omitempty"`

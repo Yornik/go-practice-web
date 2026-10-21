@@ -12,11 +12,11 @@ import (
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
 
-// runTest posts a test run for 01-logfmt and returns the events of the
+// runTest posts a test run for the logfmt exercise and returns the events of the
 // stream by type: the last of each type, and all explain events in order.
 func (h *harness) runTest(as *user, body map[string]any) (last map[string]map[string]any, explains []map[string]any, types []string) {
 	h.t.Helper()
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: body, as: as})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: body, as: as})
 	wantStatus(h.t, w, http.StatusOK)
 	last = map[string]map[string]any{}
 	for _, ev := range ndjson(h.t, w.Body.String()) {
@@ -46,7 +46,7 @@ func TestRaceUnavailableOnTheRunner(t *testing.T) {
 	h.runner.events = passingRun
 	raceUnavailable := func() any {
 		t.Helper()
-		w := h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: admin})
+		w := h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: admin})
 		wantStatus(t, w, http.StatusOK)
 		return decodeJSON[map[string]any](t, w)["raceUnavailable"]
 	}
@@ -205,7 +205,7 @@ func TestBusyRunnerEndsTheStream(t *testing.T) {
 		t.Errorf("error event = %v", e)
 	}
 	// The run never started, so it is not counted.
-	if p, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt"); err == nil && p.Runs != 0 {
+	if p, err := h.store.Progress(t.Context(), admin.ID, logfmt); err == nil && p.Runs != 0 {
 		t.Errorf("runs = %d, want 0", p.Runs)
 	}
 }
@@ -322,12 +322,12 @@ func TestStreamExplanations(t *testing.T) {
 				output(sub, "testing.(*T).Run(0xc00012c1c0, {0x720084, 0xb}, 0xc00006cbc0)\n"),
 				output(sub, "\t/usr/local/go/src/testing/testing.go:1859 +0x91e\n"),
 				output(sub, "github.com/yornik/go-practice/exercises/01-logfmt_test.runParseCases(0xc00012c1c0, {0xc000135a78, 0xb, 0xc000057850?})\n"),
-				output(sub, "\texercises/01-logfmt/logfmt_test.go:37 +0xa5\n"),
+				output(sub, "\texercises/26-logfmt/logfmt_test.go:37 +0xa5\n"),
 				output(sub, "\n"),
 				output(sub, "goroutine 7 [select (no cases)]:\n"),
-				output(sub, "github.com/yornik/go-practice/exercises/01-logfmt.Parse({0x5a1b2c, 0x3})\n"),
-				output(sub, "\texercises/01-logfmt/logfmt.go:45 +0x18\n"),
-				output("", "FAIL\tgithub.com/yornik/go-practice/exercises/01-logfmt\t35.012s\n"),
+				output(sub, "github.com/yornik/go-practice/exercises/26-logfmt.Parse({0x5a1b2c, 0x3})\n"),
+				output(sub, "\texercises/26-logfmt/logfmt.go:45 +0x18\n"),
+				output("", "FAIL\tgithub.com/yornik/go-practice/exercises/26-logfmt\t35.012s\n"),
 				action("fail", ""),
 				{Type: runnerapi.EventDone, ExitCode: 1, TimedOut: true},
 			}
@@ -350,7 +350,7 @@ func TestStreamExplanations(t *testing.T) {
 			t.Errorf("progress = %v", last["progress"])
 		}
 		// A reload still shows the test that hung, as failed.
-		prog, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+		prog, err := h.store.Progress(t.Context(), admin.ID, logfmt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -400,7 +400,7 @@ func TestStreamExplanations(t *testing.T) {
 				action("run", sub),
 				output(sub, "=== RUN   "+sub+"\n"),
 				output(sub, "    logfmt_test.go:9: Parse(\"b\") = 1, want 3\n"),
-				output("", "FAIL\tgithub.com/yornik/go-practice/exercises/01-logfmt\t0.012s\n"),
+				output("", "FAIL\tgithub.com/yornik/go-practice/exercises/26-logfmt\t0.012s\n"),
 				action("fail", ""),
 				done,
 			}

@@ -3,7 +3,7 @@ id: runtime-unlock-unlocked
 source: runtime
 match: ^fatal error: sync: (?P<call>unlock|RUnlock|Unlock) of unlocked (?P<lock>mutex|RWMutex)$
 title: {{call}} of a {{lock}} that is not locked, in {{func}}
-course: 09-cache
+course: 20-counters
 links:
 - Package sync: Mutex.Unlock | https://pkg.go.dev/sync#Mutex.Unlock
 - Package sync: RWMutex.RUnlock | https://pkg.go.dev/sync#RWMutex.RUnlock

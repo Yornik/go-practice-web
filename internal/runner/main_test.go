@@ -39,10 +39,10 @@ func warmCache() error {
 	env := append(os.Environ(),
 		"GOCACHE="+tc.goCache, "GOFLAGS=-mod=mod", "GOPROXY=off", "GOTOOLCHAIN=local", "CGO_ENABLED=1")
 	for _, args := range [][]string{
-		{"vet", "./exercises/01-logfmt/", "./exercises/08-ratelimit/", "./exercises/12-workerpool/"},
-		{"test", "-count=1", "-run=^$", "./exercises/01-logfmt/"},
-		{"test", "-count=1", "-run=^$", "./exercises/18-certcheck/"},
-		{"test", "-race", "-count=1", "-run=^$", "./exercises/01-logfmt/", "./exercises/12-workerpool/", "./exercises/15-healthcheck/"},
+		{"vet", "./exercises/26-logfmt/", "./exercises/33-ratelimit/", "./exercises/37-workerpool/"},
+		{"test", "-count=1", "-run=^$", "./exercises/26-logfmt/"},
+		{"test", "-count=1", "-run=^$", "./exercises/43-certcheck/"},
+		{"test", "-race", "-count=1", "-run=^$", "./exercises/01-loglevels/", "./exercises/26-logfmt/", "./exercises/37-workerpool/", "./exercises/40-healthcheck/"},
 	} {
 		cmd := exec.Command(tc.goPath, args...)
 		cmd.Dir = courseDir

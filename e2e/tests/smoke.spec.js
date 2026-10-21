@@ -1,12 +1,12 @@
 // The smoke test of docs/DESIGN.md, "Testing": the setup link, sign-up,
 // the email gate until the address is verified, sign-out and sign-in with
-// a passkey, the IDE on 01-logfmt with hint 1 behind its soft gate, the
+// a passkey, the IDE on 01-loglevels with hint 1 behind its soft gate, the
 // reference solution passing every test with -race, and the verify page of
 // a certificate lookup.
 import { test, expect } from "@playwright/test";
 import { confirmEmail, setupLink, siteRulesOnMonaco, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
 
-test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context }) => {
+test("setup, sign up, solve 01-loglevels, reveal hint 1", async ({ page, context }) => {
   const errors = watchErrors(page);
   await virtualAuthenticator(context, page);
 
@@ -62,9 +62,9 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await page.waitForURL("**/learn");
 
   // The IDE.
-  await page.goto("/learn/01-logfmt");
+  await page.goto("/learn/01-loglevels");
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
-  await expect(page.locator("[data-file-tabs] [role=tab] .file-name").first()).toHaveText("logfmt.go");
+  await expect(page.locator("[data-file-tabs] [role=tab] .file-name").first()).toHaveText("loglevels.go");
 
   // Monaco's widgets keep their own look: no site class is a Monaco class
   // name, and no site rule matches the open suggest list, find widget,
@@ -132,7 +132,7 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await expect(page.getByRole("button", { name: "Reveal hint 2 now" })).toBeVisible();
 
   // Paste the reference solution; autosave stores it.
-  const files = solution("01-logfmt");
+  const files = solution("01-loglevels");
   await page.evaluate((files) => {
     for (const m of window.monaco.editor.getModels()) {
       const name = m.uri.path.split("/").pop();
@@ -157,7 +157,7 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
 
   // Certificates: nothing to claim yet; the verify lookup works.
   await page.goto("/certificates");
-  await expect(page.getByRole("heading", { name: /Tier 1/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tier 1 · Badge In" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Claim the/ })).toHaveCount(0);
   await page.goto("/verify?id=gp-0000-0000-0000");
   await expect(page.getByRole("heading", { name: "No certificate has this ID." })).toBeVisible();
@@ -169,7 +169,7 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
     const res = await route.fetch();
     await route.fulfill({ response: res, json: { ...(await res.json()), raceUnavailable: true } });
   });
-  await page.goto("/learn/02-accesslog");
+  await page.goto("/learn/02-repeated");
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(page.locator("[data-race]")).toBeDisabled();
   await expect(page.locator("[data-race-status]")).toHaveText("-race not available");
@@ -178,33 +178,33 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
 
   // Code that a closed tab could not save stays on offer through an edit and
   // a successful save, until the learner restores or discards it.
-  const key = "gpw-unsaved:02-accesslog:accesslog.go";
-  const kept = "package accesslog\n\n// kept by this browser\n";
+  const key = "gpw-unsaved:02-repeated:repeated.go";
+  const kept = "package repeated\n\n// kept by this browser\n";
   await page.evaluate(([k, content]) => localStorage.setItem(k, JSON.stringify({ at: Date.now(), content })), [key, kept]);
   await page.reload();
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   const banner = page.locator("[data-save-banner]");
-  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  await expect(banner).toContainText("This browser kept changes to repeated.go");
   await page.evaluate(() => {
-    const m = window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go"));
+    const m = window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/repeated.go"));
     m.setValue(m.getValue() + "\n// an edit\n");
   });
   await expect(page.locator("[data-save-status]")).toContainText("Saved", { timeout: 20_000 });
-  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  await expect(banner).toContainText("This browser kept changes to repeated.go");
   // The offered copy waits under its own key; the live backup is free for new edits.
-  const offered = "gpw-offered:02-accesslog:accesslog.go";
+  const offered = "gpw-offered:02-repeated:repeated.go";
   expect(JSON.parse(await page.evaluate((k) => localStorage.getItem(k), offered)).map((c) => c.content)).toEqual([kept]);
   await banner.getByRole("button", { name: "Restore them" }).click();
   await expect(banner).toBeHidden();
   expect(await page.evaluate((k) => localStorage.getItem(k), offered)).toBeNull();
-  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(kept);
+  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/repeated.go")).getValue())).toBe(kept);
   // The restore is saved like any edit: the live backup goes once the server has it.
   await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key), { timeout: 20_000 }).toBeNull();
 
   // A copy the learner never acted on stays behind a newer one: the newest
   // is offered first, then the older one.
-  const older = "package accesslog\n\n// older copy\n";
-  const newer = "package accesslog\n\n// newer copy\n";
+  const older = "package repeated\n\n// older copy\n";
+  const newer = "package repeated\n\n// newer copy\n";
   await page.evaluate(([o, k, a, b]) => {
     localStorage.setItem(o, JSON.stringify([{ at: 1, content: a }]));
     localStorage.setItem(k, JSON.stringify({ at: 2, content: b }));
@@ -213,12 +213,36 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(banner).toContainText("1 older copy waits after this one.");
   await banner.getByRole("button", { name: "discard them" }).click();
-  await expect(banner).toContainText("This browser kept changes to accesslog.go");
+  await expect(banner).toContainText("This browser kept changes to repeated.go");
   await expect(banner).not.toContainText("older copy");
   await banner.getByRole("button", { name: "Restore them" }).click();
   await expect(banner).toBeHidden();
-  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/accesslog.go")).getValue())).toBe(older);
+  expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/repeated.go")).getValue())).toBe(older);
   await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key), { timeout: 20_000 }).toBeNull();
+
+  // A tab that was open while the course grew kept its code under the slug
+  // of the first course. The old link redirects, and the page of the new
+  // slug offers that code and takes over the cursor position.
+  const oldKey = "gpw-unsaved:07-retry:retry.go";
+  const oldCursor = "gpw-cursor:07-retry:retry.go";
+  const moved = "package retry\n\n// kept under the old slug\n";
+  await page.evaluate(([k, c, content]) => {
+    localStorage.setItem(k, JSON.stringify({ at: Date.now(), content }));
+    localStorage.setItem(c, "3:1");
+  }, [oldKey, oldCursor, moved]);
+  await page.goto("/learn/07-retry");
+  await expect(page).toHaveURL(/\/learn\/32-retry$/);
+  await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await expect(banner).toContainText("This browser kept changes to retry.go");
+  const kept32 = await page.evaluate(() => ({
+    unsaved: localStorage.getItem("gpw-unsaved:07-retry:retry.go"),
+    cursor: localStorage.getItem("gpw-cursor:07-retry:retry.go"),
+    offered: JSON.parse(localStorage.getItem("gpw-offered:32-retry:retry.go") || "[]").map((c) => c.content),
+  }));
+  expect(kept32).toEqual({ unsaved: null, cursor: null, offered: [moved] });
+  await expect(page.locator("[data-cursor]")).toHaveText("Line 3, column 1");
+  await banner.getByRole("button", { name: "discard them" }).click();
+  await expect(banner).toBeHidden();
 
   expect(errors).toEqual([]);
 });
