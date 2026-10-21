@@ -23,21 +23,6 @@ var (
 	loadErr  error
 )
 
-// cur returns the slug the real course uses for an exercise of the first
-// course: the old slug itself, or its new one in the course of 50. The
-// tests below hold for either course the submodule pins.
-func cur(t *testing.T, c *Course, old string) string {
-	t.Helper()
-	s := c.CurrentSlug(old)
-	if s == "" {
-		t.Fatalf("the course has no exercise %s under any slug", old)
-	}
-	return s
-}
-
-// renamedCourse reports whether the real course is the course of 50.
-func renamedCourse(c *Course) bool { return c.CurrentSlug("01-logfmt") != "01-logfmt" }
-
 // loadedOnce loads the real course once for all tests: they only read it.
 func loadedOnce(t *testing.T) *Course {
 	t.Helper()
@@ -50,17 +35,12 @@ func loadedOnce(t *testing.T) *Course {
 
 func TestLoadExercisesAndTiers(t *testing.T) {
 	c := loadedOnce(t)
-	want := []struct{ first, last int }{{1, 3}, {4, 9}, {10, 14}, {15, 19}, {20, 25}}
-	if renamedCourse(c) {
-		// The first course's tiers moved up by 5 tiers and 25 exercises.
-		moved := make([]struct{ first, last int }, 0, 10)
-		for n := range 5 {
-			moved = append(moved, struct{ first, last int }{5*n + 1, 5*n + 5})
-		}
-		for _, w := range want {
-			moved = append(moved, struct{ first, last int }{w.first + 25, w.last + 25})
-		}
-		want = moved
+	want := []struct {
+		first, last int
+		name        string
+	}{
+		{1, 5, "Badge In"}, {6, 10, "The Key"}, {11, 15, "Hand Tools"}, {16, 20, "Surge"}, {21, 25, "Dead Air"},
+		{26, 28, "Forensics"}, {29, 34, "Containment"}, {35, 39, "Blast Radius"}, {40, 44, "Clean Signal"}, {45, 50, "The Key Turns"},
 	}
 	if got, total := len(c.Exercises), want[len(want)-1].last; got != total {
 		t.Fatalf("got %d exercises, want %d", got, total)
@@ -88,8 +68,8 @@ func TestLoadExercisesAndTiers(t *testing.T) {
 		if !ok {
 			t.Fatalf("Tier(%d) missing", i+1)
 		}
-		if tier.First != w.first || tier.Last != w.last || tier.Theme == "" {
-			t.Errorf("tier %d = %d–%d %q, want %d–%d", tier.N, tier.First, tier.Last, tier.Theme, w.first, w.last)
+		if tier.First != w.first || tier.Last != w.last || tier.Theme == "" || tier.Name != w.name {
+			t.Errorf("tier %d = %d–%d %q %q, want %d–%d %q", tier.N, tier.First, tier.Last, tier.Name, tier.Theme, w.first, w.last, w.name)
 		}
 		for _, e := range tier.Exercises {
 			if e.Tier != tier.N || e.Number < w.first || e.Number > w.last {
@@ -110,32 +90,31 @@ func TestLoadExercisesAndTiers(t *testing.T) {
 
 func TestLookups(t *testing.T) {
 	c := loadedOnce(t)
-	retry := cur(t, c, "07-retry")
-	e, ok := c.Exercise(retry)
+	e, ok := c.Exercise("32-retry")
 	if !ok {
-		t.Fatalf("%s not found", retry)
+		t.Fatal("32-retry not found")
 	}
-	tier, number := 2, 7
-	if renamedCourse(c) {
-		tier, number = 7, 32
+	if e.Package != "retry" || e.Tier != 7 || e.Time != "2.5 h" || e.Number != 32 {
+		t.Errorf("32-retry = %q %d %q %d", e.Package, e.Tier, e.Time, e.Number)
 	}
-	if e.Package != "retry" || e.Tier != tier || e.Time != "2.5 h" || e.Number != number {
-		t.Errorf("%s = %q %d %q %d", retry, e.Package, e.Tier, e.Time, e.Number)
-	}
-	if n, ok := c.ExerciseByNumber(number); !ok || n != e {
-		t.Errorf("ExerciseByNumber(%d) is not %s", number, retry)
+	if n, ok := c.ExerciseByNumber(32); !ok || n != e {
+		t.Error("ExerciseByNumber(32) is not 32-retry")
 	}
 	if _, ok := c.Exercise("../solutions"); ok {
 		t.Error("found an exercise for a path")
 	}
-	prev, next := c.Neighbours(retry)
-	if prev == nil || prev.Slug != cur(t, c, "06-envconfig") || next == nil || next.Slug != cur(t, c, "08-ratelimit") {
-		t.Errorf("Neighbours(%s) = %v, %v", retry, prev, next)
+	prev, next := c.Neighbours("32-retry")
+	if prev == nil || prev.Slug != "31-envconfig" || next == nil || next.Slug != "33-ratelimit" {
+		t.Errorf("Neighbours(32-retry) = %v, %v", prev, next)
+	}
+	// Tiers 5 and 6 meet without a gap.
+	if prev, _ := c.Neighbours("26-logfmt"); prev == nil || prev.Slug != "25-syslog" {
+		t.Errorf("26-logfmt follows %v", prev)
 	}
 	if prev, _ := c.Neighbours(c.Exercises[0].Slug); prev != nil {
 		t.Error("the first exercise has a previous exercise")
 	}
-	if _, next := c.Neighbours(cur(t, c, "25-loadbalancer")); next != nil {
+	if _, next := c.Neighbours("50-loadbalancer"); next != nil {
 		t.Error("the last exercise has a next exercise")
 	}
 	if got := c.Version(); got == "" {
@@ -201,8 +180,8 @@ func TestSteps(t *testing.T) {
 
 func TestStepDetails(t *testing.T) {
 	c := loadedOnce(t)
-	logfmt, slo, retry := cur(t, c, "01-logfmt"), cur(t, c, "05-slo"), cur(t, c, "07-retry")
-	deploy, pool, mw := cur(t, c, "10-deployorder"), cur(t, c, "12-workerpool"), cur(t, c, "16-middleware")
+	logfmt, slo, retry := "26-logfmt", "30-slo", "32-retry"
+	deploy, pool, mw := "35-deployorder", "37-workerpool", "41-middleware"
 	tests := []struct {
 		slug string
 		id   string
@@ -234,19 +213,19 @@ func TestStepDetails(t *testing.T) {
 	}
 
 	// The README's -skip becomes an explicit list: the runner takes -run only.
-	e, _ := c.Exercise(cur(t, c, "18-certcheck"))
+	e, _ := c.Exercise("43-certcheck")
 	s, _ := e.Step("step-1")
 	match, err := TopLevelMatcher(s.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if match("TestCheckAll") || !match("TestCheck") && !slices.ContainsFunc(e.Tests, match) {
-		t.Errorf("18-certcheck step 1 run %q", s.Run)
+		t.Errorf("43-certcheck step 1 run %q", s.Run)
 	}
 	for _, name := range e.Tests {
 		want := strings.HasPrefix(name, "TestCheck") && !strings.HasPrefix(name, "TestCheckAll")
 		if match(name) != want {
-			t.Errorf("18-certcheck step 1 run %q: match(%s) = %v, want %v", s.Run, name, match(name), want)
+			t.Errorf("43-certcheck step 1 run %q: match(%s) = %v, want %v", s.Run, name, match(name), want)
 		}
 	}
 }
@@ -275,7 +254,7 @@ func TestParseSteps(t *testing.T) {
 	}
 
 	bad := map[string]string{
-		"wrong package":  "go test -run TestA ./exercises/01-logfmt/ # step 1: x",
+		"wrong package":  "go test -run TestA ./exercises/26-logfmt/ # step 1: x",
 		"unknown flag":   "go test -fuzz=FuzzA ./exercises/99-x/ # step 1: x",
 		"duplicate":      "go test -run TestA ./exercises/99-x/ # step 1\ngo test -run TestB ./exercises/99-x/ # step 1",
 		"open quote":     "go test -run 'TestA ./exercises/99-x/ # step 1",
@@ -386,9 +365,9 @@ func TestFiles(t *testing.T) {
 			}
 		}
 	}
-	e, _ := c.Exercise(cur(t, c, "17-promtext"))
+	e, _ := c.Exercise("42-promtext")
 	if len(e.Testdata) == 0 {
-		t.Error("17-promtext lists no testdata")
+		t.Error("42-promtext lists no testdata")
 	}
 	for _, name := range e.Testdata {
 		if strings.Contains(name, `\`) || strings.HasPrefix(name, "/") {
@@ -593,20 +572,20 @@ func TestGuide(t *testing.T) {
 }
 
 func TestLinkRewrite(t *testing.T) {
-	r := &linkRewriter{slugs: map[string]bool{"07-retry": true, "01-logfmt": true}}
+	r := &linkRewriter{slugs: map[string]bool{"32-retry": true, "26-logfmt": true}}
 	tests := []struct {
 		base, dest string
 		image      bool
 		want       string
 	}{
-		{"README.md", "exercises/07-retry/", false, "/learn/07-retry"},
-		{"README.md", "exercises/07-retry/README.md#rules", false, "/learn/07-retry#rules"},
-		{"exercises/01-logfmt/README.md", "../07-retry/", false, "/learn/07-retry"},
-		{"solutions/01-logfmt/hints.md", "../../exercises/07-retry", false, "/learn/07-retry"},
+		{"README.md", "exercises/32-retry/", false, "/learn/32-retry"},
+		{"README.md", "exercises/32-retry/README.md#rules", false, "/learn/32-retry#rules"},
+		{"exercises/26-logfmt/README.md", "../32-retry/", false, "/learn/32-retry"},
+		{"solutions/26-logfmt/hints.md", "../../exercises/32-retry", false, "/learn/32-retry"},
 		{"README.md", "exercises/99-unknown/", false, GitHubBlobURL + "exercises/99-unknown"},
 		{"README.md", "LICENSE", false, GitHubBlobURL + "LICENSE"},
-		{"exercises/07-retry/README.md", "retry_test.go", false, GitHubBlobURL + "exercises/07-retry/retry_test.go"},
-		{"exercises/07-retry/README.md", "/scripts/verify-solutions.sh", false, GitHubBlobURL + "scripts/verify-solutions.sh"},
+		{"exercises/32-retry/README.md", "retry_test.go", false, GitHubBlobURL + "exercises/32-retry/retry_test.go"},
+		{"exercises/32-retry/README.md", "/scripts/verify-solutions.sh", false, GitHubBlobURL + "scripts/verify-solutions.sh"},
 		{"README.md", "../../etc/passwd", false, GitHubBlobURL},
 		{"README.md", "https://go.dev/tour/", false, "https://go.dev/tour/"},
 		{"README.md", "mailto:a@example.com", false, "mailto:a@example.com"},
@@ -619,12 +598,12 @@ func TestLinkRewrite(t *testing.T) {
 		}
 	}
 
-	md := newMarkdown(map[string]bool{"07-retry": true})
-	h, err := md.render([]byte("See [retry](../07-retry/) and [the license](../../LICENSE), a <Field>.\n\n<script>x</script>\n"), "exercises/01-logfmt/README.md")
+	md := newMarkdown(map[string]bool{"32-retry": true})
+	h, err := md.render([]byte("See [retry](../32-retry/) and [the license](../../LICENSE), a <Field>.\n\n<script>x</script>\n"), "exercises/26-logfmt/README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`href="/learn/07-retry"`, `href="` + GitHubBlobURL + `LICENSE"`, "&lt;script&gt;x&lt;/script&gt;"} {
+	for _, want := range []string{`href="/learn/32-retry"`, `href="` + GitHubBlobURL + `LICENSE"`, "&lt;script&gt;x&lt;/script&gt;"} {
 		if !strings.Contains(string(h), want) {
 			t.Errorf("render: %q lacks %q", h, want)
 		}
@@ -640,13 +619,12 @@ func TestLinkRewrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	retry := cur(t, loadedOnce(t), "07-retry")
-	full, err := newMarkdown(map[string]bool{retry: true}).render(root, "README.md")
+	full, err := newMarkdown(map[string]bool{"32-retry": true}).render(root, "README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(full), `href="/learn/`+retry+`"`) {
-		t.Errorf("root README does not link %s to /learn/%s", retry, retry)
+	if !strings.Contains(string(full), `href="/learn/32-retry"`) {
+		t.Error("root README does not link 32-retry to /learn/32-retry")
 	}
 }
 
@@ -721,7 +699,7 @@ func TestLoadErrors(t *testing.T) {
 	}
 	// A copy of 1 exercise with a broken tier line fails with its slug.
 	dir := t.TempDir()
-	logfmt := cur(t, loadedOnce(t), "01-logfmt")
+	const logfmt = "26-logfmt"
 	copyTree(t, filepath.Join(courseDir, "exercises", logfmt), filepath.Join(dir, "exercises", logfmt))
 	copyTree(t, filepath.Join(courseDir, "solutions", logfmt), filepath.Join(dir, "solutions", logfmt))
 	readme := filepath.Join(dir, "exercises", logfmt, "README.md")
@@ -762,15 +740,15 @@ func TestStepLabel(t *testing.T) {
 		slug, id string
 		want     template.HTML
 	}{
-		{"07-retry", "step-1", "<code>Validate</code> and <code>Backoff</code>"},
-		{"07-retry", "step-3", "The error types"},
-		{"07-retry", "step-4", "<code>Do</code> and <code>DoValue</code>"},
-		{"16-middleware", "step-5", "Uses <code>RequestID</code>"},
-		{"05-slo", "step-1", "Step 1"},
-		{"10-deployorder", "step-6", "All, with <code>Example</code> and <code>TestConcurrentUse</code>"},
+		{"32-retry", "step-1", "<code>Validate</code> and <code>Backoff</code>"},
+		{"32-retry", "step-3", "The error types"},
+		{"32-retry", "step-4", "<code>Do</code> and <code>DoValue</code>"},
+		{"41-middleware", "step-5", "Uses <code>RequestID</code>"},
+		{"30-slo", "step-1", "Step 1"},
+		{"35-deployorder", "step-6", "All, with <code>Example</code> and <code>TestConcurrentUse</code>"},
 	}
 	for _, tt := range tests {
-		e, _ := c.Exercise(cur(t, c, tt.slug))
+		e, _ := c.Exercise(tt.slug)
 		s, ok := e.Step(tt.id)
 		if !ok {
 			t.Fatalf("%s: no step %q", tt.slug, tt.id)

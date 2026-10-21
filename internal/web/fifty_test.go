@@ -11,14 +11,14 @@ import (
 	"github.com/yornik/go-practice-web/internal/store"
 )
 
-// These tests run the site on the fixture of the course of 50, in which
-// the first course's exercises are tiers 6 to 10 under new slugs.
+// These tests are about the course of 50, in which the first course's 25
+// exercises are tiers 6 to 10 under new slugs.
 
 // TestRenamedSlugRedirects pins where an old /learn/ link goes, and that
 // the email gate comes first: a renamed slug answers only to a learner who
 // may open the course at all.
 func TestRenamedSlugRedirects(t *testing.T) {
-	h := newHarnessWith(t, fiftyCourse)
+	h := newHarness(t)
 	admin := h.unverifiedAdmin()
 
 	// Without a session: the sign-in page, with the old path to come back to.
@@ -45,7 +45,7 @@ func TestRenamedSlugRedirects(t *testing.T) {
 		t.Error("the IDE of 32-retry does not name its slug")
 	}
 	// A new exercise that reuses an old number is itself, not a redirect.
-	w = h.do(req{method: "GET", path: "/learn/07-inventory", as: admin})
+	w = h.do(req{method: "GET", path: "/learn/07-rollcall", as: admin})
 	wantStatus(t, w, http.StatusOK)
 	wantStatus(t, h.do(req{method: "GET", path: "/learn/99-nothing", as: admin}), http.StatusNotFound)
 
@@ -98,16 +98,16 @@ func firstCourseSlugs(c *course.Course) []string {
 }
 
 func TestEarlierCertificates(t *testing.T) {
-	h := newHarnessWith(t, fiftyCourse)
+	h := newHarness(t)
 	admin := h.admin()
-	old := firstCourseSlugs(fiftyCourse)
+	old := firstCourseSlugs(testCourse)
 	if len(old) != 25 {
-		t.Fatalf("the fixture renames %d exercises", len(old))
+		t.Fatalf("the course renamed %d exercises", len(old))
 	}
 	tier1 := issueOld(t, h, admin, "tier1", "tier6", old[:3])
 	courseCert := issueOld(t, h, admin, cert.KindCourse, "course", old)
 	// The migration moved the first course's passes to the new slugs.
-	for _, e := range fiftyCourse.Exercises[25:] {
+	for _, e := range testCourse.Exercises[25:] {
 		if _, err := h.store.MarkPassed(t.Context(), admin.ID, e.Slug); err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +142,7 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Fatalf("%d kinds, want 11", len(st))
 	}
 	// The old tier1 covers exactly tier 6 of the course of 50: held.
-	if k := st["tier6"]; k.Certificate == nil || k.Certificate.ID != tier1.ID || k.Earlier != nil || k.Title != "Tier 6 · The morning after" {
+	if k := st["tier6"]; k.Certificate == nil || k.Certificate.ID != tier1.ID || k.Earlier != nil || k.Title != "Tier 6 · Forensics" {
 		t.Errorf("tier6 = %+v", k)
 	}
 	// The old course certificate covers 25 of 50: an earlier one.
@@ -151,8 +151,8 @@ func TestEarlierCertificates(t *testing.T) {
 	}
 
 	page := h.do(req{method: "GET", path: "/certificates", as: admin}).Body.String()
-	for _, want := range []string{"Tier 6 · The morning after", "The complete course", "50 exercises in 10 tiers",
-		"an earlier certificate", courseCert.ID, "Tier 2 · Carrying the Owl"} {
+	for _, want := range []string{"Tier 6 · Forensics", "The complete course", "50 exercises in 10 tiers",
+		"an earlier certificate", courseCert.ID, "Tier 2 · The Key"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the certificates page lacks %q", want)
 		}
@@ -163,7 +163,7 @@ func TestEarlierCertificates(t *testing.T) {
 
 	// The verify page reads the old payloads through the renames.
 	v := h.do(req{method: "GET", path: "/verify/" + courseCert.ID}).Body.String()
-	for _, want := range []string{"Valid.", "The complete course", "25 exercises in 5 tiers", "The morning after", "26 to 50", "--tier-max: 25"} {
+	for _, want := range []string{"Valid.", "The complete course", "25 exercises in 5 tiers", "Forensics", "26 to 50", "--tier-max: 25"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old course certificate lacks %q", want)
 		}
@@ -172,7 +172,7 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Errorf("the strip of the old course certificate has %d bars, want 25", n)
 	}
 	v = h.do(req{method: "GET", path: "/verify/" + tier1.ID}).Body.String()
-	for _, want := range []string{"Tier 6 · The morning after", "Warm-up: Go idioms on real data", "Parse logfmt log lines", "26 to 28"} {
+	for _, want := range []string{"Tier 6 · Forensics", "Warm-up: Go idioms on real data", "Parse logfmt log lines", "26 to 28"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old tier1 lacks %q", want)
 		}
@@ -182,7 +182,7 @@ func TestEarlierCertificates(t *testing.T) {
 
 	// With every exercise passed, the course can be claimed again; the
 	// claim replaces the earlier certificate.
-	for _, e := range fiftyCourse.Exercises[:25] {
+	for _, e := range testCourse.Exercises[:25] {
 		if _, err := h.store.MarkPassed(t.Context(), admin.ID, e.Slug); err != nil {
 			t.Fatal(err)
 		}
@@ -208,7 +208,7 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Error("the earlier certificate is not revoked in favour of the new one")
 	}
 	v = h.do(req{method: "GET", path: claimed["url"]}).Body.String()
-	for _, want := range []string{"50 exercises in 10 tiers", "Passing the Owl", "01 to 50"} {
+	for _, want := range []string{"50 exercises in 10 tiers", "The Key Turns", "01 to 50"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the new course certificate lacks %q", want)
 		}
@@ -220,7 +220,7 @@ func TestEarlierCertificates(t *testing.T) {
 }
 
 func TestFiftyPages(t *testing.T) {
-	h := newHarnessWith(t, fiftyCourse)
+	h := newHarness(t)
 	admin := h.admin()
 	if _, err := h.store.StartExercise(t.Context(), admin.ID, "32-retry"); err != nil {
 		t.Fatal(err)
@@ -229,7 +229,7 @@ func TestFiftyPages(t *testing.T) {
 	landing := h.do(req{method: "GET", path: "/"}).Body.String()
 	for _, want := range []string{
 		"50 exercises in 10 tiers", "The blue bar is exercise 32.", "scenario of exercise 32", "A compile error in exercise 32",
-		"<dt>Exercise</dt><dd>32</dd>", "<dt>Tier</dt><dd>7</dd>", "Tier 2 · Carrying the Owl", "--tier-max: ",
+		"<dt>Exercise</dt><dd>32</dd>", "<dt>Tier</dt><dd>7</dd>", "Tier 2 · The Key", "--tier-max: ",
 		`<meta name="description" content="Practice Go on real operations tasks, without an LLM. 50 exercises in 10 tiers,`,
 	} {
 		if !strings.Contains(landing, want) {
@@ -238,7 +238,7 @@ func TestFiftyPages(t *testing.T) {
 	}
 
 	dash := h.do(req{method: "GET", path: "/learn", as: admin}).Body.String()
-	for _, want := range []string{"of 50 exercises pass", "Tier 10 · Passing the Owl", `id="tier-10"`} {
+	for _, want := range []string{"of 50 exercises pass", "Tier 10 · The Key Turns", `id="tier-10"`} {
 		if !strings.Contains(dash, want) {
 			t.Errorf("the dashboard lacks %q", want)
 		}

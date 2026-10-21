@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// exerciseDirRE matches exercise directory names such as "07-retry". The
+// exerciseDirRE matches exercise directory names such as "32-retry". The
 // names are matched against the index, never joined into paths from input.
 var exerciseDirRE = regexp.MustCompile(`^[0-9]{2}-[a-z0-9]+(-[a-z0-9]+)*$`)
 
@@ -24,7 +24,7 @@ type Course struct {
 
 // Exercise describes one exercises/NN-slug directory.
 type Exercise struct {
-	// Name is the directory name, for example "07-retry".
+	// Name is the directory name, for example "32-retry".
 	Name string
 	// Dir is the absolute path of the exercise in the course checkout.
 	Dir string

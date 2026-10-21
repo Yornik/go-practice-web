@@ -22,7 +22,6 @@ import (
 	"github.com/yornik/go-practice-web/internal/auth/authtest"
 	"github.com/yornik/go-practice-web/internal/cert"
 	"github.com/yornik/go-practice-web/internal/course"
-	"github.com/yornik/go-practice-web/internal/course/coursetest"
 	"github.com/yornik/go-practice-web/internal/mail"
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 	"github.com/yornik/go-practice-web/internal/store"
@@ -34,14 +33,11 @@ const (
 	runnerToken = "test-runner-token-0123456789abcdef"
 )
 
-// testCourse is loaded once: Load renders every README. fiftyCourse is
-// the fixture of the course of 50 exercises in 10 named tiers, whose
-// exercises 26 to 50 are the first course's under new slugs.
-var testCourse, fiftyCourse *course.Course
+// testCourse is the real course, loaded once: Load renders every README.
+var testCourse *course.Course
 
-// logfmt is the slug of the logfmt exercise in the real course: 01-logfmt
-// in the first course, 26-logfmt in the course of 50. Most tests use it.
-var logfmt string
+// logfmt is the exercise most tests use.
+const logfmt = "26-logfmt"
 
 func TestMain(m *testing.M) {
 	c, err := course.Load(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")))
@@ -49,27 +45,12 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "load course:", err)
 		os.Exit(1)
 	}
+	if _, ok := c.Exercise(logfmt); !ok {
+		fmt.Fprintln(os.Stderr, "the course has no exercise", logfmt)
+		os.Exit(1)
+	}
 	testCourse = c
-	if logfmt = c.CurrentSlug("01-logfmt"); logfmt == "" {
-		fmt.Fprintln(os.Stderr, "the course has no logfmt exercise")
-		os.Exit(1)
-	}
-	dir, err := os.MkdirTemp("", "web-fifty-")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	if err := coursetest.Write(dir, coursetest.Fifty()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	if fiftyCourse, err = course.Load(dir); err != nil {
-		fmt.Fprintln(os.Stderr, "load the fixture course:", err)
-		os.Exit(1)
-	}
-	code := m.Run()
-	_ = os.RemoveAll(dir)
-	os.Exit(code)
+	os.Exit(m.Run())
 }
 
 type clock struct {
@@ -271,8 +252,8 @@ func failingRun(runnerapi.TestRequest) []runnerapi.Event {
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "panic: TODO: implement [recovered]\n"},
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\tpanic: TODO: implement\n"},
 		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\ngoroutine 7 [running]:\n"},
-		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "example.com/exercises/01-logfmt.Parse(...)\n"},
-		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\texercises/01-logfmt/logfmt.go:30 +0x25\n"},
+		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "example.com/exercises/26-logfmt.Parse(...)\n"},
+		{Type: runnerapi.EventTest, Action: "output", Test: "TestParse", Output: "\texercises/26-logfmt/logfmt.go:30 +0x25\n"},
 		{Type: runnerapi.EventTest, Action: "fail", Test: "TestParse", Elapsed: 0.01},
 		{Type: runnerapi.EventDone, ExitCode: 1, Failed: 1, DurationMs: 800},
 	}
@@ -293,12 +274,6 @@ type harness struct {
 }
 
 func newHarness(t *testing.T) *harness {
-	t.Helper()
-	return newHarnessWith(t, testCourse)
-}
-
-// newHarnessWith is newHarness with another course.
-func newHarnessWith(t *testing.T, c *course.Course) *harness {
 	t.Helper()
 	clk := &clock{t: time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)}
 	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "web.db"), store.WithClock(clk.Now))
@@ -326,7 +301,7 @@ func newHarnessWith(t *testing.T, c *course.Course) *harness {
 	cfg := web.Config{
 		PublicURL: publicURL,
 		Store:     st,
-		Course:    c,
+		Course:    testCourse,
 		Auth:      a,
 		Runner:    web.NewRunnerClient(rs.URL, runnerToken, nil),
 		Signer:    signer,

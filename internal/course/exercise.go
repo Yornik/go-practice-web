@@ -48,7 +48,7 @@ type File struct {
 // Exercise is 1 exercise of the course. It is read only after Load.
 type Exercise struct {
 	Number  int     // 7
-	Slug    string  // "07-retry", the directory name
+	Slug    string  // "32-retry", the directory name
 	Package string  // "retry"
 	Title   string  // "Retries with backoff, jitter and context"
 	Tier    int     // 1 or more, from line 3

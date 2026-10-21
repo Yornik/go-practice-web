@@ -9,14 +9,14 @@ import (
 )
 
 func TestTestStreamEvents(t *testing.T) {
-	const pkg = `"Package":"github.com/yornik/go-practice/exercises/01-logfmt"`
+	const pkg = `"Package":"github.com/yornik/go-practice/exercises/26-logfmt"`
 	stdout := []string{
 		`{"Action":"start",` + pkg + `}`,
 		`{"Action":"run",` + pkg + `,"Test":"TestA"}`,
 		`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"=== RUN   TestA\n"}`,
 		`{"Action":"pause",` + pkg + `,"Test":"TestA"}`,
 		`{"Action":"cont",` + pkg + `,"Test":"TestA"}`,
-		`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"\t/w/mod/exercises/01-logfmt/logfmt.go:34 +0x1d\n"}`,
+		`{"Action":"output",` + pkg + `,"Test":"TestA","Output":"\t/w/mod/exercises/26-logfmt/logfmt.go:34 +0x1d\n"}`,
 		`{"Action":"fail",` + pkg + `,"Test":"TestA","Elapsed":0.25}`,
 		`{"Action":"output",` + pkg + `,"Output":"FAIL\n"}`,
 		`{"Action":"fail",` + pkg + `,"Elapsed":0.3}`,
@@ -32,7 +32,7 @@ func TestTestStreamEvents(t *testing.T) {
 	want := []runnerapi.Event{
 		{Type: "test", Action: "run", Test: "TestA"},
 		{Type: "test", Action: "output", Test: "TestA", Output: "=== RUN   TestA\n"},
-		{Type: "test", Action: "output", Test: "TestA", Output: "\texercises/01-logfmt/logfmt.go:34 +0x1d\n"},
+		{Type: "test", Action: "output", Test: "TestA", Output: "\texercises/26-logfmt/logfmt.go:34 +0x1d\n"},
 		{Type: "test", Action: "fail", Test: "TestA", Elapsed: 0.25},
 		{Type: "test", Action: "output", Output: "FAIL\n"},
 		{Type: "test", Action: "fail", Elapsed: 0.3},
@@ -45,14 +45,14 @@ func TestTestStreamEvents(t *testing.T) {
 }
 
 func TestTestStreamBuildFailure(t *testing.T) {
-	const ip = `"ImportPath":"github.com/yornik/go-practice/exercises/01-logfmt"`
+	const ip = `"ImportPath":"github.com/yornik/go-practice/exercises/26-logfmt"`
 	lines := []string{
-		`{` + ip + `,"Action":"build-output","Output":"# github.com/yornik/go-practice/exercises/01-logfmt\n"}`,
-		`{` + ip + `,"Action":"build-output","Output":"exercises/01-logfmt/logfmt.go:105:17: cannot use 1 as string value\n"}`,
+		`{` + ip + `,"Action":"build-output","Output":"# github.com/yornik/go-practice/exercises/26-logfmt\n"}`,
+		`{` + ip + `,"Action":"build-output","Output":"exercises/26-logfmt/logfmt.go:105:17: cannot use 1 as string value\n"}`,
 		`{` + ip + `,"Action":"build-fail"}`,
-		`{"Action":"start","Package":"github.com/yornik/go-practice/exercises/01-logfmt"}`,
-		`{"Action":"output","Package":"github.com/yornik/go-practice/exercises/01-logfmt","Output":"FAIL\t... [build failed]\n"}`,
-		`{"Action":"fail","Package":"github.com/yornik/go-practice/exercises/01-logfmt","Elapsed":0,"FailedBuild":"github.com/yornik/go-practice/exercises/01-logfmt"}`,
+		`{"Action":"start","Package":"github.com/yornik/go-practice/exercises/26-logfmt"}`,
+		`{"Action":"output","Package":"github.com/yornik/go-practice/exercises/26-logfmt","Output":"FAIL\t... [build failed]\n"}`,
+		`{"Action":"fail","Package":"github.com/yornik/go-practice/exercises/26-logfmt","Elapsed":0,"FailedBuild":"github.com/yornik/go-practice/exercises/26-logfmt"}`,
 	}
 	var builds []string
 	s := newTestStream("/w/mod", func(ev runnerapi.Event) {
@@ -145,7 +145,7 @@ func TestAncestors(t *testing.T) {
 }
 
 func TestTestStreamAlarm(t *testing.T) {
-	const pkg = `"Package":"github.com/yornik/go-practice/exercises/01-logfmt"`
+	const pkg = `"Package":"github.com/yornik/go-practice/exercises/26-logfmt"`
 	for _, tt := range []struct {
 		name  string
 		lines []string

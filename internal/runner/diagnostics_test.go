@@ -20,9 +20,9 @@ func TestParseVetOutput(t *testing.T) {
 		},
 		{
 			name: "compile errors with a package header (go 1.24)",
-			out: "# github.com/yornik/go-practice/exercises/01-logfmt\n" +
-				"exercises/01-logfmt/logfmt.go:104:6: declared and not used: x\n" +
-				"exercises/01-logfmt/logfmt.go:106:2: undefined: undefinedFn\n",
+			out: "# github.com/yornik/go-practice/exercises/26-logfmt\n" +
+				"exercises/26-logfmt/logfmt.go:104:6: declared and not used: x\n" +
+				"exercises/26-logfmt/logfmt.go:106:2: undefined: undefinedFn\n",
 			want: []runnerapi.Diagnostic{
 				{File: "logfmt.go", Line: 104, Column: 6, Severity: "error", Source: "compile", Message: "declared and not used: x"},
 				{File: "logfmt.go", Line: 106, Column: 2, Severity: "error", Source: "compile", Message: "undefined: undefinedFn"},
@@ -32,14 +32,14 @@ func TestParseVetOutput(t *testing.T) {
 			name: "type error in the external test package",
 			out: "# github.com/yornik/go-practice/exercises/01-logfmt_test\n" +
 				"# [github.com/yornik/go-practice/exercises/01-logfmt_test]\n" +
-				"vet: exercises/01-logfmt/logfmt_test.go:38:23: undefined: logfmt.Parse\n",
+				"vet: exercises/26-logfmt/logfmt_test.go:38:23: undefined: logfmt.Parse\n",
 			want: []runnerapi.Diagnostic{
 				{File: "logfmt_test.go", Line: 38, Column: 23, Severity: "error", Source: "compile", Message: "undefined: logfmt.Parse"},
 			},
 		},
 		{
 			name: "continuation lines join the message",
-			out: "exercises/07-retry/retry.go:12:9: not enough arguments in call to f\n" +
+			out: "exercises/32-retry/retry.go:12:9: not enough arguments in call to f\n" +
 				"\thave ()\n" +
 				"\twant (int)\n",
 			want: []runnerapi.Diagnostic{
@@ -50,11 +50,11 @@ func TestParseVetOutput(t *testing.T) {
 		{
 			name: "analyzer findings as JSON (go 1.26, with end)",
 			out: "{\n" +
-				"\t\"github.com/yornik/go-practice/exercises/01-logfmt\": {\n" +
+				"\t\"github.com/yornik/go-practice/exercises/26-logfmt\": {\n" +
 				"\t\t\"printf\": [\n" +
 				"\t\t\t{\n" +
-				"\t\t\t\t\"posn\": \"/tmp/runs/run-1/mod/exercises/01-logfmt/logfmt.go:105:14\",\n" +
-				"\t\t\t\t\"end\": \"/tmp/runs/run-1/mod/exercises/01-logfmt/logfmt.go:105:16\",\n" +
+				"\t\t\t\t\"posn\": \"/tmp/runs/run-1/mod/exercises/26-logfmt/logfmt.go:105:14\",\n" +
+				"\t\t\t\t\"end\": \"/tmp/runs/run-1/mod/exercises/26-logfmt/logfmt.go:105:16\",\n" +
 				"\t\t\t\t\"message\": \"fmt.Printf format %d has arg s of wrong type string\"\n" +
 				"\t\t\t}\n" +
 				"\t\t]\n" +
@@ -68,12 +68,12 @@ func TestParseVetOutput(t *testing.T) {
 		},
 		{
 			name: "JSON findings next to a type error (go 1.24 headers)",
-			out: "# github.com/yornik/go-practice/exercises/01-logfmt\n" +
+			out: "# github.com/yornik/go-practice/exercises/26-logfmt\n" +
 				"{\n" +
-				"\t\"github.com/yornik/go-practice/exercises/01-logfmt\": {\n" +
+				"\t\"github.com/yornik/go-practice/exercises/26-logfmt\": {\n" +
 				"\t\t\"printf\": [\n" +
 				"\t\t\t{\n" +
-				"\t\t\t\t\"posn\": \"/w/mod/exercises/01-logfmt/logfmt.go:105:2\",\n" +
+				"\t\t\t\t\"posn\": \"/w/mod/exercises/26-logfmt/logfmt.go:105:2\",\n" +
 				"\t\t\t\t\"message\": \"bad format\"\n" +
 				"\t\t\t}\n" +
 				"\t\t],\n" +
@@ -81,7 +81,7 @@ func TestParseVetOutput(t *testing.T) {
 				"\t}\n" +
 				"}\n" +
 				"# github.com/yornik/go-practice/exercises/01-logfmt_test\n" +
-				"vet: exercises/01-logfmt/logfmt_test.go:38:23: undefined: logfmt.Parse\n",
+				"vet: exercises/26-logfmt/logfmt_test.go:38:23: undefined: logfmt.Parse\n",
 			want: []runnerapi.Diagnostic{
 				{File: "logfmt.go", Line: 105, Column: 2, Severity: "warning", Source: "vet", Code: "printf", Message: "bad format"},
 				{File: "logfmt_test.go", Line: 38, Column: 23, Severity: "error", Source: "compile", Message: "undefined: logfmt.Parse"},
@@ -104,12 +104,12 @@ func TestParseVetOutput(t *testing.T) {
 }
 
 func TestParseStaticcheckOutput(t *testing.T) {
-	out := `{"code":"U1000","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":103,"column":6},"end":{"file":"","line":0,"column":0},"message":"func bad is unused"}
-{"code":"SA5009","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":104,"column":13},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":104,"column":19},"message":"Printf format %d has arg #1 of wrong type string"}
-{"code":"SA4006","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt_test.go","line":10,"column":2},"end":{"file":"","line":0,"column":0},"message":"this value of x is never used"}
-{"code":"compile","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":3,"column":1},"end":{"file":"","line":0,"column":0},"message":"undefined: x"}
-{"code":"SA4023","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":16,"column":5},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":16,"column":15},"message":"this comparison is never true","related":[{"location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":15,"column":18},"end":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":15,"column":32},"message":"the lhs of the comparison gets its value from here and has a concrete type"},{"location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":9,"column":1},"end":{"file":"","line":0,"column":0},"message":"second"}]}
-{"code":"SA1012","severity":"error","location":{"file":"/w/mod/exercises/01-logfmt/logfmt.go","line":20,"column":2},"end":{"file":"","line":0,"column":0},"message":"do not pass a nil Context","related":[{"location":{"file":"/usr/local/go/src/context/context.go","line":70,"column":1},"end":{"file":"","line":0,"column":0},"message":"in the standard library"}]}
+	out := `{"code":"U1000","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":103,"column":6},"end":{"file":"","line":0,"column":0},"message":"func bad is unused"}
+{"code":"SA5009","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":104,"column":13},"end":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":104,"column":19},"message":"Printf format %d has arg #1 of wrong type string"}
+{"code":"SA4006","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt_test.go","line":10,"column":2},"end":{"file":"","line":0,"column":0},"message":"this value of x is never used"}
+{"code":"compile","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":3,"column":1},"end":{"file":"","line":0,"column":0},"message":"undefined: x"}
+{"code":"SA4023","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":16,"column":5},"end":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":16,"column":15},"message":"this comparison is never true","related":[{"location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":15,"column":18},"end":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":15,"column":32},"message":"the lhs of the comparison gets its value from here and has a concrete type"},{"location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":9,"column":1},"end":{"file":"","line":0,"column":0},"message":"second"}]}
+{"code":"SA1012","severity":"error","location":{"file":"/w/mod/exercises/26-logfmt/logfmt.go","line":20,"column":2},"end":{"file":"","line":0,"column":0},"message":"do not pass a nil Context","related":[{"location":{"file":"/usr/local/go/src/context/context.go","line":70,"column":1},"end":{"file":"","line":0,"column":0},"message":"in the standard library"}]}
 not json
 `
 	keep := func(file string) bool { return file == "logfmt.go" }

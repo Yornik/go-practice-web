@@ -46,7 +46,7 @@ type Document struct {
 	Kind        Kind
 	Name        string
 	IssuedAt    time.Time
-	Title       string // "Tier 6 · The morning after" or "The complete course"
+	Title       string // "Tier 6 · Forensics" or "The complete course"
 	Subtitle    string // the tier's theme, or "50 exercises in 10 tiers"
 	Tier        int    // the tier a tier certificate covers; 0 for the course or a tier that no longer exists
 	Range       string // the exercises it covers, "04 to 09"

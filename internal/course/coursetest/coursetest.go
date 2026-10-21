@@ -20,7 +20,7 @@ import (
 
 // Exercise is 1 exercise of a fixture.
 type Exercise struct {
-	Slug  string // "07-retry"
+	Slug  string // "32-retry"
 	Title string
 	Hours float64
 }
@@ -81,48 +81,48 @@ var firstCourse = []struct {
 	}},
 }
 
-// newTiers are tiers 1 to 5 of the course of 50, with made-up exercises:
-// a fixture needs their shape, not their content.
+// newTiers are tiers 1 to 5 of the course of 50: names, themes, slugs,
+// titles and hours as the course has them.
 var newTiers = []Tier{
-	{"First week", "Go basics on small real tasks: strings, maps, slices and sorting", []Exercise{
-		{"01-loglevels", "Count the errors the dashboard missed", 1},
-		{"02-repeated", "Fold the repeated lines", 1},
-		{"03-pagenoise", "Which alert pages the most", 1},
-		{"04-batches", "Split the rollout into batches", 1},
-		{"05-envfile", "Read an env file", 1.5},
+	{"Badge In", "Go basics on small real tasks: strings, maps, slices and sorting", []Exercise{
+		{"01-loglevels", "Zero errors since March", 1},
+		{"02-repeated", "All quiet, 8599 times", 1},
+		{"03-pagenoise", "Was it Fuse? Count the pages", 1.5},
+		{"04-waves", "The canary got the update twice", 1.5},
+		{"05-envfile", "$$ is not part of the password", 2},
 	}},
-	{"Carrying the Owl", "Types with methods, errors you can inspect, enums, time values, text as bytes", []Exercise{
-		{"06-semver", "Sort the firmware versions", 1},
-		{"07-inventory", "The feeder inventory", 1.5},
-		{"08-deploynote", "Deploy notes that fit", 1},
-		{"09-statuspage", "The status page", 1.5},
-		{"10-oncall", "Who has the Owl", 1.5},
+	{"The Key", "Types with methods, errors you can inspect, enums, time values, text as bytes", []Exercise{
+		{"06-semver", "Agent v2.10 is newer than v2.9", 1},
+		{"07-rollcall", "Which nodes went dark?", 1},
+		{"08-deploynote", "Small fix, Friday, 17:40", 1},
+		{"09-statuspage", "Status: fine (it was not)", 1.5},
+		{"10-pushtext", "The moon emoji broke Android", 1.5},
 	}},
-	{"Your own tools", "Readers and writers, closures, float math, binary search, a testable command", []Exercise{
-		{"11-nightlog", "The night log", 1.5},
-		{"12-linefilter", "A line filter", 1.5},
-		{"13-nines", "Count the nines", 1},
-		{"14-bisect", "Bisect the bad deploy", 1.5},
-		{"15-checkdisk", "A disk check you can test", 1.5},
+	{"Hand Tools", "Readers and writers, closures, float math, binary search, a testable command", []Exercise{
+		{"11-nightlog", "The log line that is not there", 1.5},
+		{"12-linefilter", "1 filter, not 6 greps", 1.5},
+		{"13-nines", "The refund call at 10:00", 1.5},
+		{"14-bisect", "2048 builds, 1 bad commit", 1},
+		{"15-checkdisk", "The disk check that said OK", 2},
 	}},
-	{"Black Friday", "Interfaces the standard library calls, generics, reflect, goroutines and a mutex", []Exercise{
-		{"16-redact", "Secrets that refuse to print", 1},
-		{"17-flightrec", "A flight recorder", 1.5},
-		{"18-tableprint", "Print any table", 1.5},
-		{"19-fanout", "Ask every feeder at once", 1.5},
-		{"20-counters", "Counters that add up", 1},
+	{"Surge", "Interfaces the standard library calls, generics, `reflect`, goroutines and a mutex", []Exercise{
+		{"16-redact", "The password that would not print", 1.5},
+		{"17-flightrec", "The last 500 events before the crash", 1},
+		{"18-tableprint", "After the second curly brace", 2},
+		{"19-fanout", "Check all 12 at once", 1},
+		{"20-counters", "Concurrent map writes at 11:58", 1.5},
 	}},
-	{"The long nights", "context, an injected clock, eviction, and hand-written scanners with typed errors", []Exercise{
-		{"21-rollout", "A rollout that stops in time", 1.5},
-		{"22-alertstate", "Alert states", 1.5},
-		{"23-silences", "Silences that expire", 1.5},
-		{"24-durations", "Read a duration", 1.5},
-		{"25-syslog", "Read the feeders' syslog", 1.5},
+	{"Dead Air", "`context`, an injected clock, eviction, and hand-written scanners with typed errors", []Exercise{
+		{"21-rollout", "sleep 300 is not a rollout check", 1.5},
+		{"22-alertstate", "Do not page me for a cat", 1},
+		{"23-silences", "A silence until 2036", 1.5},
+		{"24-durations", "2d means 2 days", 2},
+		{"25-syslog", "Log lines from next year", 2},
 	}},
 }
 
 // renamedNames are the names of tiers 6 to 10 in the course of 50.
-var renamedNames = []string{"The morning after", "Growing pains", "Spring launch", "Dashboards that lie", "Passing the Owl"}
+var renamedNames = []string{"Forensics", "Containment", "Blast Radius", "Clean Signal", "The Key Turns"}
 
 // First is the first course: 25 exercises in 5 tiers without names.
 func First() Spec {
@@ -133,8 +133,9 @@ func First() Spec {
 	return s
 }
 
-// Fifty is the course of 50 exercises in 10 named tiers. Tiers 6 to 10
-// hold the first course's exercises under the slugs of course.Renames.
+// Fifty is the course of 50 exercises in 10 named tiers, shaped like the
+// real course. Tiers 6 to 10 hold the first course's exercises under the
+// slugs of course.Renames.
 func Fifty() Spec {
 	s := Spec{Named: true, Tiers: slices.Clone(newTiers)}
 	renames := course.Renames()

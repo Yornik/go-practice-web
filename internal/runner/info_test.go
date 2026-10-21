@@ -129,13 +129,13 @@ func TestRaceUnavailable(t *testing.T) {
 
 	// The fake go fails anything with -race, so a pass shows that the
 	// runner left it out.
-	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Race: true})
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Race: true})
 	done := doneEvent(t, events)
 	if done.ExitCode != 0 || done.Passed == 0 || !done.RaceUnavailable {
 		t.Errorf("done = %+v, want a pass with raceUnavailable", done)
 	}
 	// A run that did not ask for -race lost nothing.
-	events = env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Run: "TestLevel"})
+	events = env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Run: "TestLevel"})
 	if done := doneEvent(t, events); done.ExitCode != 0 || done.RaceUnavailable {
 		t.Errorf("done without race = %+v, want a pass without raceUnavailable", done)
 	}

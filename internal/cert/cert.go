@@ -76,7 +76,7 @@ func Exercises(c *course.Course, k Kind) ([]*course.Exercise, error) {
 }
 
 // Title is the name of a kind for people: the tier's label, "Tier 2 ·
-// Carrying the Owl" ("Tier 2" when the course names no tiers), or "The
+// The Key" ("Tier 2" when the course names no tiers), or "The
 // complete course".
 func Title(c *course.Course, k Kind) (string, error) {
 	if k == KindCourse {

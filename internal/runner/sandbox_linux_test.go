@@ -24,15 +24,15 @@ import (
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
 
-// withCode returns the 01-logfmt stub with extra imports (aliased, so they
+// withCode returns the 26-logfmt stub with extra imports (aliased, so they
 // cannot clash with the stub's) and extra declarations.
 func withCode(t *testing.T, imports []string, decls string) map[string]string {
 	t.Helper()
-	src := stubFiles(t, "01-logfmt")["logfmt.go"]
+	src := stubFiles(t, "26-logfmt")["logfmt.go"]
 	block := "import (\n\t" + strings.Join(imports, "\n\t") + "\n)\n"
 	out := strings.Replace(src, "package logfmt\n", "package logfmt\n\n"+block, 1)
 	if out == src {
-		t.Fatal("the 01-logfmt stub has no package clause line; adjust the test")
+		t.Fatal("the 26-logfmt stub has no package clause line; adjust the test")
 	}
 	return map[string]string{"logfmt.go": out + "\n" + decls}
 }
@@ -146,7 +146,7 @@ func init() {
 }
 `, secret, runner, runner, runner, fixed.Addr().String()))
 
-	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: files, Run: "^TestParse$"})
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: files, Run: "^TestParse$"})
 	got := probeResults(events)
 	want := map[string]string{
 		"other-workspace":         "denied",
@@ -201,7 +201,7 @@ func init() {
 }
 `, markers[0], markers[1]))
 
-	env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: files, Run: "^TestParse$"})
+	env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: files, Run: "^TestParse$"})
 	if !waitFor(10*time.Second, func() bool { return len(sleepers(markers)) == 0 }) {
 		t.Errorf("processes outlived the run: %v", sleepers(markers))
 	}

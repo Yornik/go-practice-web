@@ -27,12 +27,12 @@ func lineOf(t *testing.T, src, substr string) int {
 	return 0
 }
 
-// withFmtImport adds "fmt" to the import block of the 01-logfmt stub.
+// withFmtImport adds "fmt" to the import block of the 26-logfmt stub.
 func withFmtImport(t *testing.T, src string) string {
 	t.Helper()
 	out := strings.Replace(src, "\t\"errors\"\n", "\t\"errors\"\n\t\"fmt\"\n", 1)
 	if out == src {
-		t.Fatal("the 01-logfmt stub no longer imports errors; adjust the test")
+		t.Fatal("the 26-logfmt stub no longer imports errors; adjust the test")
 	}
 	return out
 }
@@ -42,7 +42,7 @@ func TestCheck(t *testing.T) {
 	t.Parallel()
 	env := newTestEnv(t)
 	t.Cleanup(func() { assertWorkDirEmpty(t, env.workDir) })
-	stub := stubFiles(t, "01-logfmt")["logfmt.go"]
+	stub := stubFiles(t, "26-logfmt")["logfmt.go"]
 
 	typeErr := stub + "\nfunc Bad() int {\n\treturn \"x\"\n}\n"
 	vetErr := withFmtImport(t, stub) + "\nfunc Bad(s string) {\n\tfmt.Printf(\"%d\\n\", s)\n}\n"
@@ -74,7 +74,7 @@ func Check(name string) error {
 
 	tests := []struct {
 		name     string
-		exercise string            // default 01-logfmt
+		exercise string            // default 26-logfmt
 		files    map[string]string // default logfmt.go with content
 		content  string
 		want     []runnerapi.Diagnostic // checked by file, line, source, severity and code
@@ -87,8 +87,8 @@ func Check(name string) error {
 		{
 			// The course's test files have staticcheck findings; they are
 			// not the learner's to fix and must not show up.
-			name: "unmodified stub with noisy tests", exercise: "08-ratelimit",
-			files: stubFiles(t, "08-ratelimit"), exact: true,
+			name: "unmodified stub with noisy tests", exercise: "33-ratelimit",
+			files: stubFiles(t, "33-ratelimit"), exact: true,
 		},
 		{
 			name:    "type error",
@@ -149,7 +149,7 @@ func Check(name string) error {
 				t.Skip("staticcheck is not installed")
 			}
 			t.Parallel()
-			exercise, files := cmp.Or(tt.exercise, "01-logfmt"), tt.files
+			exercise, files := cmp.Or(tt.exercise, "26-logfmt"), tt.files
 			if files == nil {
 				files = map[string]string{"logfmt.go": tt.content}
 			}
@@ -206,7 +206,7 @@ func TestRunTests(t *testing.T) {
 	t.Parallel()
 	env := newTestEnv(t)
 	t.Cleanup(func() { assertWorkDirEmpty(t, env.workDir) })
-	stub := stubFiles(t, "01-logfmt")
+	stub := stubFiles(t, "26-logfmt")
 	typeErr := map[string]string{"logfmt.go": stub["logfmt.go"] + "\nfunc Bad() int { return \"x\" }\n"}
 
 	tests := []struct {
@@ -216,7 +216,7 @@ func TestRunTests(t *testing.T) {
 	}{
 		{
 			name: "stub fails",
-			req:  runnerapi.TestRequest{Exercise: "01-logfmt", Files: stub, Race: true},
+			req:  runnerapi.TestRequest{Exercise: "26-logfmt", Files: stub, Race: true},
 			check: func(t *testing.T, events []runnerapi.Event, done runnerapi.Event) {
 				if done.Failed == 0 || done.ExitCode == 0 || done.BuildFailed {
 					t.Errorf("done = %+v, want failed tests and a non-zero exit code", done)
@@ -231,7 +231,7 @@ func TestRunTests(t *testing.T) {
 		},
 		{
 			name: "build failure",
-			req:  runnerapi.TestRequest{Exercise: "01-logfmt", Files: typeErr},
+			req:  runnerapi.TestRequest{Exercise: "26-logfmt", Files: typeErr},
 			check: func(t *testing.T, events []runnerapi.Event, done runnerapi.Event) {
 				if !done.BuildFailed || done.ExitCode == 0 {
 					t.Errorf("done = %+v, want buildFailed", done)
@@ -248,8 +248,8 @@ func TestRunTests(t *testing.T) {
 			},
 		},
 		{
-			name: "01-logfmt solution passes with -race",
-			req:  runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Race: true},
+			name: "26-logfmt solution passes with -race",
+			req:  runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Race: true},
 			check: func(t *testing.T, _ []runnerapi.Event, done runnerapi.Event) {
 				if done.ExitCode != 0 || done.Failed != 0 || done.Passed == 0 || done.TimedOut || done.Truncated {
 					t.Errorf("done = %+v, want a clean pass", done)
@@ -257,8 +257,17 @@ func TestRunTests(t *testing.T) {
 			},
 		},
 		{
-			name: "12-workerpool solution passes with -race",
-			req:  runnerapi.TestRequest{Exercise: "12-workerpool", Files: solutionFiles(t, "12-workerpool"), Race: true},
+			name: "01-loglevels solution passes with -race",
+			req:  runnerapi.TestRequest{Exercise: "01-loglevels", Files: solutionFiles(t, "01-loglevels"), Race: true},
+			check: func(t *testing.T, _ []runnerapi.Event, done runnerapi.Event) {
+				if done.ExitCode != 0 || done.Failed != 0 || done.Passed == 0 {
+					t.Errorf("done = %+v, want a clean pass", done)
+				}
+			},
+		},
+		{
+			name: "37-workerpool solution passes with -race",
+			req:  runnerapi.TestRequest{Exercise: "37-workerpool", Files: solutionFiles(t, "37-workerpool"), Race: true},
 			check: func(t *testing.T, _ []runnerapi.Event, done runnerapi.Event) {
 				if done.ExitCode != 0 || done.Failed != 0 || done.Passed == 0 {
 					t.Errorf("done = %+v, want a clean pass", done)
@@ -268,8 +277,8 @@ func TestRunTests(t *testing.T) {
 		{
 			// The tests listen on and dial loopback ports, which the sandbox
 			// must allow.
-			name: "15-healthcheck solution passes with -race",
-			req:  runnerapi.TestRequest{Exercise: "15-healthcheck", Files: solutionFiles(t, "15-healthcheck"), Race: true},
+			name: "40-healthcheck solution passes with -race",
+			req:  runnerapi.TestRequest{Exercise: "40-healthcheck", Files: solutionFiles(t, "40-healthcheck"), Race: true},
 			check: func(t *testing.T, _ []runnerapi.Event, done runnerapi.Event) {
 				if done.ExitCode != 0 || done.Failed != 0 || done.Passed == 0 {
 					t.Errorf("done = %+v, want a clean pass", done)
@@ -277,8 +286,8 @@ func TestRunTests(t *testing.T) {
 			},
 		},
 		{
-			name: "18-certcheck solution passes",
-			req:  runnerapi.TestRequest{Exercise: "18-certcheck", Files: solutionFiles(t, "18-certcheck")},
+			name: "43-certcheck solution passes",
+			req:  runnerapi.TestRequest{Exercise: "43-certcheck", Files: solutionFiles(t, "43-certcheck")},
 			check: func(t *testing.T, _ []runnerapi.Event, done runnerapi.Event) {
 				if done.ExitCode != 0 || done.Failed != 0 || done.Passed == 0 {
 					t.Errorf("done = %+v, want a clean pass", done)
@@ -287,7 +296,7 @@ func TestRunTests(t *testing.T) {
 		},
 		{
 			name: "run filter",
-			req:  runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Run: "TestLevel"},
+			req:  runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Run: "TestLevel"},
 			check: func(t *testing.T, events []runnerapi.Event, done runnerapi.Event) {
 				if done.ExitCode != 0 || done.Passed == 0 {
 					t.Errorf("done = %+v, want a pass", done)
@@ -321,11 +330,11 @@ func hasOutput(events []runnerapi.Event, substr string) bool {
 	return false
 }
 
-// blockingStub is the 01-logfmt stub with an init function that never
+// blockingStub is the 26-logfmt stub with an init function that never
 // returns, so the test binary hangs before any test runs.
 func blockingStub(t *testing.T) map[string]string {
 	t.Helper()
-	return map[string]string{"logfmt.go": stubFiles(t, "01-logfmt")["logfmt.go"] + "\nfunc init() { time.Sleep(time.Hour) }\n"}
+	return map[string]string{"logfmt.go": stubFiles(t, "26-logfmt")["logfmt.go"] + "\nfunc init() { time.Sleep(time.Hour) }\n"}
 }
 
 func TestTimeoutKillsTheProcessGroup(t *testing.T) {
@@ -335,7 +344,7 @@ func TestTimeoutKillsTheProcessGroup(t *testing.T) {
 	// checks that the binary was running when the timeout hit.
 	env := newTestEnv(t, func(o *Options) { o.TestTimeout = 20 * time.Second })
 
-	result := runAsync(env, runnerapi.TestRequest{Exercise: "01-logfmt", Files: blockingStub(t)})
+	result := runAsync(env, runnerapi.TestRequest{Exercise: "26-logfmt", Files: blockingStub(t)})
 	sawBinary := waitFor(time.Minute, func() bool { return testBinaryRunning(env.workDir) })
 	events := receiveWithin(t, result, requestTimeout).get(t)
 	if !sawBinary {
@@ -352,14 +361,14 @@ func TestTimeoutKillsTheProcessGroup(t *testing.T) {
 	assertNoStrays(t, env)
 }
 
-// hangingStub is the 01-logfmt stub with every function blocked forever
+// hangingStub is the 26-logfmt stub with every function blocked forever
 // instead of panicking, so a test hangs inside the test binary.
 func hangingStub(t *testing.T) map[string]string {
 	t.Helper()
-	stub := stubFiles(t, "01-logfmt")["logfmt.go"]
+	stub := stubFiles(t, "26-logfmt")["logfmt.go"]
 	hung := strings.ReplaceAll(stub, `panic("TODO: implement")`, "select {}")
 	if hung == stub {
-		t.Fatal("the 01-logfmt stub no longer panics with TODO: implement; adjust the test")
+		t.Fatal("the 26-logfmt stub no longer panics with TODO: implement; adjust the test")
 	}
 	return map[string]string{"logfmt.go": hung}
 }
@@ -371,7 +380,7 @@ func TestGoTestTimeoutPrintsGoroutines(t *testing.T) {
 	// is 24 s after the start, which leaves the build 18 s.
 	env := newTestEnv(t, func(o *Options) { o.TestTimeout, o.testTimeoutMargin = 24*time.Second, 18*time.Second })
 
-	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: hangingStub(t), Run: "^TestParseBareValues$"})
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: hangingStub(t), Run: "^TestParseBareValues$"})
 	done := doneEvent(t, events)
 	// go test ended the run itself (exit code 1), the runner did not kill it.
 	if !done.TimedOut || done.ExitCode != 1 {
@@ -383,7 +392,7 @@ func TestGoTestTimeoutPrintsGoroutines(t *testing.T) {
 	var hung bool
 	for _, ev := range events {
 		// The goroutine dump shows where the test waits, in the stub.
-		if strings.Contains(ev.Output, "exercises/01-logfmt/logfmt.go:") && strings.HasPrefix(ev.Test, "TestParseBareValues") {
+		if strings.Contains(ev.Output, "exercises/26-logfmt/logfmt.go:") && strings.HasPrefix(ev.Test, "TestParseBareValues") {
 			hung = true
 		}
 	}
@@ -410,9 +419,9 @@ func TestGoTestTimeout(t *testing.T) {
 			t.Errorf("goTestTimeout(%s, %s) = %s, want %s", tt.limit, tt.margin, got, tt.want)
 		}
 	}
-	ex := &Exercise{Name: "01-logfmt"}
+	ex := &Exercise{Name: "26-logfmt"}
 	got := strings.Join(testArgs(ex, runnerapi.TestRequest{Race: true, Run: "-x"}, 40*time.Second, testTimeoutMargin), " ")
-	if want := "test -json -count=1 -timeout=35s -race -run=-x ./exercises/01-logfmt/"; got != want {
+	if want := "test -json -count=1 -timeout=35s -race -run=-x ./exercises/26-logfmt/"; got != want {
 		t.Errorf("testArgs = %q, want %q", got, want)
 	}
 }
@@ -424,7 +433,7 @@ func TestQueueWaitEndsWithBusy(t *testing.T) {
 	held := mustJoin(t, env.srv.limiter)
 	defer held.Release()
 
-	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Race: true})
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Race: true})
 	if len(events) != 2 || events[0].Type != runnerapi.EventQueued || events[0].Position != 1 {
 		t.Fatalf("events = %+v, want queued and done", events)
 	}
@@ -433,7 +442,7 @@ func TestQueueWaitEndsWithBusy(t *testing.T) {
 	}
 	// The request left the queue: a slot is free again for the next one.
 	held.Release()
-	events = env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Run: "TestLevel"})
+	events = env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Run: "TestLevel"})
 	if done := doneEvent(t, events); done.Busy || done.ExitCode != 0 {
 		t.Errorf("done after the slot was free = %+v, want a pass", done)
 	}
@@ -444,10 +453,10 @@ func TestOutputCapKillsTheRun(t *testing.T) {
 	slow(t)
 	t.Parallel()
 	env := newTestEnv(t)
-	files := map[string]string{"logfmt.go": stubFiles(t, "01-logfmt")["logfmt.go"] +
+	files := map[string]string{"logfmt.go": stubFiles(t, "26-logfmt")["logfmt.go"] +
 		"\nfunc init() {\n\tfor {\n\t\tprintln(\"" + strings.Repeat("spam ", 40) + "\")\n\t}\n}\n"}
 
-	events := env.runTests(t, runnerapi.TestRequest{Exercise: "01-logfmt", Files: files})
+	events := env.runTests(t, runnerapi.TestRequest{Exercise: "26-logfmt", Files: files})
 	done := doneEvent(t, events)
 	if !done.Truncated || done.ExitCode != -1 {
 		t.Errorf("done = %+v, want truncated and exit code -1", done)
@@ -471,7 +480,7 @@ func TestClientDisconnectKillsTheRun(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
-	resp := env.post(t, ctx, runnerapi.PathTest, runnerapi.TestRequest{Exercise: "01-logfmt", Files: blockingStub(t)})
+	resp := env.post(t, ctx, runnerapi.PathTest, runnerapi.TestRequest{Exercise: "26-logfmt", Files: blockingStub(t)})
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status %d", resp.StatusCode)
@@ -495,7 +504,7 @@ func TestQueuedEventsReportThePosition(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
-	req := runnerapi.TestRequest{Exercise: "01-logfmt", Files: solutionFiles(t, "01-logfmt"), Run: "TestLevelString"}
+	req := runnerapi.TestRequest{Exercise: "26-logfmt", Files: solutionFiles(t, "26-logfmt"), Run: "TestLevelString"}
 	resp := env.post(t, ctx, runnerapi.PathTest, req)
 	defer func() { _ = resp.Body.Close() }()
 
@@ -532,7 +541,7 @@ func TestCloseKillsRunningJobs(t *testing.T) {
 	t.Parallel()
 	env := newTestEnv(t)
 
-	result := runAsync(env, runnerapi.TestRequest{Exercise: "01-logfmt", Files: blockingStub(t)})
+	result := runAsync(env, runnerapi.TestRequest{Exercise: "26-logfmt", Files: blockingStub(t)})
 	if !waitFor(time.Minute, func() bool { return testBinaryRunning(env.workDir) }) {
 		t.Fatal("the test binary never ran")
 	}

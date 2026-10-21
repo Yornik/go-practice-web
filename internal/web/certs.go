@@ -149,7 +149,7 @@ func (s *Server) certificatesPage(w http.ResponseWriter, r *http.Request) {
 // certCard is 1 certificate on the certificates page.
 type certCard struct {
 	certStatus
-	Name    string   // "Tier 2 · Carrying the Owl" or "The complete course"
+	Name    string   // "Tier 2 · The Key" or "The complete course"
 	Short   string   // "tier 2" or "course", for "the tier 2 certificate"
 	Theme   string   // the tier's theme, or "50 exercises in 10 tiers"
 	Missing []string // the numbers of the exercises that do not pass yet
@@ -300,7 +300,7 @@ type verifyView struct {
 	Status      string // "lookup", "valid", "revoked", "unknown" or "invalid"
 	Error       string // for a lookup that failed
 	Name        string
-	Title       string // "Tier 6 · The morning after" or "The complete course"
+	Title       string // "Tier 6 · Forensics" or "The complete course"
 	Subtitle    string // the tier's theme, or "25 exercises in 5 tiers"
 	IssuedAt    time.Time
 	RevokedAt   time.Time

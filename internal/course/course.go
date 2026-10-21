@@ -58,7 +58,7 @@ type Course struct {
 // Tier is a group of exercises from the root README's tier table.
 type Tier struct {
 	N           int
-	Name        string // "Carrying the Owl"; "" when the table has no Name column
+	Name        string // "The Key"; "" when the table has no Name column
 	Theme       string // "Warm-up: Go idioms on real data"
 	First, Last int    // exercise numbers, inclusive
 	Exercises   []*Exercise
@@ -67,7 +67,7 @@ type Tier struct {
 // Title is "Tier N".
 func (t *Tier) Title() string { return fmt.Sprintf("Tier %d", t.N) }
 
-// Label is the title with the tier's name, "Tier 2 · Carrying the Owl",
+// Label is the title with the tier's name, "Tier 2 · The Key",
 // or only the title when the tier has no name.
 func (t *Tier) Label() string {
 	if t.Name == "" {
@@ -97,7 +97,7 @@ func (c *Course) Version() string {
 	return "sha256-" + c.Digest[:12]
 }
 
-// Exercise returns the exercise with the given slug, for example "07-retry".
+// Exercise returns the exercise with the given slug, for example "32-retry".
 func (c *Course) Exercise(slug string) (*Exercise, bool) {
 	e, ok := c.bySlug[slug]
 	return e, ok

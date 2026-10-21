@@ -9,9 +9,10 @@ import (
 	"github.com/yornik/go-practice-web/internal/course/coursetest"
 )
 
-// The tests read 2 fixture courses, not the submodule, so that they hold
-// for either course the submodule pins: first is the first course (25
-// exercises in 5 tiers), fifty the course of 50 in 10 named tiers.
+// The tests read 2 fixture courses, not the submodule: first is the first
+// course (25 exercises in 5 tiers), which signed the old certificates and
+// is no longer in the submodule, and fifty is the course of 50 in 10 named
+// tiers, shaped like the course the site serves.
 var first, fifty *course.Course
 
 func TestMain(m *testing.M) {
@@ -42,8 +43,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// loadCourse is the first course.
+// loadCourse is the course the site serves: the course of 50.
 func loadCourse(t *testing.T) *course.Course {
 	t.Helper()
-	return first
+	return fifty
 }

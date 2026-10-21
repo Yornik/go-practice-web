@@ -41,8 +41,8 @@ func TestKindsOfFifty(t *testing.T) {
 		t.Fatalf("Kinds = %v", kinds)
 	}
 	for k, want := range map[Kind]string{
-		"tier2":    "Tier 2 · Carrying the Owl",
-		"tier10":   "Tier 10 · Passing the Owl",
+		"tier2":    "Tier 2 · The Key",
+		"tier10":   "Tier 10 · The Key Turns",
 		KindCourse: "The complete course",
 	} {
 		if got, err := Title(fifty, k); err != nil || got != want {
@@ -69,7 +69,7 @@ func TestInterpretOldTierInFifty(t *testing.T) {
 		t.Fatalf("the first course's tier 1 is %v", p.Exercises)
 	}
 	cv := Interpret(fifty, p)
-	if cv.Tier == nil || cv.Tier.N != 6 || cv.Title() != "Tier 6 · The morning after" {
+	if cv.Tier == nil || cv.Tier.N != 6 || cv.Title() != "Tier 6 · Forensics" {
 		t.Fatalf("old tier1 reads as %v %q", cv.Tier, cv.Title())
 	}
 	if got := numbers(cv.Exercises); !slices.Equal(got, []int{26, 27, 28}) || cv.Range() != "26 to 28" || len(cv.Unknown) != 0 {
@@ -87,7 +87,7 @@ func TestInterpretOldTierInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Title != "Tier 6 · The morning after" || d.Tier != 6 || d.Subtitle != "Warm-up: Go idioms on real data" ||
+	if d.Title != "Tier 6 · Forensics" || d.Tier != 6 || d.Subtitle != "Warm-up: Go idioms on real data" ||
 		d.Range != "26 to 28" || d.Count != 3 || len(d.Items) != 3 || d.Items[0].Number != "26" || d.Items[2].Title != "Percentiles and histogram quantiles" {
 		t.Errorf("document = %+v", d)
 	}
@@ -119,7 +119,7 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 		t.Fatal(err)
 	}
 	if d.Title != "The complete course" || d.Subtitle != "25 exercises in 5 tiers" || len(d.Bars) != 25 || len(d.Items) != 5 ||
-		d.Items[0].Number != "Tier 6" || d.Items[0].Title != "The morning after" || d.Range != "26 to 50" {
+		d.Items[0].Number != "Tier 6" || d.Items[0].Title != "Forensics" || d.Range != "26 to 50" {
 		t.Errorf("document = %+v", d)
 	}
 
@@ -133,7 +133,7 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(d.Bars) != 50 || len(d.Items) != 10 || d.Items[1].Title != "Carrying the Owl" || d.Range != "01 to 50" {
+	if len(d.Bars) != 50 || len(d.Items) != 10 || d.Items[1].Title != "The Key" || d.Range != "01 to 50" {
 		t.Errorf("document = %+v", d)
 	}
 	if d.Bars[49].Tier != 10 || d.Bars[0].Tier != 1 {
@@ -198,19 +198,19 @@ func TestRenderLayouts(t *testing.T) {
 		want  []string
 	}{
 		{"fifty-course.pdf", fifty, KindCourse, slugsOf(t, fifty, KindCourse), false,
-			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 10", "Passing the Owl", "01 to 50"}},
+			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 10", "The Key Turns", "01 to 50"}},
 		{"fifty-course-stats.pdf", fifty, KindCourse, slugsOf(t, fifty, KindCourse), true,
-			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 5", "The long nights", "Explanations"}},
+			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 5", "Dead Air", "Explanations"}},
 		{"fifty-old-course.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), false,
-			[]string{"25 exercises in 5 tiers", "Tier 6", "The morning after", "26 to 50"}},
+			[]string{"25 exercises in 5 tiers", "Tier 6", "Forensics", "26 to 50"}},
 		{"fifty-old-course-stats.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), true,
-			[]string{"25 exercises in 5 tiers", "Tier 10", "Passing the Owl"}},
+			[]string{"25 exercises in 5 tiers", "Tier 10", "The Key Turns"}},
 		{"fifty-old-tier1.pdf", fifty, "tier1", slugsOf(t, first, "tier1"), false,
-			[]string{"Tier 6 · The morning after", "tier 6", "Parse logfmt log lines", "26 to 28"}},
+			[]string{"Tier 6 · Forensics", "tier 6", "Parse logfmt log lines", "26 to 28"}},
 		{"fifty-tier2-stats.pdf", fifty, "tier2", slugsOf(t, fifty, "tier2"), true,
-			[]string{"Tier 2 · Carrying the Owl", "Types with methods", "06 to 10"}},
+			[]string{"Tier 2 · The Key", "Types with methods", "06 to 10"}},
 		{"fifty-tier10.pdf", fifty, "tier10", slugsOf(t, fifty, "tier10"), false,
-			[]string{"Tier 10 · Passing the Owl", "Capstone: a health-aware load balancer", "45 to 50"}},
+			[]string{"Tier 10 · The Key Turns", "Capstone: a health-aware load balancer", "45 to 50"}},
 		{"first-course.pdf", first, KindCourse, slugsOf(t, first, KindCourse), true,
 			[]string{"The complete course", "25 exercises in 5 tiers", "Warm-up: Go idioms on real data"}},
 		{"first-tier2.pdf", first, "tier2", slugsOf(t, first, "tier2"), false,

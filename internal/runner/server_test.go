@@ -84,7 +84,7 @@ func TestHealthAndReadiness(t *testing.T) {
 		t.Errorf("/readyz while draining = %d, want 503", got)
 	}
 	var apiErr runnerapi.Error
-	env.postJSON(t, runnerapi.PathFormat, runnerapi.FormatRequest{Exercise: "01-logfmt", File: "logfmt.go"},
+	env.postJSON(t, runnerapi.PathFormat, runnerapi.FormatRequest{Exercise: "26-logfmt", File: "logfmt.go"},
 		&apiErr, http.StatusServiceUnavailable)
 	if apiErr.Code != "shutting_down" {
 		t.Errorf("code = %q, want shutting_down", apiErr.Code)
@@ -93,7 +93,7 @@ func TestHealthAndReadiness(t *testing.T) {
 
 func TestRequestValidation(t *testing.T) {
 	env := newTestEnv(t)
-	stub := stubFiles(t, "01-logfmt")
+	stub := stubFiles(t, "26-logfmt")
 	with := func(name, content string) map[string]string {
 		files := map[string]string{"logfmt.go": stub["logfmt.go"]}
 		files[name] = content
@@ -108,18 +108,18 @@ func TestRequestValidation(t *testing.T) {
 		wantCode   string
 	}{
 		{name: "unknown exercise", body: runnerapi.CheckRequest{Exercise: "99-nope", Files: stub}, wantCode: "unknown_exercise"},
-		{name: "path as exercise", body: runnerapi.CheckRequest{Exercise: "../01-logfmt", Files: stub}, wantCode: "unknown_exercise"},
-		{name: "parent traversal", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("../go.mod", "module x")}, wantCode: "bad_file"},
-		{name: "deep traversal", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("../../../../etc/passwd", "x")}, wantCode: "bad_file"},
-		{name: "absolute path", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("/etc/passwd", "x")}, wantCode: "bad_file"},
-		{name: "subdirectory", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("sub/logfmt.go", "x")}, wantCode: "bad_file"},
-		{name: "test replacement", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("logfmt_test.go", "package logfmt_test")}, wantCode: "bad_file"},
-		{name: "new test file", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("extra_test.go", "package logfmt")}, wantCode: "bad_file"},
-		{name: "other exercise's stub", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("retry.go", "package logfmt")}, wantCode: "bad_file"},
-		{name: "go.mod", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("go.mod", "module x")}, wantCode: "bad_file"},
-		{name: "NUL in name", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: with("logfmt.go\x00", "x")}, wantCode: "bad_file"},
-		{name: "missing stub", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: map[string]string{}}, wantCode: "missing_file"},
-		{name: "oversized file", body: runnerapi.CheckRequest{Exercise: "01-logfmt", Files: map[string]string{"logfmt.go": big}}, wantCode: "file_too_large"},
+		{name: "path as exercise", body: runnerapi.CheckRequest{Exercise: "../26-logfmt", Files: stub}, wantCode: "unknown_exercise"},
+		{name: "parent traversal", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("../go.mod", "module x")}, wantCode: "bad_file"},
+		{name: "deep traversal", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("../../../../etc/passwd", "x")}, wantCode: "bad_file"},
+		{name: "absolute path", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("/etc/passwd", "x")}, wantCode: "bad_file"},
+		{name: "subdirectory", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("sub/logfmt.go", "x")}, wantCode: "bad_file"},
+		{name: "test replacement", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("logfmt_test.go", "package logfmt_test")}, wantCode: "bad_file"},
+		{name: "new test file", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("extra_test.go", "package logfmt")}, wantCode: "bad_file"},
+		{name: "other exercise's stub", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("retry.go", "package logfmt")}, wantCode: "bad_file"},
+		{name: "go.mod", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("go.mod", "module x")}, wantCode: "bad_file"},
+		{name: "NUL in name", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: with("logfmt.go\x00", "x")}, wantCode: "bad_file"},
+		{name: "missing stub", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: map[string]string{}}, wantCode: "missing_file"},
+		{name: "oversized file", body: runnerapi.CheckRequest{Exercise: "26-logfmt", Files: map[string]string{"logfmt.go": big}}, wantCode: "file_too_large"},
 		{name: "bad JSON", body: `{"exercise": `, wantCode: "bad_json"},
 		{name: "body over the limit", body: `{"x":"` + strings.Repeat("a", maxBodyBytes) + `"}`,
 			wantStatus: http.StatusRequestEntityTooLarge, wantCode: "too_large"},
@@ -140,11 +140,11 @@ func TestRequestValidation(t *testing.T) {
 		}
 	}
 
-	t.Run("12-workerpool needs both stubs", func(t *testing.T) {
-		files := stubFiles(t, "12-workerpool")
+	t.Run("37-workerpool needs both stubs", func(t *testing.T) {
+		files := stubFiles(t, "37-workerpool")
 		delete(files, "group.go")
 		var apiErr runnerapi.Error
-		env.postJSON(t, runnerapi.PathCheck, runnerapi.CheckRequest{Exercise: "12-workerpool", Files: files}, &apiErr, http.StatusBadRequest)
+		env.postJSON(t, runnerapi.PathCheck, runnerapi.CheckRequest{Exercise: "37-workerpool", Files: files}, &apiErr, http.StatusBadRequest)
 		if apiErr.Code != "missing_file" {
 			t.Errorf("code = %q, want missing_file", apiErr.Code)
 		}
@@ -162,7 +162,7 @@ func TestRequestValidation(t *testing.T) {
 	})
 	t.Run("bad run pattern", func(t *testing.T) {
 		var apiErr runnerapi.Error
-		req := runnerapi.TestRequest{Exercise: "01-logfmt", Files: stub, Run: "Test("}
+		req := runnerapi.TestRequest{Exercise: "26-logfmt", Files: stub, Run: "Test("}
 		env.postJSON(t, runnerapi.PathTest, req, &apiErr, http.StatusBadRequest)
 		if apiErr.Code != "bad_run" {
 			t.Errorf("code = %q, want bad_run", apiErr.Code)
@@ -170,7 +170,7 @@ func TestRequestValidation(t *testing.T) {
 	})
 	t.Run("format with a bad file", func(t *testing.T) {
 		var apiErr runnerapi.Error
-		req := runnerapi.FormatRequest{Exercise: "01-logfmt", File: "../logfmt.go", Content: "package logfmt\n"}
+		req := runnerapi.FormatRequest{Exercise: "26-logfmt", File: "../logfmt.go", Content: "package logfmt\n"}
 		env.postJSON(t, runnerapi.PathFormat, req, &apiErr, http.StatusBadRequest)
 		if apiErr.Code != "bad_file" {
 			t.Errorf("code = %q, want bad_file", apiErr.Code)
@@ -178,7 +178,7 @@ func TestRequestValidation(t *testing.T) {
 	})
 	t.Run("format with an oversized file", func(t *testing.T) {
 		var apiErr runnerapi.Error
-		req := runnerapi.FormatRequest{Exercise: "01-logfmt", File: "logfmt.go", Content: big}
+		req := runnerapi.FormatRequest{Exercise: "26-logfmt", File: "logfmt.go", Content: big}
 		env.postJSON(t, runnerapi.PathFormat, req, &apiErr, http.StatusBadRequest)
 		if apiErr.Code != "file_too_large" {
 			t.Errorf("code = %q, want file_too_large", apiErr.Code)
@@ -215,7 +215,7 @@ func TestFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var resp runnerapi.FormatResponse
-			req := runnerapi.FormatRequest{Exercise: "01-logfmt", File: "logfmt.go", Content: tt.content}
+			req := runnerapi.FormatRequest{Exercise: "26-logfmt", File: "logfmt.go", Content: tt.content}
 			env.postJSON(t, runnerapi.PathFormat, req, &resp, http.StatusOK)
 			if resp.Content != tt.want {
 				t.Errorf("content:\n%s\nwant:\n%s", resp.Content, tt.want)
@@ -240,13 +240,13 @@ func TestQueueFull(t *testing.T) {
 	held := mustJoin(t, env.srv.limiter)
 	defer held.Release()
 
-	stub := stubFiles(t, "01-logfmt")
+	stub := stubFiles(t, "26-logfmt")
 	for _, tc := range []struct {
 		path string
 		body any
 	}{
-		{runnerapi.PathCheck, runnerapi.CheckRequest{Exercise: "01-logfmt", Files: stub}},
-		{runnerapi.PathTest, runnerapi.TestRequest{Exercise: "01-logfmt", Files: stub}},
+		{runnerapi.PathCheck, runnerapi.CheckRequest{Exercise: "26-logfmt", Files: stub}},
+		{runnerapi.PathTest, runnerapi.TestRequest{Exercise: "26-logfmt", Files: stub}},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -265,6 +265,6 @@ func TestQueueFull(t *testing.T) {
 	// Format runs in process and takes no slot.
 	var resp runnerapi.FormatResponse
 	env.postJSON(t, runnerapi.PathFormat,
-		runnerapi.FormatRequest{Exercise: "01-logfmt", File: "logfmt.go", Content: stub["logfmt.go"]},
+		runnerapi.FormatRequest{Exercise: "26-logfmt", File: "logfmt.go", Content: stub["logfmt.go"]},
 		&resp, http.StatusOK)
 }
