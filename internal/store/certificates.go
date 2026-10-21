@@ -15,7 +15,7 @@ import (
 type Certificate struct {
 	ID         string // GP-XXXX-XXXX-XXXX
 	UserID     int64
-	Kind       string // tier1 to tier5, or course
+	Kind       string // tier1 to tier10, or course
 	NameOnCert string
 	IssuedAt   time.Time
 	ShowStats  bool

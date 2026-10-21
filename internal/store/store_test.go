@@ -100,7 +100,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 2 {
+	if err != nil || v != 3 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 	// Every connection of the pool has the pragmas, not only the first.
@@ -142,7 +142,7 @@ func TestOpenMigratesAndSetsPragmas(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 3 {
 		t.Errorf("schema_migrations has %d rows, %v", n, err)
 	}
 	// A schema from a newer build stops an older one.
@@ -197,7 +197,7 @@ func TestMigrationInviteMailed(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	if v, err := s.SchemaVersion(ctx); err != nil || v != 2 {
+	if v, err := s.SchemaVersion(ctx); err != nil || v != 3 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 	var name string
@@ -1108,7 +1108,7 @@ func TestCertificates(t *testing.T) {
 	if _, err := s.IssueCertificate(ctx, dup); !errors.Is(err, ErrConflict) {
 		t.Errorf("duplicate ID: %v", err)
 	}
-	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-X", UserID: u.ID, Kind: "tier9", IssuedAt: t0, Payload: []byte("{}"), Signature: []byte("s")}); err == nil {
+	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-X", UserID: u.ID, Kind: "tier11", IssuedAt: t0, Payload: []byte("{}"), Signature: []byte("s")}); err == nil {
 		t.Error("unknown kind accepted")
 	}
 	if _, err := s.IssueCertificate(ctx, Certificate{ID: "GP-Y", UserID: u.ID, Kind: "tier2", IssuedAt: t0, Payload: []byte("{"), Signature: []byte("s")}); err == nil {
