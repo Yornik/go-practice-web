@@ -90,9 +90,9 @@ func TestKinds(t *testing.T) {
 		count int
 		title string
 	}{
-		{"tier1", true, 1, 3, "Tier 1: Warm-up: Go idioms on real data"},
-		{"tier2", true, 2, 6, "Tier 2: Streams, state, time, types, errors and locks"},
-		{"tier5", true, 5, 6, "Tier 5: Distributed-systems building blocks"},
+		{"tier1", true, 1, 3, "Tier 1"},
+		{"tier2", true, 2, 6, "Tier 2"},
+		{"tier5", true, 5, 6, "Tier 5"},
 		{"course", true, 0, 25, "The complete course"},
 		{"tier6", false, 0, 0, ""},
 		{"tier0", false, 0, 0, ""},
@@ -480,9 +480,9 @@ func TestNewDocument(t *testing.T) {
 			}
 		}
 	}
-	bad := Payload{ID: "GP-0000-0000-0000", Kind: "tier9", Name: "x", IssuedAt: "2026-10-19T07:30:15Z"}
+	bad := Payload{ID: "GP-0000-0000-0000", Kind: "nope", Name: "x", IssuedAt: "2026-10-19T07:30:15Z"}
 	if _, err := NewDocument(c, bad, "https://go-practice.dev", ""); !errors.Is(err, ErrKind) {
-		t.Errorf("NewDocument(tier9): %v", err)
+		t.Errorf("NewDocument(nope): %v", err)
 	}
 	bad.Kind, bad.IssuedAt = "tier1", "yesterday"
 	if _, err := NewDocument(c, bad, "https://go-practice.dev", ""); err == nil {

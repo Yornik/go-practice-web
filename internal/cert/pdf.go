@@ -46,8 +46,9 @@ type Document struct {
 	Kind        Kind
 	Name        string
 	IssuedAt    time.Time
-	Heading     string // "Tier 2" or "The course"
-	Theme       string // the tier's theme, or the course's tagline
+	Title       string // "Tier 6 · The morning after" or "The complete course"
+	Subtitle    string // the tier's theme, or "50 exercises in 10 tiers"
+	Tier        int    // the tier a tier certificate covers; 0 for the course or a tier that no longer exists
 	Range       string // the exercises it covers, "04 to 09"
 	Bars        []Bar  // the course to scale, for the course certificate
 	Items       []Item // the tier's exercises, or the course's tiers
@@ -73,49 +74,51 @@ type Item struct {
 }
 
 // NewDocument builds the PDF content from a verified payload, so the PDF
-// shows exactly what was signed. siteURL is GPW_PUBLIC_URL.
+// shows exactly what was signed, read through the course's renames (see
+// Interpret). siteURL is GPW_PUBLIC_URL.
 func NewDocument(c *course.Course, p Payload, siteURL, fingerprint string) (Document, error) {
 	issued, err := p.Issued()
 	if err != nil {
 		return Document{}, err
 	}
+	if p.Kind != KindCourse {
+		if _, ok := p.Kind.Tier(); !ok {
+			return Document{}, fmt.Errorf("%w: %q", ErrKind, p.Kind)
+		}
+	}
+	cv := Interpret(c, p)
 	d := Document{
 		ID:          p.ID,
 		Kind:        p.Kind,
 		Name:        p.Name,
 		IssuedAt:    issued,
+		Title:       cv.Title(),
+		Range:       cv.Range(),
 		VerifyURL:   strings.TrimSuffix(siteURL, "/") + "/verify/" + p.ID,
 		Fingerprint: fingerprint,
 		Stats:       p.Stats,
 		Count:       len(p.Exercises),
 	}
-	perExercise := map[string]ExerciseStats{}
-	if p.Stats != nil {
-		for _, e := range p.Stats.Exercises {
-			perExercise[e.Slug] = e
-		}
-	}
-	var nums []int
-	for _, slug := range p.Exercises {
-		if e, ok := c.Exercise(slug); ok {
-			nums = append(nums, e.Number)
-		}
-	}
-	if len(nums) > 0 {
-		d.Range = fmt.Sprintf("%02d to %02d", nums[0], nums[len(nums)-1])
-	}
 	if p.Kind == KindCourse {
-		d.Heading = "The course"
-		d.Theme = fmt.Sprintf("%d exercises in %d tiers", len(c.Exercises), len(c.Tiers))
-		for _, e := range c.Exercises {
+		d.Subtitle = cv.Summary()
+		covered := map[string]bool{}
+		for _, e := range cv.Exercises {
+			covered[e.Slug] = true
 			d.Bars = append(d.Bars, Bar{Tier: e.Tier, Hours: e.Hours})
 		}
-		for _, t := range c.Tiers {
-			it := Item{Number: fmt.Sprintf("Tier %d", t.N), Title: t.Theme}
-			if p.Stats != nil {
+		for _, t := range cv.Tiers {
+			title := t.Name
+			if title == "" {
+				title = t.Theme
+			}
+			it := Item{Number: t.Title(), Title: title}
+			if cv.Stats != nil {
 				var sum ExerciseStats
 				for _, e := range t.Exercises {
-					s := perExercise[e.Slug]
+					if !covered[e.Slug] {
+						continue
+					}
+					s := cv.Stats[e.Slug]
 					sum.ActiveSeconds += s.ActiveSeconds
 					sum.Runs += s.Runs
 					sum.Hints += s.Hints
@@ -126,17 +129,13 @@ func NewDocument(c *course.Course, p Payload, siteURL, fingerprint string) (Docu
 		}
 		return d, nil
 	}
-	n, ok := p.Kind.Tier()
-	t, ok2 := c.Tier(n)
-	if !ok || !ok2 {
-		return Document{}, fmt.Errorf("%w: %q", ErrKind, p.Kind)
+	if cv.Tier != nil {
+		d.Tier, d.Subtitle = cv.Tier.N, cv.Tier.Theme
 	}
-	d.Heading = fmt.Sprintf("Tier %d", t.N)
-	d.Theme = t.Theme
-	for _, e := range t.Exercises {
+	for _, e := range cv.Exercises {
 		it := Item{Number: fmt.Sprintf("%02d", e.Number), Title: e.Title}
-		if p.Stats != nil {
-			it.Detail = activityLine(perExercise[e.Slug])
+		if cv.Stats != nil {
+			it.Detail = activityLine(cv.Stats[e.Slug])
 		}
 		d.Items = append(d.Items, it)
 	}
@@ -340,7 +339,7 @@ func Render(w io.Writer, d Document) error {
 	pdf.SetInfo(gopdf.PdfInfo{
 		Title:        "Go Practice certificate " + d.ID,
 		Author:       "Go Practice",
-		Subject:      d.Heading + " passed by " + d.Name,
+		Subject:      d.Title + " passed by " + d.Name,
 		Creator:      "Go Practice",
 		Producer:     "go-practice-web",
 		CreationDate: d.IssuedAt,
@@ -398,8 +397,9 @@ func drawArea(c *canvas, d Document) {
 	c.rect(areaL, areaT, areaR-areaL, areaB-areaT, 0.5, graphite)
 
 	// The content block sits in the vertical middle of the area, so a tier
-	// with 3 exercises leaves no empty band of grid at the bottom.
-	top := areaT + math.Max(0, ((areaB-areaT)-(172+listHeight(d))-30)/2)
+	// with 3 exercises leaves no empty band of grid at the bottom. A tall
+	// list may use the room above the name's capitals.
+	top := areaT + math.Max(-headSlack, ((areaB-areaT)-(headH+listHeight(d))-30)/2)
 
 	family := nameFont(c.pdf, d.Name)
 	c.fitFont(family, 40, 20, d.Name, areaR-areaL-60)
@@ -408,9 +408,12 @@ func drawArea(c *canvas, d Document) {
 
 	c.font(fontManual, 13)
 	c.textColor(graphite)
-	what := fmt.Sprintf("passed the %d exercises of %s of the go-practice course.", d.Count, strings.ToLower(d.Heading))
-	if d.Kind == KindCourse {
+	what := fmt.Sprintf("passed %s of the go-practice course.", plural(d.Count, "exercise", "exercises"))
+	switch {
+	case d.Kind == KindCourse:
 		what = fmt.Sprintf("passed all %d exercises of the go-practice course.", d.Count)
+	case d.Tier > 0:
+		what = fmt.Sprintf("passed the %s of tier %d of the go-practice course.", plural(d.Count, "exercise", "exercises"), d.Tier)
 	}
 	c.centered(midX, top+90, what)
 	// "go test -race" is the machine's own words: mono, inside the sentence.
@@ -427,23 +430,32 @@ func drawArea(c *canvas, d Document) {
 	c.font(fontManual, 13)
 	c.text(x+wPre+wCmd, top+108, post)
 
-	title := d.Heading + ": " + d.Theme
-	if d.Kind == KindCourse {
-		title = "The course: " + d.Theme
+	c.fitFont(fontManualBold, 18, 11, d.Title, areaR-areaL-60)
+	c.centered(midX, top+144, d.Title)
+	if d.Subtitle != "" {
+		c.fitFont(fontManual, 11, 8, d.Subtitle, areaR-areaL-60)
+		c.textColor(graphite2)
+		c.centered(midX, top+161, d.Subtitle)
 	}
-	c.fitFont(fontManualBold, 18, 11, title, areaR-areaL-60)
-	c.centered(midX, top+146, title)
 	if d.Kind == KindCourse {
-		drawTiers(c, d, top+172)
+		drawTiers(c, d, top+headH)
 		return
 	}
-	drawExercises(c, d, top+172)
+	drawExercises(c, d, top+headH)
 }
+
+// headH is the height of the block above the list: the name, the 2
+// sentences, the title and the subtitle. headSlack is how far a tall list
+// may move it up, into the empty room above the name's capitals.
+const (
+	headH     = 186.0
+	headSlack = 22.0
+)
 
 // listHeight is the height drawTiers or drawExercises takes below its top.
 func listHeight(d Document) float64 {
 	if d.Kind == KindCourse {
-		h := float64(len(d.Items)) * 17
+		h := float64(tierRows(d)) * tierRowH
 		if len(d.Bars) > 0 {
 			h += 2 + 9
 		}
@@ -499,39 +511,72 @@ func drawExercises(c *canvas, d Document, top float64) {
 	}
 }
 
-// drawTiers lists the 5 tiers and draws the course to scale: 25 bars, each
-// as wide as its hours, grouped by tier.
+// tierRowH is the height of 1 row of the course's tier list.
+const tierRowH = 17.0
+
+// tierCols is 1 column for up to 5 tiers, else 2.
+func tierCols(d Document) int {
+	if len(d.Items) <= 5 {
+		return 1
+	}
+	return 2
+}
+
+func tierRows(d Document) int {
+	cols := tierCols(d)
+	return (len(d.Items) + cols - 1) / cols
+}
+
+// drawTiers lists the tiers and draws the course to scale: 1 bar per
+// exercise, each as wide as its hours, grouped by tier. More than 5 tiers
+// go in 2 columns, so 10 tiers take the height of 5.
 func drawTiers(c *canvas, d Document, top float64) {
-	rowH := 17.0
-	const numW = 46.0
+	const numW, gap = 52.0, 40.0
+	cols, rows := tierCols(d), tierRows(d)
+	colW := 0.0
 	c.font(fontManual, 11)
-	w := 0.0
 	for _, it := range d.Items {
-		w = math.Max(w, numW+c.width(it.Title))
+		colW = math.Max(colW, numW+c.width(it.Title))
 	}
 	if d.Stats != nil {
-		w = 520
+		colW = 520
+		if cols == 2 {
+			colW = (areaR - areaL - 60 - gap) / 2
+		}
 	}
-	left := midX - w/2
+	colW = math.Min(colW, (areaR-areaL-60-float64(cols-1)*gap)/float64(cols))
+	left := midX - (float64(cols)*colW+float64(cols-1)*gap)/2
 	for i, it := range d.Items {
-		y := top + float64(i)*rowH
+		col, row := i/rows, i%rows
+		x := left + float64(col)*(colW+gap)
+		y := top + float64(row)*tierRowH
 		c.font(fontManualBold, 11)
 		c.textColor(graphite)
-		c.text(left, y, it.Number)
-		c.font(fontManual, 11)
-		c.text(left+numW, y, it.Title)
+		c.text(x, y, it.Number)
+		detailW := 0.0
+		if it.Detail != "" {
+			c.font(fontManual, 8)
+			detailW = c.width(it.Detail) + 10
+		}
+		c.fitFont(fontManual, 11, 8, it.Title, colW-numW-detailW)
+		c.textColor(graphite)
+		c.text(x+numW, y, it.Title)
 		if it.Detail != "" {
 			c.font(fontManual, 8)
 			c.textColor(graphite2)
-			c.right(left+w, y, it.Detail)
+			c.right(x+colW, y, it.Detail)
 		}
 	}
 	if len(d.Bars) == 0 {
 		return
 	}
-	// The strip: 2 pt between bars of a tier, 8 pt between tiers.
+	// The strip: a hair between bars of a tier, 8 pt between tiers.
+	barGap := 2.0
+	if len(d.Bars) > 30 {
+		barGap = 1.5
+	}
 	stripL, stripR := areaL+40, areaR-40
-	y := top + float64(len(d.Items))*rowH + 2
+	y := top + float64(rows)*tierRowH + 2
 	var total float64
 	gaps := 0.0
 	for i, b := range d.Bars {
@@ -540,7 +585,7 @@ func drawTiers(c *canvas, d Document, top float64) {
 			if b.Tier != d.Bars[i-1].Tier {
 				gaps += 8
 			} else {
-				gaps += 2
+				gaps += barGap
 			}
 		}
 	}
@@ -552,7 +597,7 @@ func drawTiers(c *canvas, d Document, top float64) {
 			if b.Tier != d.Bars[i-1].Tier {
 				x += 8
 			} else {
-				x += 2
+				x += barGap
 			}
 		}
 		c.pdf.RectFromUpperLeftWithStyle(x, y, b.Hours*scale, 9, "F")
