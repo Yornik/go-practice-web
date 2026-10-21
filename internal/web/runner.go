@@ -204,6 +204,12 @@ func runnerStatusError(resp *http.Response) error {
 		e.RetryAfter = resp.Header.Get("Retry-After")
 	case resp.StatusCode == http.StatusServiceUnavailable:
 		e.Code, e.Message = "runner_unavailable", "The test runner is restarting. Try again in a minute."
+	case resp.StatusCode == http.StatusBadRequest && body.Code == "unknown_exercise":
+		// The site only asks for exercises of its own course, so this
+		// runner serves another version of it. Web and runner roll out
+		// one after the other, which leaves a short window like this.
+		e.Status, e.Code, e.Message = http.StatusServiceUnavailable, "runner_updating", "The test runner is being updated to this version of the course. Try again in a minute."
+		e.RetryAfter = "30"
 	case resp.StatusCode == http.StatusGatewayTimeout:
 		e.Code, e.Message = "runner_timeout", "The checks took too long. Try again."
 	case resp.StatusCode >= 500:

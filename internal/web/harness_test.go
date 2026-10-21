@@ -107,6 +107,7 @@ type fakeRunner struct {
 	block    chan struct{} // when set, a test run waits for it to close
 	started  chan struct{} // receives when a test run starts
 	failWith int           // when set, every call answers this status
+	failCode string        // the code of that answer; "" is queue_full
 
 	checkStarted chan struct{} // receives when a check starts
 	checkBlock   chan struct{} // when set, a check waits for it to close
@@ -123,12 +124,12 @@ func (f *fakeRunner) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.mu.Lock()
-	failWith := f.failWith
+	failWith, failCode := f.failWith, cmp.Or(f.failCode, "queue_full")
 	f.mu.Unlock()
 	if failWith != 0 {
 		w.Header().Set("Retry-After", "5")
 		w.WriteHeader(failWith)
-		_ = json.NewEncoder(w).Encode(runnerapi.Error{Error: "queue is full", Code: "queue_full"})
+		_ = json.NewEncoder(w).Encode(runnerapi.Error{Error: failCode, Code: failCode})
 		return
 	}
 	switch r.URL.Path {

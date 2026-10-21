@@ -390,6 +390,24 @@ func TestCheckExplainsDiagnostics(t *testing.T) {
 	if w.Header().Get("Retry-After") != "5" || decodeJSON[map[string]string](t, w)["code"] != "runner_busy" {
 		t.Fatalf("busy runner = %v %s", w.Header(), w.Body.String())
 	}
+
+	// A runner that does not know an exercise of the site's course serves
+	// another version of the course: web and runner roll out one after the
+	// other. The learner hears that it is updating, not a refusal.
+	h.runner.mu.Lock()
+	h.runner.failWith, h.runner.failCode = http.StatusBadRequest, "unknown_exercise"
+	h.runner.mu.Unlock()
+	for _, r := range []req{
+		{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{"files": map[string]string{}}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}},
+	} {
+		r.as = admin
+		w = h.do(r)
+		body := decodeJSON[map[string]string](t, w)
+		if w.Code != http.StatusServiceUnavailable || body["code"] != "runner_updating" || !strings.Contains(body["error"], "updated") || w.Header().Get("Retry-After") == "" {
+			t.Errorf("%s with an older runner = %d %v %v", r.path, w.Code, w.Header(), body)
+		}
+	}
 }
 
 func TestRunnerDown(t *testing.T) {
