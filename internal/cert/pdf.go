@@ -58,6 +58,7 @@ type Document struct {
 	Stats       *Stats // nil hides the activity
 	Revoked     bool   // stamps the page as revoked
 	ReplacedBy  string // the certificate that replaced a revoked one; may be ""
+	IssuedAs    string // what a certificate of the first course was issued as (Coverage.IssuedAs); "" otherwise
 }
 
 // Bar is 1 exercise of the course strip: as wide as its hours.
@@ -98,6 +99,7 @@ func NewDocument(c *course.Course, p Payload, siteURL, fingerprint string) (Docu
 		Fingerprint: fingerprint,
 		Stats:       p.Stats,
 		Count:       len(p.Exercises),
+		IssuedAs:    cv.IssuedAs(),
 	}
 	if p.Kind == KindCourse {
 		d.Subtitle = cv.Summary()
@@ -399,7 +401,8 @@ func drawArea(c *canvas, d Document) {
 	// The content block sits in the vertical middle of the area, so a tier
 	// with 3 exercises leaves no empty band of grid at the bottom. A tall
 	// list may use the room above the name's capitals.
-	top := areaT + math.Max(-headSlack, ((areaB-areaT)-(headH+listHeight(d))-30)/2)
+	head := headHeight(d)
+	top := areaT + math.Max(-headSlack, ((areaB-areaT)-(head+listHeight(d))-30)/2)
 
 	family := nameFont(c.pdf, d.Name)
 	c.fitFont(family, 40, 20, d.Name, areaR-areaL-60)
@@ -437,11 +440,27 @@ func drawArea(c *canvas, d Document) {
 		c.textColor(graphite2)
 		c.centered(midX, top+161, d.Subtitle)
 	}
+	if d.IssuedAs != "" {
+		// The paper printed when it was issued shows the old numbers; this
+		// line says why a new copy differs from it.
+		c.fitFont(fontManual, 9, 7, d.IssuedAs, areaR-areaL-60)
+		c.textColor(graphite2)
+		c.centered(midX, top+headH-2, d.IssuedAs)
+	}
 	if d.Kind == KindCourse {
-		drawTiers(c, d, top+headH)
+		drawTiers(c, d, top+head)
 		return
 	}
-	drawExercises(c, d, top+headH)
+	drawExercises(c, d, top+head)
+}
+
+// headHeight is the height of the block above the list, with the line of
+// IssuedAs when there is one.
+func headHeight(d Document) float64 {
+	if d.IssuedAs != "" {
+		return headH + issuedH
+	}
+	return headH
 }
 
 // headH is the height of the block above the list: the name, the 2
@@ -449,6 +468,7 @@ func drawArea(c *canvas, d Document) {
 // may move it up, into the empty room above the name's capitals.
 const (
 	headH     = 186.0
+	issuedH   = 20.0
 	headSlack = 22.0
 )
 

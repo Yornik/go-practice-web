@@ -317,6 +317,9 @@ type verifyView struct {
 	Tiers    []*course.Tier
 	Strip    strip
 	Range    string // the exercises as a range, "04 to 09"
+	// IssuedAs says what a certificate of the first course was issued as,
+	// for a reader who holds its PDF of then (cert.Coverage.IssuedAs).
+	IssuedAs string
 }
 
 // verifyLookup answers the "enter an ID" form.
@@ -392,7 +395,7 @@ func (s *Server) loadCertificate(ctx context.Context, id string) (verifyView, st
 	}
 	v.Name = p.Name
 	cv := cert.Interpret(s.cfg.Course, p)
-	v.Title, v.Exercises, v.Range = cv.Title(), cv.Exercises, cv.Range()
+	v.Title, v.Exercises, v.Range, v.IssuedAs = cv.Title(), cv.Exercises, cv.Range(), cv.IssuedAs()
 	v.IssuedAt, _ = p.Issued()
 	if cv.Tier != nil {
 		v.Subtitle = cv.Tier.Theme

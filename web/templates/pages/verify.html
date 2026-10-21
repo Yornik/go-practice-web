@@ -39,6 +39,9 @@
     <h1 class="verdict verdict-bad" id="verify-title"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>Revoked.</h1>
     <p class="lede">This certificate was replaced{{with .ReplacedBy}} by <a class="mono" href="/verify/{{.}}">{{.}}</a>{{end}} on {{date .RevokedAt}}. Go Practice issued it to {{.Name}} on {{date .IssuedAt}}.</p>
     {{- end}}
+    {{- with .IssuedAs}}
+    <p class="callout mt-3" data-issued-as><b>NOTE:</b> {{.}} A PDF printed then shows the first course's numbers.</p>
+    {{- end}}
   </header>
 
   <section class="drawing grid-bg" aria-label="The certificate">

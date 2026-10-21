@@ -180,7 +180,10 @@ func TestEarlierCertificates(t *testing.T) {
 
 	// The verify page reads the old payloads through the renames.
 	v := h.do(req{method: "GET", path: "/verify/" + courseCert.ID}).Body.String()
-	for _, want := range []string{"Valid.", "The complete course", "25 exercises in 5 tiers", "Forensics", "26 to 50", "--tier-max: 25"} {
+	// It also says what the certificate was issued as: its PDF of then
+	// shows the first course's numbers.
+	for _, want := range []string{"Valid.", "The complete course", "25 exercises in 5 tiers", "Forensics", "26 to 50", "--tier-max: 25",
+		"Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25. The current course numbers them 26 to 50, in tiers 6 to 10."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old course certificate lacks %q", want)
 		}
@@ -189,7 +192,8 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Errorf("the strip of the old course certificate has %d bars, want 25", n)
 	}
 	v = h.do(req{method: "GET", path: "/verify/" + tier1.ID}).Body.String()
-	for _, want := range []string{"Tier 6 · Forensics", "Warm-up: Go idioms on real data", "Parse logfmt log lines", "26 to 28"} {
+	for _, want := range []string{"Tier 6 · Forensics", "Warm-up: Go idioms on real data", "Parse logfmt log lines", "26 to 28",
+		"Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6 · Forensics."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old tier1 lacks %q", want)
 		}
@@ -229,6 +233,9 @@ func TestEarlierCertificates(t *testing.T) {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the new course certificate lacks %q", want)
 		}
+	}
+	if strings.Contains(v, "data-issued-as") {
+		t.Error("the verify page of a new certificate says what it was issued as")
 	}
 	// The tier certificate that was current stays as it was.
 	if k := status()["tier6"]; k.Certificate == nil || k.Certificate.ID != tier1.ID {

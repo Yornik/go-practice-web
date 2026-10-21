@@ -91,10 +91,18 @@ func TestInterpretOldTierInFifty(t *testing.T) {
 		d.Range != "26 to 28" || d.Count != 3 || len(d.Items) != 3 || d.Items[0].Number != "26" || d.Items[2].Title != "Percentiles and histogram quantiles" {
 		t.Errorf("document = %+v", d)
 	}
-	// In the first course it is still tier 1.
+	// Its PDF of then says Tier 1, 01 to 03: the new rendering says so too.
+	const issuedAs = "Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6 · Forensics."
+	if got := cv.IssuedAs(); got != issuedAs || d.IssuedAs != issuedAs {
+		t.Errorf("IssuedAs = %q, document %q", got, d.IssuedAs)
+	}
+	// In the first course it is still tier 1, as issued.
 	cv = Interpret(first, p)
 	if cv.Tier == nil || cv.Tier.N != 1 || cv.Title() != "Tier 1" || !Current(first, "tier1", cv) {
 		t.Errorf("in the first course: %v %q", cv.Tier, cv.Title())
+	}
+	if got := cv.IssuedAs(); got != "" {
+		t.Errorf("IssuedAs in the first course = %q", got)
 	}
 }
 
@@ -122,6 +130,10 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 		d.Items[0].Number != "Tier 6" || d.Items[0].Title != "Forensics" || d.Range != "26 to 50" {
 		t.Errorf("document = %+v", d)
 	}
+	const issuedAs = "Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25. The current course numbers them 26 to 50, in tiers 6 to 10."
+	if d.IssuedAs != issuedAs {
+		t.Errorf("IssuedAs = %q", d.IssuedAs)
+	}
 
 	// A new course certificate covers all 50 in 10 tiers.
 	np := Payload{ID: p.ID, Kind: KindCourse, Name: p.Name, IssuedAt: p.IssuedAt, Exercises: slugsOf(t, fifty, KindCourse)}
@@ -133,7 +145,7 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(d.Bars) != 50 || len(d.Items) != 10 || d.Items[1].Title != "The Key" || d.Range != "01 to 50" {
+	if len(d.Bars) != 50 || len(d.Items) != 10 || d.Items[1].Title != "The Key" || d.Range != "01 to 50" || d.IssuedAs != "" {
 		t.Errorf("document = %+v", d)
 	}
 	if d.Bars[49].Tier != 10 || d.Bars[0].Tier != 1 {
@@ -202,11 +214,11 @@ func TestRenderLayouts(t *testing.T) {
 		{"fifty-course-stats.pdf", fifty, KindCourse, slugsOf(t, fifty, KindCourse), true,
 			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 5", "Dead Air", "Explanations"}},
 		{"fifty-old-course.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), false,
-			[]string{"25 exercises in 5 tiers", "Tier 6", "Forensics", "26 to 50"}},
+			[]string{"25 exercises in 5 tiers", "Tier 6", "Forensics", "26 to 50", "Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25."}},
 		{"fifty-old-course-stats.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), true,
 			[]string{"25 exercises in 5 tiers", "Tier 10", "The Key Turns"}},
 		{"fifty-old-tier1.pdf", fifty, "tier1", slugsOf(t, first, "tier1"), false,
-			[]string{"Tier 6 · Forensics", "tier 6", "Parse logfmt log lines", "26 to 28"}},
+			[]string{"Tier 6 · Forensics", "tier 6", "Parse logfmt log lines", "26 to 28", "Issued as Tier 1 of the first course, exercises 01 to 03."}},
 		{"fifty-tier2-stats.pdf", fifty, "tier2", slugsOf(t, fifty, "tier2"), true,
 			[]string{"Tier 2 · The Key", "Types with methods", "06 to 10"}},
 		{"fifty-tier10.pdf", fifty, "tier10", slugsOf(t, fifty, "tier10"), false,
@@ -233,8 +245,8 @@ func TestRenderLayouts(t *testing.T) {
 		}
 		// The list ends above the drawing area's bottom edge, with room
 		// for the descenders.
-		if top := areaT + max(-headSlack, ((areaB-areaT)-(headH+listHeight(d))-30)/2); top+headH+listHeight(d) > areaB-4 {
-			t.Errorf("%s: the list ends at %.0f, below the area at %.0f", tc.file, top+headH+listHeight(d), areaB)
+		if top := areaT + max(-headSlack, ((areaB-areaT)-(headHeight(d)+listHeight(d))-30)/2); top+headHeight(d)+listHeight(d) > areaB-4 {
+			t.Errorf("%s: the list ends at %.0f, below the area at %.0f", tc.file, top+headHeight(d)+listHeight(d), areaB)
 		}
 		var buf bytes.Buffer
 		if err := Render(&buf, d); err != nil {

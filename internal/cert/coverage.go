@@ -3,6 +3,8 @@ package cert
 import (
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/yornik/go-practice-web/internal/course"
 )
@@ -28,6 +30,12 @@ type Coverage struct {
 	// Stats is the payload's activity per exercise, by current slug; nil
 	// when the payload has none.
 	Stats map[string]ExerciseStats
+	// Renamed is true when the payload names exercises by slugs of the
+	// first course. Its PDF, printed then, shows the old numbers.
+	Renamed bool
+	// Signed is the payload's own exercise numbers, from its slugs, in
+	// order: 1, 2, 3 for an old tier1.
+	Signed []int
 }
 
 // Interpret reads a payload through the course's renames.
@@ -35,7 +43,11 @@ func Interpret(c *course.Course, p Payload) Coverage {
 	cv := Coverage{Kind: p.Kind}
 	seen := map[string]bool{}
 	for _, slug := range p.Exercises {
-		e, _, ok := c.Resolve(slug)
+		if n, ok := slugNumber(slug); ok {
+			cv.Signed = append(cv.Signed, n)
+		}
+		e, renamed, ok := c.Resolve(slug)
+		cv.Renamed = cv.Renamed || renamed
 		if !ok {
 			cv.Unknown = append(cv.Unknown, slug)
 			continue
@@ -46,6 +58,7 @@ func Interpret(c *course.Course, p Payload) Coverage {
 		}
 	}
 	slices.SortFunc(cv.Exercises, func(a, b *course.Exercise) int { return a.Number - b.Number })
+	slices.Sort(cv.Signed)
 	for _, t := range c.Tiers {
 		if slices.ContainsFunc(t.Exercises, func(e *course.Exercise) bool { return seen[e.Slug] }) {
 			cv.Tiers = append(cv.Tiers, t)
@@ -105,6 +118,48 @@ func (cv Coverage) Range() string {
 		return ""
 	}
 	return fmt.Sprintf("%02d to %02d", cv.Exercises[0].Number, cv.Exercises[len(cv.Exercises)-1].Number)
+}
+
+// IssuedAs says what a certificate of the first course was when it was
+// issued, next to how the current course reads it: its PDF of then shows
+// the old tier and numbers, and a reader who compares that paper with the
+// verify page must see why they differ. "" for a payload of the current
+// course.
+func (cv Coverage) IssuedAs() string {
+	if !cv.Renamed || len(cv.Signed) == 0 || len(cv.Exercises) == 0 {
+		return ""
+	}
+	signed := numberRange(cv.Signed[0], cv.Signed[len(cv.Signed)-1])
+	now := numberRange(cv.Exercises[0].Number, cv.Exercises[len(cv.Exercises)-1].Number)
+	if cv.Kind == KindCourse {
+		first, last := cv.Tiers[0].N, cv.Tiers[len(cv.Tiers)-1].N
+		return fmt.Sprintf("Issued for the first course: %s in %s, numbered %s. The current course numbers them %s, in tiers %d to %d.",
+			plural(len(cv.Signed), "exercise", "exercises"), plural(len(cv.Tiers), "tier", "tiers"), signed, now, first, last)
+	}
+	n, _ := cv.Kind.Tier()
+	where := ""
+	if cv.Tier != nil {
+		where = ", in " + cv.Tier.Label()
+	}
+	return fmt.Sprintf("Issued as Tier %d of the first course, exercises %s. The current course numbers them %s%s.", n, signed, now, where)
+}
+
+// numberRange is "01 to 03", or "07" for 1 exercise.
+func numberRange(first, last int) string {
+	if first == last {
+		return fmt.Sprintf("%02d", first)
+	}
+	return fmt.Sprintf("%02d to %02d", first, last)
+}
+
+// slugNumber is the number a slug starts with: 7 for "07-retry".
+func slugNumber(slug string) (int, bool) {
+	num, _, ok := strings.Cut(slug, "-")
+	if !ok || len(num) != 2 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(num)
+	return n, err == nil
 }
 
 // Current reports whether a certificate of kind k with this coverage
