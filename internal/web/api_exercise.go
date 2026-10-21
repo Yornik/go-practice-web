@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -32,11 +33,28 @@ const maxNotes = 64 << 10
 
 // exercise returns the exercise of the path or answers 404.
 func (s *Server) exercise(w http.ResponseWriter, r *http.Request) (*course.Exercise, bool) {
-	ex, ok := s.cfg.Course.Exercise(r.PathValue("exercise"))
-	if !ok {
+	ex, renamed, ok := s.cfg.Course.Resolve(r.PathValue("exercise"))
+	switch {
+	case !ok:
 		writeJSONError(w, http.StatusNotFound, "unknown_exercise", "This exercise does not exist.")
+	case renamed:
+		// The API takes current slugs only, so an IDE tab that was open
+		// before the course grew cannot save under the old one. It says
+		// where the exercise went: its unsaved code waits in the browser
+		// under the old slug, and the page of the new one takes it over.
+		writeJSON(w, http.StatusNotFound, renamedBody{
+			errorBody: errorBody{Code: "renamed", Error: fmt.Sprintf("This exercise moved to %s. Reload the page: the code this browser kept comes along.", ex.Slug)},
+			Slug:      ex.Slug,
+		})
+		return nil, false
 	}
 	return ex, ok
+}
+
+// renamedBody is the 404 of an old slug: the error and the current slug.
+type renamedBody struct {
+	errorBody
+	Slug string `json:"slug"`
 }
 
 // fileJSON is a file in the IDE bootstrap.

@@ -220,5 +220,29 @@ test("setup, sign up, solve 01-loglevels, reveal hint 1", async ({ page, context
   expect(await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path.endsWith("/repeated.go")).getValue())).toBe(older);
   await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key), { timeout: 20_000 }).toBeNull();
 
+  // A tab that was open while the course grew kept its code under the slug
+  // of the first course. The old link redirects, and the page of the new
+  // slug offers that code and takes over the cursor position.
+  const oldKey = "gpw-unsaved:07-retry:retry.go";
+  const oldCursor = "gpw-cursor:07-retry:retry.go";
+  const moved = "package retry\n\n// kept under the old slug\n";
+  await page.evaluate(([k, c, content]) => {
+    localStorage.setItem(k, JSON.stringify({ at: Date.now(), content }));
+    localStorage.setItem(c, "3:1");
+  }, [oldKey, oldCursor, moved]);
+  await page.goto("/learn/07-retry");
+  await expect(page).toHaveURL(/\/learn\/32-retry$/);
+  await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await expect(banner).toContainText("This browser kept changes to retry.go");
+  const kept32 = await page.evaluate(() => ({
+    unsaved: localStorage.getItem("gpw-unsaved:07-retry:retry.go"),
+    cursor: localStorage.getItem("gpw-cursor:07-retry:retry.go"),
+    offered: JSON.parse(localStorage.getItem("gpw-offered:32-retry:retry.go") || "[]").map((c) => c.content),
+  }));
+  expect(kept32).toEqual({ unsaved: null, cursor: null, offered: [moved] });
+  await expect(page.locator("[data-cursor]")).toHaveText("Line 3, column 1");
+  await banner.getByRole("button", { name: "discard them" }).click();
+  await expect(banner).toBeHidden();
+
   expect(errors).toEqual([]);
 });

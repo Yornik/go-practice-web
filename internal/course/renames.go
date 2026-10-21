@@ -64,6 +64,22 @@ func (c *Course) Resolve(slug string) (e *Exercise, renamed, ok bool) {
 	return nil, false, false
 }
 
+// RenamedFrom returns the slug a renamed exercise had in the first course:
+// "07-retry" for "32-retry". It is "" for an exercise that kept its slug,
+// and for every exercise while the first course is loaded. Things a
+// browser keeps under the old slug, such as unsaved code, move with it.
+func (c *Course) RenamedFrom(slug string) string {
+	for old, to := range renames {
+		if to != slug {
+			continue
+		}
+		if _, current := c.bySlug[old]; !current {
+			return old
+		}
+	}
+	return ""
+}
+
 // CurrentSlug returns the slug the course uses for slug: itself when the
 // course has it, its new slug when it was renamed, and "" when the course
 // knows neither.

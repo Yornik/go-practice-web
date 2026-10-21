@@ -1,7 +1,7 @@
 {{define "content"}}
 {{- with .Data}}
 {{- $ex := .Exercise}}
-<div class="ide" data-exercise="{{$ex.Slug}}" data-number="{{pad2 $ex.Number}}" data-title="{{$ex.Title}}" data-go-version="{{.GoVersion}}" data-titles="{{json .Titles}}"
+<div class="ide" data-exercise="{{$ex.Slug}}" data-number="{{pad2 $ex.Number}}" data-title="{{$ex.Title}}" data-go-version="{{.GoVersion}}" data-titles="{{json .Titles}}"{{with .RenamedFrom}} data-renamed-from="{{.}}"{{end}}
   {{- with .Next}} data-next-slug="{{.Slug}}" data-next-title="{{pad2 .Number}} {{.Title}}"{{end}}>
   <header class="ide-top">
     <a class="ide-brand" href="/learn" aria-label="Go Practice: your course"><span class="brand-mark" aria-hidden="true">Go</span></a>

@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
@@ -44,9 +45,17 @@ func TestRenamedSlugRedirects(t *testing.T) {
 	if !strings.Contains(w.Body.String(), `data-exercise="32-retry"`) {
 		t.Error("the IDE of 32-retry does not name its slug")
 	}
+	// The browser may keep unsaved code under the old slug: the page names
+	// it, so the IDE moves that code to the new slug.
+	if !strings.Contains(w.Body.String(), `data-renamed-from="07-retry"`) {
+		t.Error("the IDE of 32-retry does not name its old slug")
+	}
 	// A new exercise that reuses an old number is itself, not a redirect.
 	w = h.do(req{method: "GET", path: "/learn/07-rollcall", as: admin})
 	wantStatus(t, w, http.StatusOK)
+	if strings.Contains(w.Body.String(), "data-renamed-from") {
+		t.Error("the IDE of 07-rollcall names an old slug")
+	}
 	wantStatus(t, h.do(req{method: "GET", path: "/learn/99-nothing", as: admin}), http.StatusNotFound)
 
 	// The API takes current slugs only.
@@ -58,9 +67,17 @@ func TestRenamedSlugRedirects(t *testing.T) {
 	} {
 		r.as = admin
 		w := h.do(r)
-		if w.Code != http.StatusNotFound {
-			t.Errorf("%s %s = %d, want 404", r.method, r.path, w.Code)
+		// An IDE tab that was open while the course grew learns where the
+		// exercise went, so it stops trying to save under the old slug.
+		var body struct{ Code, Slug, Error string }
+		_ = json.Unmarshal(w.Body.Bytes(), &body)
+		if w.Code != http.StatusNotFound || body.Code != "renamed" || body.Slug != "32-retry" || !strings.Contains(body.Error, "32-retry") {
+			t.Errorf("%s %s = %d %s, want 404 renamed to 32-retry", r.method, r.path, w.Code, w.Body)
 		}
+	}
+	w = h.do(req{method: "GET", path: "/api/exercises/99-nothing", as: admin})
+	if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `"unknown_exercise"`) {
+		t.Errorf("GET /api/exercises/99-nothing = %d %s", w.Code, w.Body)
 	}
 	wantStatus(t, h.do(req{method: "GET", path: "/api/exercises/32-retry", as: admin}), http.StatusOK)
 }

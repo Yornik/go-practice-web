@@ -30,6 +30,9 @@ func TestFirstCourseShape(t *testing.T) {
 	if _, _, ok := c.Resolve("32-retry"); ok {
 		t.Error("Resolve(32-retry) found an exercise in the first course")
 	}
+	if got := c.RenamedFrom("07-retry"); got != "" {
+		t.Errorf("RenamedFrom(07-retry) = %q in the first course", got)
+	}
 }
 
 // TestFiftyShape loads the fixture of the course of 50: 10 named tiers,
@@ -69,6 +72,11 @@ func TestFiftyShape(t *testing.T) {
 	if _, _, ok := c.Resolve("../07-retry"); ok {
 		t.Error("Resolve found a path")
 	}
+	for slug, want := range map[string]string{"32-retry": "07-retry", "26-logfmt": "01-logfmt", "07-rollcall": "", "07-retry": "", "99-nothing": ""} {
+		if got := c.RenamedFrom(slug); got != want {
+			t.Errorf("RenamedFrom(%s) = %q, want %q", slug, got, want)
+		}
+	}
 }
 
 // TestRenamesAgainstTheCourse checks the rename table against the real
@@ -102,6 +110,7 @@ func TestRenamesAgainstTheCourse(t *testing.T) {
 			t.Errorf("Resolve(%s) = %v %v %v", from, got, renamed, ok)
 		}
 	}
+
 }
 
 // TestTierTableErrors refuses a tier table with a row that has the wrong

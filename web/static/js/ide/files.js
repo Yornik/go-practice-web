@@ -24,6 +24,7 @@ export class Files {
    * @param {any} o.monaco
    * @param {any} o.editor
    * @param {string} o.slug
+   * @param {string} [o.renamedFrom] the slug of the first course, for copies kept under it
    * @param {{name: string, kind: string, readonly: boolean, content: string, updatedAt?: string}[]} o.files
    * @param {HTMLElement} o.tabs the tablist
    * @param {HTMLElement} o.testMenu the menu of test files
@@ -275,12 +276,12 @@ export class Files {
     entry.backupTimer = setTimeout(() => this.backup(entry), 400);
   }
 
-  backupKey(entry) {
-    return `gpw-unsaved:${this.slug}:${entry.file.name}`;
+  backupKey(entry, slug = this.slug) {
+    return `gpw-unsaved:${slug}:${entry.file.name}`;
   }
 
-  offerKey(entry) {
-    return `gpw-offered:${this.slug}:${entry.file.name}`;
+  offerKey(entry, slug = this.slug) {
+    return `gpw-offered:${slug}:${entry.file.name}`;
   }
 
   /** Keeps the unsaved code in this browser, so a lost save loses nothing. */
@@ -324,11 +325,13 @@ export class Files {
   /** A save failed: say so, and try again with a growing delay. */
   retryLater(entry, err) {
     const signedOut = err instanceof ApiError && err.status === 401;
+    const moved = err instanceof ApiError && err.code === "renamed" ? err.body.slug : null;
     const wait = RETRY_MS[Math.min(entry.retry, RETRY_MS.length - 1)];
     entry.retry++;
-    this.setFailing({ err, wait, signedOut });
+    this.setFailing({ err, wait, signedOut, moved });
     clearTimeout(entry.timer);
-    if (!signedOut) entry.timer = setTimeout(() => this.save(entry).catch(() => {}), wait);
+    // Saves under a slug the course renamed never work again.
+    if (!signedOut && !moved) entry.timer = setTimeout(() => this.save(entry).catch(() => {}), wait);
   }
 
   setFailing(state) {
@@ -344,8 +347,10 @@ export class Files {
       this.showOffer?.();
       return;
     }
-    const { err, wait, signedOut } = state;
-    const text = signedOut
+    const { err, wait, signedOut, moved } = state;
+    const text = moved
+      ? [`Your code is not saved: ${errorMessage(err)} `, h("a", { href: `/learn/${encodeURIComponent(moved)}` }, "Open the exercise there"), "."]
+      : signedOut
       ? ["Your code is not saved: this browser is signed out. ", h("a", { href: "/login", target: "_blank", rel: "noopener" }, "Sign in again in a new tab", h("span", { class: "visually-hidden" }, " (opens in a new tab)")), ", then come back. Your code stays in this browser until then. ", h("button", { type: "button", class: "link-button", onclick: () => this.retryAll() }, "Save now")]
       : [`Your code is not saved: ${errorMessage(err)} The site tries again in ${Math.round(wait / 1000)} s. Your code stays in this browser until then. `, h("button", { type: "button", class: "link-button", onclick: () => this.retryAll() }, "Save now")];
     this.banner.replaceChildren(h("b", {}, "WARNING:"), " ", ...text);
@@ -384,6 +389,15 @@ export class Files {
       // backups cannot overwrite it.
       const copies = [...readList(this.offerKey(e)), ...readList(this.backupKey(e))];
       save(this.backupKey(e), null);
+      if (this.renamedFrom) {
+        // A tab that was open while the course grew kept its code under the
+        // old slug: the server refuses that slug now, so the copies join the
+        // offer here, in time order, and leave the old keys.
+        copies.push(...readList(this.offerKey(e, this.renamedFrom)), ...readList(this.backupKey(e, this.renamedFrom)));
+        copies.sort((a, b) => (a.at || 0) - (b.at || 0));
+        save(this.offerKey(e, this.renamedFrom), null);
+        save(this.backupKey(e, this.renamedFrom), null);
+      }
       const kept = [];
       for (const b of copies.reverse()) {
         if (b.content !== server && !kept.some((k) => k.content === b.content)) kept.push(b);

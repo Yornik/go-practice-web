@@ -22,6 +22,9 @@ import { setupWideCode } from "./widecode.js";
 
 const ide = document.querySelector(".ide");
 const slug = ide.dataset.exercise;
+// The slug of the first course (07-retry for 32-retry): this browser may
+// still keep code and cursor positions under it.
+const renamedFrom = ide.dataset.renamedFrom || "";
 const number = ide.dataset.number;
 const $ = (sel) => ide.querySelector(sel);
 const titles = JSON.parse(ide.dataset.titles || "{}");
@@ -163,7 +166,7 @@ async function main() {
   let problems;
   let format = () => {};
   const files = new Files({
-    monaco, editor, slug, files: boot.files,
+    monaco, editor, slug, renamedFrom, files: boot.files,
     tabs: $("[data-file-tabs]"),
     testMenu: $("[data-test-files]"),
     banner: $("[data-save-banner]"),
@@ -323,7 +326,14 @@ async function main() {
 
   // The cursor: shown in the status bar, kept per file, so the editor
   // opens where the learner left it.
-  const cursorKey = (name) => `gpw-cursor:${slug}:${name}`;
+  const cursorKey = (name, from = slug) => `gpw-cursor:${from}:${name}`;
+  if (renamedFrom) {
+    for (const f of boot.files) {
+      const kept = load(cursorKey(f.name, renamedFrom));
+      if (kept !== null && load(cursorKey(f.name)) === null) save(cursorKey(f.name), kept);
+      save(cursorKey(f.name, renamedFrom), null);
+    }
+  }
   let cursorTimer = 0;
   let pendingCursor = null;
   const flushCursor = () => {

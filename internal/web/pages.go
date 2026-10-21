@@ -376,6 +376,8 @@ func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
 			"GoVersion": goVersion(),
 			"Count":     len(s.cfg.Course.Exercises),
 			"Titles":    exerciseTitles(s.cfg.Course),
+			// The IDE moves what the browser kept under the old slug.
+			"RenamedFrom": s.cfg.Course.RenamedFrom(ex.Slug),
 		},
 	})
 }
