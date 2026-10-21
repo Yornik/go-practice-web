@@ -446,7 +446,7 @@ function testSource(e, files) {
 
 /** A link that moves the editor to a line, with the text in mono. */
 function lineLink(files, file, line, text) {
-  return h("a", { href: "#", class: "code-link", onclick: (ev) => { ev.preventDefault(); files.reveal(file, line, 1); } }, h("code", {}, text));
+  return h("a", { href: "#", class: "source-link", onclick: (ev) => { ev.preventDefault(); files.reveal(file, line, 1); } }, h("code", {}, text));
 }
 
 /** "a, b and c" from nodes. */
@@ -475,7 +475,7 @@ function seenIn(p, tests) {
   const list = h("ul", { class: "seen-list" });
   for (const t of tops.values()) {
     const extra = [t.subs ? (t.subs === 1 ? "1 subtest" : `${t.subs} subtests`) : "", t.seeds ? (t.seeds === 1 ? "1 seed" : `${t.seeds} seeds`) : ""].filter(Boolean).join(", ");
-    const name = tests ? h("button", { type: "button", class: "link-button code-link", onclick: () => tests.revealTest(names.find((n) => topTest(n) === t.top)) }, h("code", {}, t.top)) : h("code", {}, t.top);
+    const name = tests ? h("button", { type: "button", class: "link-button source-link", onclick: () => tests.revealTest(names.find((n) => topTest(n) === t.top)) }, h("code", {}, t.top)) : h("code", {}, t.top);
     list.append(h("li", {}, name, extra ? ` (${extra})` : ""));
   }
   const title = tops.size === 1 ? `Seen in ${names.length} cases of 1 test` : `Seen in ${tops.size} tests`;

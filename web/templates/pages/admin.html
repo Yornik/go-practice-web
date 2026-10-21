@@ -33,7 +33,7 @@
       <p class="form-status mt-3" role="status" aria-live="polite" data-status="invite"></p>
     </form>
     <div class="result-panel" data-invite-result hidden>
-      <label class="label" for="invite-link">Invite link</label>
+      <label class="field-label" for="invite-link">Invite link</label>
       <div class="copy-row">
         <input class="text-input mono" id="invite-link" readonly data-invite-link>
         <button type="button" class="btn" data-copy>Copy the link</button>
@@ -79,14 +79,14 @@
         <tbody>
           {{- range .Data.Users}}
           <tr data-user="{{.ID}}" data-name="{{.DisplayName}}">
-            <th scope="row">{{.DisplayName}} <span class="muted mono small">{{.Username}}</span></th>
-            <td data-label="Email">{{if .Email}}{{.Email}}{{if .EmailVerified}} <span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><span class="visually-hidden">verified</span></span>{{else}} <span class="muted">(not verified)</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
+            <th scope="row">{{.DisplayName}} <span class="muted mono text-small">{{.Username}}</span></th>
+            <td data-label="Email">{{if .Email}}{{.Email}}{{if .EmailVerified}} <span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><span class="visually-hidden">verified</span></span>{{else}} <span class="muted">(not verified)</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
             <td data-label="Progress"><span class="user-progress">{{template "strip" .Strip}}<span>{{.Passed}} of {{$.Data.Total}}</span></span></td>
             <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
             <td class="num" data-label="Runs">{{.Runs}}</td>
             <td data-label="Last seen">{{if .LastSeen.IsZero}}<span class="muted">never</span>{{else}}{{shortdate .LastSeen}}{{end}}</td>
             <td data-label="Role">{{if .IsAdmin}}admin{{else}}learner{{end}}</td>
-            <td data-label="Status">{{if .Disabled}}<span class="status status-fail"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>disabled</span>{{else}}active{{end}}</td>
+            <td data-label="Status">{{if .Disabled}}<span class="status-line status-fail"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>disabled</span>{{else}}active{{end}}</td>
             <td class="actions">
               {{- if eq .ID $.User.ID}}
               <button type="button" class="btn btn-sm btn-danger" aria-disabled="true" aria-describedby="self-reason">Disable<span class="visually-hidden"> {{.DisplayName}}</span></button>

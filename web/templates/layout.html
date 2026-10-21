@@ -149,7 +149,7 @@
 {{- end}}
 
 {{define "strip"}}
-<div class="strip {{.Class}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
+<div class="course-strip {{.Class}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
   {{- range .Tiers}}
   <div class="strip-tier" style="flex: {{grow .Hours}} 1 0; --tier-h: {{.Hours}}">
     <div class="strip-bars">

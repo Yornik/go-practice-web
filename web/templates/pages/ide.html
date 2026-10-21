@@ -72,7 +72,7 @@
           </ol>
         </section>
         <section class="notes-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" tabindex="0" hidden>
-          <label class="label" for="notes">Your notes on exercise {{pad2 $ex.Number}}</label>
+          <label class="field-label" for="notes">Your notes on exercise {{pad2 $ex.Number}}</label>
           <p class="help" id="notes-help">Write down where you got stuck and what you tried. Step 10 of the course asks for this log.</p>
           <textarea class="textarea" id="notes" data-notes aria-describedby="notes-help notes-status"></textarea>
           <p class="help" id="notes-status" data-notes-status></p>
@@ -123,11 +123,11 @@
       </div>
       <div class="editor-wrap">
         <p class="save-banner callout callout-warning" role="status" hidden data-save-banner></p>
-        <div class="editor" id="editor-host" data-editor tabindex="-1"><p class="editor-loading">Loading the editor</p></div>
+        <div class="editor-host" id="editor-host" data-editor tabindex="-1"><p class="editor-loading">Loading the editor</p></div>
         <button type="button" class="leader-jump" data-leader-jump hidden></button>
       </div>
       <div class="row-handle" role="separator" aria-orientation="horizontal" aria-label="Resize the test panel" tabindex="0" data-handle="bottom"></div>
-      <section class="bottom" id="test-results" aria-label="Test results" tabindex="-1">
+      <section class="bottom-panel" id="test-results" aria-label="Test results" tabindex="-1">
         <div class="bottom-bar">
           <div class="tabs" role="tablist" aria-label="Results" data-tabs="bottom">
             <button type="button" class="tab" role="tab" id="tab-tests" aria-controls="panel-tests" aria-selected="true">Tests</button>
@@ -182,7 +182,7 @@
     <svg class="ide-leaders" aria-hidden="true" focusable="false" data-leader></svg>
   </div>
 
-  <footer class="status-bar">
+  <footer class="ide-status">
     <span class="sb-cell" data-save-status>Loading</span>
     <span class="sb-cell" data-lint-status>Checks start when the editor loads</span>
     <span class="sb-cell sb-optional" data-cursor></span>

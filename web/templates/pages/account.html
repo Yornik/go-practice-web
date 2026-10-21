@@ -19,7 +19,7 @@
         <dd>
           <input class="text-input" id="profile-email" name="email" type="email" value="{{.User.Email}}" required maxlength="254" autocomplete="email" aria-describedby="profile-email-status">
           <p class="help" id="profile-email-status">
-            {{- if .User.EmailVerified}}<span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>verified</span> Recovery links and security notices go here.
+            {{- if .User.EmailVerified}}<span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>verified</span> Recovery links and security notices go here.
             {{- else if .User.Email}}Not verified. Open the link in the email to start the course. Recovery works after that.
             {{- else}}No address. Add an address to start the course. It is your way back in if you lose your passkeys.{{end}}
             {{- if or .Data.PendingEmail (and .User.Email (not .User.EmailVerified))}} <button type="button" class="link-button" data-resend>Send the link again</button>.{{end}}

@@ -193,7 +193,7 @@
   }
 
   .editor-wrap { position: relative; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
-  .editor { position: relative; flex: 1 1 auto; min-height: 0; }
+  .editor-host { position: relative; flex: 1 1 auto; min-height: 0; }
   .save-banner { flex: none; margin: 0; padding: var(--s2) var(--s4) var(--s2) var(--s3); background: var(--red-wash); border-left-width: 3px; font-size: 14px; line-height: 21px; }
   .save-banner[data-kind="note"] { background: var(--blue-wash); border-left-color: var(--blue); }
   .save-banner[data-kind="note"] b:first-child { color: var(--graphite); }
@@ -221,7 +221,7 @@
   .eol-balloon.is-selected { background: var(--blue) !important; color: var(--on-blue) !important; }
   .monaco-hover .gpw-hover-title { font: 700 14px/20px var(--manual) !important; color: var(--blue); }
 
-  .bottom { display: grid; grid-template-rows: 44px minmax(0, 1fr); min-height: 0; min-width: 0; background: var(--sheet); }
+  .bottom-panel { display: grid; grid-template-rows: 44px minmax(0, 1fr); min-height: 0; min-width: 0; background: var(--sheet); }
   .bottom-bar { display: flex; align-items: stretch; gap: var(--s3); padding: 0 var(--s3) 0 var(--s2); border-bottom: 1px solid var(--rule); min-width: 0; }
   .tab-problems { display: none; }
   .run-controls { display: flex; align-items: center; gap: var(--s3); margin-left: auto; min-width: 0; }
@@ -247,8 +247,8 @@
   .run-notes { display: grid; gap: var(--s2); padding: 0 var(--s4) var(--s2); }
   .run-notes .callout { font-size: 13px; line-height: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
   .pass-line { display: grid; gap: 2px; padding-left: var(--s3); border-left: 2px solid var(--ok); }
-  .pass-line .status { white-space: normal; align-items: flex-start; }
-  .pass-line .status .icon { margin-top: 2px; }
+  .pass-line .status-line { white-space: normal; align-items: flex-start; }
+  .pass-line .status-line .icon { margin-top: 2px; }
   .output { margin: 0; padding: var(--s3) var(--s4); font: 400 13px/20px var(--machine); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--graphite); }
   .output a { font-family: inherit; }
 
@@ -350,7 +350,7 @@
   }
 
   /* The status bar */
-  .status-bar { display: flex; align-items: stretch; min-width: 0; background: var(--pad-deep); border-top: 1px solid var(--rule-strong); font-size: 12.5px; line-height: 16px; color: var(--graphite-2); white-space: nowrap; }
+  .ide-status { display: flex; align-items: stretch; min-width: 0; background: var(--pad-deep); border-top: 1px solid var(--rule-strong); font-size: 12.5px; line-height: 16px; color: var(--graphite-2); white-space: nowrap; }
   .sb-cell { display: inline-flex; align-items: center; gap: 6px; padding: 0 var(--s3); border-right: 1px solid var(--rule-strong); }
   .sb-cell:first-child { padding-left: var(--s4); }
   .sb-cell .icon { width: 13px; height: 13px; }
@@ -433,7 +433,7 @@
     .tests-panel, .tree-wrap { overflow: visible; display: block; }
     .test-detail { max-height: none; padding-left: var(--s4); }
     .work.is-compact .tree-wrap { display: block; }
-    .bottom { order: 5; display: block; border-top: 1px solid var(--rule-strong); }
+    .bottom-panel { order: 5; display: block; border-top: 1px solid var(--rule-strong); }
     .bottom-bar { flex-wrap: wrap; padding: 0 var(--s3); flex-direction: column-reverse; align-items: stretch; gap: 0; }
     .bottom-bar .tabs { height: 44px; border-top: 1px solid var(--rule); }
     .run-controls { margin-left: 0; flex-wrap: wrap; padding: var(--s3) 0; }
@@ -452,7 +452,7 @@
     .problems-head { position: static; }
     .ladder { order: 7; max-height: none; padding: var(--s4); border-top: 1px solid var(--rule-strong); }
     .ide-leaders, .leader-jump { display: none !important; }
-    .status-bar { flex-wrap: wrap; padding: var(--s2) 0; gap: var(--s1) 0; }
+    .ide-status { flex-wrap: wrap; padding: var(--s2) 0; gap: var(--s1) 0; }
     .sb-cell { border-right: 0; padding: 2px var(--s4); }
     .sb-optional, .sb-keys { display: none !important; }
     dialog.reading-sheet { inset: 0; width: 100vw; border-left: 0; }

@@ -123,7 +123,7 @@
   .skip-link:focus { transform: none; }
   .mono { font-family: var(--machine); }
   .muted { color: var(--graphite-2); }
-  .small { font-size: 13px; line-height: 20px; }
+  .text-small { font-size: 13px; line-height: 20px; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -178,7 +178,7 @@
   /* Fields */
   .field { display: grid; gap: 6px; align-content: start; }
   .field + .field { margin-top: var(--s4); }
-  .field > label, .label { font: 700 14px/20px var(--manual); color: var(--graphite); }
+  .field > label, .field-label { font: 700 14px/20px var(--manual); color: var(--graphite); }
   .help { font-size: 13px; line-height: 20px; color: var(--graphite-2); }
   .text-input, .select, .textarea {
     width: 100%; min-height: 40px; padding: 7px var(--s3);
@@ -211,7 +211,7 @@
   .callout-warning b:first-child { color: var(--red); }
 
   /* Status: an icon and a word, in the colour of its meaning. */
-  .status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .status-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .status-ok { color: var(--ok); }
   .status-fail { color: var(--red); }
   .status-quiet { color: var(--graphite-2); }
@@ -349,7 +349,7 @@
   .table-scroll { overflow-x: auto; }
 
   /* The course to scale: 25 bars as wide as their hours. */
-  .strip { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
+  .course-strip { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
   .strip-tier { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .strip-bars { display: flex; gap: 2px; height: 16px; }
   .strip-bars > * { flex-basis: 0; min-width: 3px; background: var(--sheet); box-shadow: inset 0 0 0 1px var(--rule-strong); }
@@ -375,8 +375,8 @@
   .strip-mini .strip-bars > * { min-width: 2px; }
   .strip-mini .strip-bars > [data-state="here"] { margin-block: -2px; }
   @media (max-width: 720px) {
-    .strip:not(.strip-mini) { flex-direction: column; gap: var(--s3); }
-    .strip:not(.strip-mini) .strip-tier { width: calc(var(--tier-h) / 25 * 100%) !important; flex: none !important; }
+    .course-strip:not(.strip-mini) { flex-direction: column; gap: var(--s3); }
+    .course-strip:not(.strip-mini) .strip-tier { width: calc(var(--tier-h) / 25 * 100%) !important; flex: none !important; }
   }
 
   /* The public header and the app header. */
@@ -505,9 +505,9 @@
   .problem-lead { margin-top: var(--s2); font-size: 15px; line-height: 24px; }
   .problem-actions { margin-top: var(--s2); }
   .problem-fact { margin-top: var(--s2); font-size: 14px; line-height: 22px; }
-  .code-link code { font-size: 0.92em; }
-  .link-button.code-link { text-decoration: none; }
-  .link-button.code-link code { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .source-link code { font-size: 0.92em; }
+  .link-button.source-link { text-decoration: none; }
+  .link-button.source-link code { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
   .stub-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s1) var(--s4); font-size: 14px; line-height: 22px; }
   .stub-list dt { color: var(--graphite-2); font-size: 13px; }
   .stub-fn { white-space: nowrap; color: var(--graphite-2); }
@@ -570,7 +570,7 @@
   .landing .section { padding-block: var(--s7); }
   .landing .section > .wrap > h2 { font-size: 28px; line-height: 36px; }
   .landing .section-intro { margin-top: var(--s3); font-size: 17px; line-height: 28px; }
-  .landing .strip { margin-top: var(--s6); }
+  .landing .course-strip { margin-top: var(--s6); }
   .course-contents { columns: 3; column-gap: var(--s7); margin-top: var(--s6); }
   .course-contents > div { break-inside: avoid; padding-bottom: var(--s6); }
   .course-contents h3 { font-size: 17px; line-height: 24px; }
@@ -727,7 +727,7 @@
   .result-panel .copy-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
   .result-panel .copy-row .text-input { flex: 1 1 320px; }
   .user-progress { display: flex; align-items: center; gap: var(--s3); min-width: 220px; }
-  .user-progress .strip { width: 160px; flex: none; }
+  .user-progress .course-strip { width: 160px; flex: none; }
 
   /* Errors */
   .error-page .page-head h1 { font-size: 36px; line-height: 44px; }

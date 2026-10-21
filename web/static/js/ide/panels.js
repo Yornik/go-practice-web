@@ -162,7 +162,7 @@ export function setupLayout(ide, tabs, onChange) {
     const current = () => {
       if (name === "task") return task.getBoundingClientRect().width;
       if (name === "problems") return problems.getBoundingClientRect().width;
-      return ide.querySelector(".bottom").getBoundingClientRect().height;
+      return ide.querySelector(".bottom-panel").getBoundingClientRect().height;
     };
     const set = (v) => {
       if (name === "bottom") {

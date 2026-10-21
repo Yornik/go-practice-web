@@ -25,7 +25,7 @@
       </div>
       {{- else}}
       {{- if .Eligible}}
-      <p class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
+      <p class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
       <div class="cert-actions">
         <button type="button" class="btn btn-primary" data-claim="new">Claim the {{if eq .Kind "course"}}course{{else}}{{lower .Name}}{{end}} certificate</button>
       </div>

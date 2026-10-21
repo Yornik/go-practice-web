@@ -282,7 +282,7 @@ export class TestRunner {
     if (p.firstPass) {
       const how = p.raceUnavailable ? "passes. This server has no race detector, so it ran without -race" : "passes with -race";
       const line = h("div", { class: "pass-line" },
-        h("p", { class: "status status-ok" }, icon("tick"), h("span", {}, `Exercise ${this.number} ${how}. Rule 5: read the explanation and the walkthrough now. They show the trade-offs.`)));
+        h("p", { class: "status-line status-ok" }, icon("tick"), h("span", {}, `Exercise ${this.number} ${how}. Rule 5: read the explanation and the walkthrough now. They show the trade-offs.`)));
       if (this.next) line.append(h("p", {}, "Next: ", h("a", { href: `/learn/${this.next.slug}` }, this.next.title)));
       this.notes.append(line);
     }
