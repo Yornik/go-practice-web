@@ -51,7 +51,7 @@ type Exercise struct {
 	Slug    string  // "07-retry", the directory name
 	Package string  // "retry"
 	Title   string  // "Retries with backoff, jitter and context"
-	Tier    int     // 1 to 5
+	Tier    int     // 1 or more, from line 3
 	Hours   float64 // the time from the README, 2.5
 	Time    string  // the same as text, "2.5 h"
 
@@ -172,7 +172,7 @@ func (e *Exercise) SolutionFiles() []File {
 
 var (
 	titleLine = regexp.MustCompile(`^# ([0-9]{2}) · (.+)$`)
-	tierLine  = regexp.MustCompile(`^\*\*Tier ([1-5]) · about ([0-9]+(?:\.[0-9]+)?) h\*\* · Go: (.+?) · Problem solving: (.+)$`)
+	tierLine  = regexp.MustCompile(`^\*\*Tier ([0-9]+) · about ([0-9]+(?:\.[0-9]+)?) h\*\* · Go: (.+?) · Problem solving: (.+)$`)
 )
 
 // loadExercise reads exercises/<slug>/ and solutions/<slug>/.
