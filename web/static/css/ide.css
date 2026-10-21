@@ -253,8 +253,8 @@
   .output a { font-family: inherit; }
 
   /* The test tree: the README's steps, then tests, then subtests. */
-  .tree { list-style: none; margin: 0; padding: 0 0 var(--s3); font-size: 14px; line-height: 22px; }
-  .tree ul { list-style: none; margin: 0; padding: 0; }
+  .test-tree { list-style: none; margin: 0; padding: 0 0 var(--s3); font-size: 14px; line-height: 22px; }
+  .test-tree ul { list-style: none; margin: 0; padding: 0; }
   .tree-row {
     display: grid; grid-template-columns: 14px 18px minmax(0, 1fr) auto auto; align-items: center; gap: var(--s3);
     padding: 3px var(--s4) 3px calc(var(--s4) + var(--indent, 0px)); cursor: pointer; min-height: 28px;
@@ -263,13 +263,13 @@
   [role="treeitem"]:focus { outline: none; }
   [role="treeitem"]:focus-visible > .tree-row { outline: 2px solid var(--blue); outline-offset: -2px; }
   [role="treeitem"][aria-selected="true"] > .tree-row { background: var(--blue-wash); box-shadow: inset 2px 0 0 var(--blue); }
-  .tree .icon { width: 14px; height: 14px; stroke-width: 2; }
-  .tree [data-state="pass"] > .tree-row > .icon { color: var(--ok); }
-  .tree [data-state="fail"] > .tree-row > .icon { color: var(--red); }
-  .tree [data-state="skip"] > .tree-row > .icon, .tree [data-state="queued"] > .tree-row > .icon { color: var(--graphite-2); }
-  .tree [data-state="run"] > .tree-row > .icon { color: var(--blue); }
+  .test-tree .icon { width: 14px; height: 14px; stroke-width: 2; }
+  .test-tree [data-state="pass"] > .tree-row > .icon { color: var(--ok); }
+  .test-tree [data-state="fail"] > .tree-row > .icon { color: var(--red); }
+  .test-tree [data-state="skip"] > .tree-row > .icon, .test-tree [data-state="queued"] > .tree-row > .icon { color: var(--graphite-2); }
+  .test-tree [data-state="run"] > .tree-row > .icon { color: var(--blue); }
   @media (prefers-reduced-motion: no-preference) {
-    .tree [data-state="run"] > .tree-row > .icon { animation: spin 800ms linear infinite; }
+    .test-tree [data-state="run"] > .tree-row > .icon { animation: spin 800ms linear infinite; }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .tree-no { font-weight: 700; text-align: right; }
@@ -279,10 +279,10 @@
   .tree-count { font-size: 13px; text-align: right; white-space: nowrap; color: var(--graphite-2); min-width: 96px; }
   .tree-end { display: inline-flex; align-items: center; gap: var(--s2); }
   .tree-end .tree-count { min-width: 0; }
-  .tree [data-state="pass"] > .tree-row .tree-count { color: var(--ok); }
-  .tree [data-state="fail"] > .tree-row .tree-count { color: var(--red); }
-  .tree .is-step[data-state="fail"] > .tree-row { background: var(--red-wash); }
-  .tree .is-step[data-state="fail"][aria-selected="true"] > .tree-row { background: var(--blue-wash); }
+  .test-tree [data-state="pass"] > .tree-row .tree-count { color: var(--ok); }
+  .test-tree [data-state="fail"] > .tree-row .tree-count { color: var(--red); }
+  .test-tree .is-step[data-state="fail"] > .tree-row { background: var(--red-wash); }
+  .test-tree .is-step[data-state="fail"][aria-selected="true"] > .tree-row { background: var(--blue-wash); }
   .tree-test > .tree-row { grid-template-columns: 14px minmax(0, 1fr) auto; }
   .tree-more > .tree-row { grid-template-columns: 14px minmax(0, 1fr) auto; color: var(--graphite-2); }
   .tree-more .tree-label { font-size: 13px; }

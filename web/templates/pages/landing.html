@@ -116,7 +116,7 @@
       <h2 id="toc-title">The {{len .Course.Exercises}} exercises</h2>
       <p class="section-intro">Work them in order. Each tier assumes the tiers before it. The times are for a medior engineer who works without an LLM.</p>
       {{template "strip" .Data.Strip}}
-      <div class="contents">
+      <div class="course-contents">
         {{- range .Course.Tiers}}
         <div>
           <h3>{{.Title}}</h3>

@@ -107,6 +107,38 @@ export async function virtualAuthenticator(context, page) {
   return { cdp, authenticatorId };
 }
 
+/**
+ * The selectors of site.css and ide.css that match an element of Monaco's
+ * editor or widgets, apart from the rules without a class (the base element
+ * rules) and the rules of the IDE's own decorations. Monaco's widgets are
+ * part of the page, so a site class that Monaco also uses reaches them:
+ * ".contents" once moved every suggestion out of its row.
+ */
+export async function siteRulesOnMonaco(page) {
+  return page.evaluate(() => {
+    const ours = /\.(eol-balloon|gm-problem|gm-advice|ln-problem|gpw-[\w-]+)(?![\w-])/;
+    const selectors = [];
+    const walk = (rules) => {
+      for (const r of rules) {
+        if (r.selectorText) selectors.push(...r.selectorText.split(",").map((s) => s.trim()));
+        if (r.cssRules) walk(r.cssRules);
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      if (/\/(site|ide)\.css/.test(sheet.href || "")) walk(sheet.cssRules);
+    }
+    const monaco = [...document.querySelectorAll(".monaco-editor, .monaco-editor *, .context-view *, .quick-input-widget *")];
+    const matches = (el, sel) => {
+      try {
+        return el.matches(sel.replace(/::?(before|after|backdrop|placeholder|marker)\b/g, ""));
+      } catch {
+        return false;
+      }
+    };
+    return selectors.filter((sel) => sel.includes(".") && !ours.test(sel) && monaco.some((el) => matches(el, sel)));
+  });
+}
+
 /** Collects page errors and CSP violations, so a test can assert none. */
 export function watchErrors(page) {
   const errors = [];

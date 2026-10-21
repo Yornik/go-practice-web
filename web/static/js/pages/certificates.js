@@ -46,7 +46,7 @@ for (const card of document.querySelectorAll("[data-kind]")) {
 async function claim(card, again) {
   const kind = card.dataset.kind;
   const label = card.dataset.label;
-  const input = h("input", { class: "input", id: "claim-name", name: "name", maxlength: 70, value: card.dataset.name || displayName, autocomplete: "name", "aria-describedby": "claim-name-help" });
+  const input = h("input", { class: "text-input", id: "claim-name", name: "name", maxlength: 70, value: card.dataset.name || displayName, autocomplete: "name", "aria-describedby": "claim-name-help" });
   const error = h("p", { class: "field-error", id: "claim-name-error", hidden: true });
   const preview = h("dd", {});
   const previewNote = h("p", { class: "field-error", hidden: true });

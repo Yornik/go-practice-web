@@ -12,12 +12,12 @@
         <dd><span class="mono fact-value">{{.User.Username}}</span><p class="help">Your username cannot change.</p></dd>
         <dt><label for="profile-name">Display name</label></dt>
         <dd>
-          <input class="input" id="profile-name" name="displayName" value="{{.User.DisplayName}}" required maxlength="64" autocomplete="name" aria-describedby="profile-name-help">
+          <input class="text-input" id="profile-name" name="displayName" value="{{.User.DisplayName}}" required maxlength="64" autocomplete="name" aria-describedby="profile-name-help">
           <p class="help" id="profile-name-help">Printed on new certificates.</p>
         </dd>
         <dt><label for="profile-email">Email</label></dt>
         <dd>
-          <input class="input" id="profile-email" name="email" type="email" value="{{.User.Email}}" required maxlength="254" autocomplete="email" aria-describedby="profile-email-status">
+          <input class="text-input" id="profile-email" name="email" type="email" value="{{.User.Email}}" required maxlength="254" autocomplete="email" aria-describedby="profile-email-status">
           <p class="help" id="profile-email-status">
             {{- if .User.EmailVerified}}<span class="status status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>verified</span> Recovery links and security notices go here.
             {{- else if .User.Email}}Not verified. Open the link in the email to start the course. Recovery works after that.

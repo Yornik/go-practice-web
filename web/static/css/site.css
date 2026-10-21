@@ -180,17 +180,17 @@
   .field + .field { margin-top: var(--s4); }
   .field > label, .label { font: 700 14px/20px var(--manual); color: var(--graphite); }
   .help { font-size: 13px; line-height: 20px; color: var(--graphite-2); }
-  .input, .select, .textarea {
+  .text-input, .select, .textarea {
     width: 100%; min-height: 40px; padding: 7px var(--s3);
     border: 1px solid var(--rule-strong); border-radius: var(--r);
     background: var(--sheet); color: var(--graphite);
     font: 400 15px/24px var(--manual);
   }
-  .input.mono { font-family: var(--machine); font-size: 15px; }
+  .text-input.mono { font-family: var(--machine); font-size: 15px; }
   .textarea { min-height: 160px; resize: vertical; }
   .select { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--graphite-2) 50%), linear-gradient(135deg, var(--graphite-2) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
-  .input[readonly] { background: var(--sheet-2); color: var(--graphite-2); }
-  .input[aria-invalid="true"] { border-color: var(--red); }
+  .text-input[readonly] { background: var(--sheet-2); color: var(--graphite-2); }
+  .text-input[aria-invalid="true"] { border-color: var(--red); }
   .field-error { padding-left: var(--s3); border-left: 2px solid var(--red); color: var(--red); font-size: 14px; line-height: 21px; }
   .check { display: inline-flex; align-items: flex-start; gap: var(--s2); font-size: 15px; line-height: 24px; cursor: pointer; }
   .check input { width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--blue); flex: none; }
@@ -571,22 +571,22 @@
   .landing .section > .wrap > h2 { font-size: 28px; line-height: 36px; }
   .landing .section-intro { margin-top: var(--s3); font-size: 17px; line-height: 28px; }
   .landing .strip { margin-top: var(--s6); }
-  .contents { columns: 3; column-gap: var(--s7); margin-top: var(--s6); }
-  .contents > div { break-inside: avoid; padding-bottom: var(--s6); }
-  .contents h3 { font-size: 17px; line-height: 24px; }
-  .contents h3 + p { font-size: 14px; line-height: 21px; color: var(--graphite-2); margin-top: 2px; }
-  .contents ol { list-style: none; padding: 0; margin-top: var(--s3); }
-  .contents li { position: relative; display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; gap: 0; font-size: 15px; line-height: 24px; padding: 1px 0; }
+  .course-contents { columns: 3; column-gap: var(--s7); margin-top: var(--s6); }
+  .course-contents > div { break-inside: avoid; padding-bottom: var(--s6); }
+  .course-contents h3 { font-size: 17px; line-height: 24px; }
+  .course-contents h3 + p { font-size: 14px; line-height: 21px; color: var(--graphite-2); margin-top: 2px; }
+  .course-contents ol { list-style: none; padding: 0; margin-top: var(--s3); }
+  .course-contents li { position: relative; display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; gap: 0; font-size: 15px; line-height: 24px; padding: 1px 0; }
   /* The dotted leader runs along the last line; the title and the hours
      cover it with the pad colour, so a 2-line title keeps its number on
      line 1 and its hours on the last line. */
-  .contents li::after { content: ""; position: absolute; left: 2em; right: 0; bottom: 8px; border-bottom: 1.5px dotted var(--rule-strong); }
-  .contents .no { align-self: start; color: var(--graphite-2); }
-  .contents .t { position: relative; z-index: 1; min-width: 0; padding-right: 24px; }
-  .contents .t span { background: var(--pad); padding-right: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  .contents .h { position: relative; z-index: 1; align-self: end; padding-left: 6px; background: var(--pad); color: var(--graphite-2); white-space: nowrap; }
-  .contents a { color: var(--graphite); text-decoration: none; }
-  .contents a:hover { color: var(--blue); text-decoration: underline; }
+  .course-contents li::after { content: ""; position: absolute; left: 2em; right: 0; bottom: 8px; border-bottom: 1.5px dotted var(--rule-strong); }
+  .course-contents .no { align-self: start; color: var(--graphite-2); }
+  .course-contents .t { position: relative; z-index: 1; min-width: 0; padding-right: 24px; }
+  .course-contents .t span { background: var(--pad); padding-right: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .course-contents .h { position: relative; z-index: 1; align-self: end; padding-left: 6px; background: var(--pad); color: var(--graphite-2); white-space: nowrap; }
+  .course-contents a { color: var(--graphite); text-decoration: none; }
+  .course-contents a:hover { color: var(--blue); text-decoration: underline; }
   .contents-cert p { font-size: 15px; line-height: 24px; max-width: 26em; }
   .rules { list-style: none; padding: 0; margin-top: var(--s5); display: grid; gap: var(--s3); counter-reset: rule; max-width: 46em; }
   .rules li { counter-increment: rule; display: grid; grid-template-columns: 28px 1fr; font-size: 16px; line-height: 26px; }
@@ -725,7 +725,7 @@
   .admin-grid > .field + .field { margin-top: 0; }
   .result-panel { margin-top: var(--s4); padding: var(--s4); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); display: grid; gap: var(--s3); max-width: 960px; }
   .result-panel .copy-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
-  .result-panel .copy-row .input { flex: 1 1 320px; }
+  .result-panel .copy-row .text-input { flex: 1 1 320px; }
   .user-progress { display: flex; align-items: center; gap: var(--s3); min-width: 220px; }
   .user-progress .strip { width: 160px; flex: none; }
 
@@ -737,7 +737,7 @@
     .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
     .hero-text { max-width: 40em; }
     .procedure { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .contents { columns: 2; }
+    .course-contents { columns: 2; }
     .fig2 { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
     .fig2-notes { padding-top: 0; max-width: 40em; }
   }
@@ -766,7 +766,7 @@
     .fig .leaders { display: none; }
     .fig-caption { padding-right: 0; }
     .procedure { grid-template-columns: minmax(0, 1fr); }
-    .contents { columns: 1; }
+    .course-contents { columns: 1; }
     .landing .section { padding-block: var(--s6); }
     .landing .section > .wrap > h2, .guide-section > h2 { font-size: 24px; line-height: 32px; }
     .guide-section .prose { font-size: 16px; line-height: 26px; }

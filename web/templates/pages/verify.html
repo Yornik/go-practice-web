@@ -16,7 +16,7 @@
       <div class="lookup">
         <div class="field">
           <label for="verify-id">Certificate ID</label>
-          <input class="input mono" id="verify-id" name="id" required autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="GP-XXXX-XXXX-XXXX" value="{{.ID}}"
+          <input class="text-input mono" id="verify-id" name="id" required autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="GP-XXXX-XXXX-XXXX" value="{{.ID}}"
             aria-describedby="{{if .Error}}verify-error {{end}}verify-help"{{if .Error}} aria-invalid="true"{{end}}>
         </div>
         <button type="submit" class="btn btn-primary">Verify</button>

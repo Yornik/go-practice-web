@@ -109,7 +109,12 @@ function colors(k, dark) {
     "editorSuggestWidget.border": k.ruleStrong,
     "editorSuggestWidget.foreground": k.fg,
     "editorSuggestWidget.selectedBackground": k.wash,
+    // Monaco's defaults for the selected row are white text and a pale blue
+    // match, made for its dark blue bar; on the wash they would vanish.
+    "editorSuggestWidget.selectedForeground": k.fg,
+    "editorSuggestWidget.selectedIconForeground": k.fg,
     "editorSuggestWidget.highlightForeground": k.blue,
+    "editorSuggestWidget.focusHighlightForeground": k.blue,
     "editorMarkerNavigation.background": k.line,
     "editorMarkerNavigationError.background": k.red,
     "editorMarkerNavigationWarning.background": k.blue,

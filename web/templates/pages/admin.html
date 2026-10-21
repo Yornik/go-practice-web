@@ -11,11 +11,11 @@
       <div class="admin-grid">
         <div class="field">
           <label for="invite-email">Email (optional)</label>
-          <input class="input" id="invite-email" name="email" type="email" maxlength="254" autocomplete="off">
+          <input class="text-input" id="invite-email" name="email" type="email" maxlength="254" autocomplete="off">
         </div>
         <div class="field">
           <label for="invite-note">Note (optional)</label>
-          <input class="input" id="invite-note" name="note" maxlength="500" autocomplete="off" aria-describedby="invite-note-help">
+          <input class="text-input" id="invite-note" name="note" maxlength="500" autocomplete="off" aria-describedby="invite-note-help">
           <p class="help" id="invite-note-help">The new learner sees it on the sign-up page.</p>
         </div>
         <div class="field">
@@ -35,7 +35,7 @@
     <div class="result-panel" data-invite-result hidden>
       <label class="label" for="invite-link">Invite link</label>
       <div class="copy-row">
-        <input class="input mono" id="invite-link" readonly data-invite-link>
+        <input class="text-input mono" id="invite-link" readonly data-invite-link>
         <button type="button" class="btn" data-copy>Copy the link</button>
       </div>
       <p data-invite-mail></p>

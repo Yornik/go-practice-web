@@ -4,7 +4,7 @@
 // reference solution passing every test with -race, and the verify page of
 // a certificate lookup.
 import { test, expect } from "@playwright/test";
-import { confirmEmail, setupLink, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
+import { confirmEmail, setupLink, siteRulesOnMonaco, solution, virtualAuthenticator, watchErrors, webLog } from "./helpers.js";
 
 test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context }) => {
   const errors = watchErrors(page);
@@ -65,6 +65,32 @@ test("setup, sign up, solve 01-logfmt, reveal hint 1", async ({ page, context })
   await page.goto("/learn/01-logfmt");
   await expect(page.locator(".ide")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(page.locator("[data-file-tabs] [role=tab] .file-name").first()).toHaveText("logfmt.go");
+
+  // Monaco's widgets keep their own look: no site rule reaches them. Ctrl+Space
+  // lists the words of the file and Ctrl+F opens the find widget; neither
+  // changes the code.
+  await page.evaluate(() => {
+    const ed = window.monaco.editor.getEditors()[0];
+    const m = ed.getModel();
+    const line = m.getLinesContent().findIndex((l) => l.startsWith("package ")) + 1;
+    ed.setPosition({ lineNumber: line, column: m.getLineMaxColumn(line) });
+    ed.focus();
+  });
+  await page.keyboard.press("Control+Space");
+  const suggestion = page.locator(".suggest-widget .monaco-list-row").first();
+  await expect(suggestion.locator(".label-name")).not.toBeEmpty();
+  // The label sits inside its row, which hides what overflows.
+  expect(await suggestion.evaluate((row) => {
+    const r = row.getBoundingClientRect();
+    const l = row.querySelector(".label-name").getBoundingClientRect();
+    return l.top >= r.top && l.bottom <= r.bottom;
+  })).toBe(true);
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+f");
+  await expect(page.locator(".find-widget")).toBeVisible();
+  expect(await siteRulesOnMonaco(page)).toEqual([]);
+  await page.keyboard.press("Escape");
 
   // The ladder starts folded: the spec comes first.
   await expect(page.locator("[data-ladder-sub]")).toContainText("Nothing revealed.");
