@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -111,6 +112,28 @@ func TestRenamesAgainstTheCourse(t *testing.T) {
 		}
 	}
 
+	// Migration 0003 moves a stored certificate of kind tierN to
+	// tier(N+5). That is right only while tier N of the first course,
+	// renamed, is exactly tier N+5 of this course: a split or a merge of a
+	// tier would leave migrated certificates under a kind they do not cover.
+	first := coursetest.Load(t, coursetest.First())
+	for _, old := range first.Tiers {
+		now, ok := c.Tier(old.N + 5)
+		if !ok {
+			t.Errorf("the course has no tier %d for tier %d of the first course", old.N+5, old.N)
+			continue
+		}
+		var renamed, current []string
+		for _, e := range old.Exercises {
+			renamed = append(renamed, renames[e.Slug])
+		}
+		for _, e := range now.Exercises {
+			current = append(current, e.Slug)
+		}
+		if !slices.Equal(renamed, current) {
+			t.Errorf("tier %d of the first course is %v now, but tier %d holds %v", old.N, renamed, now.N, current)
+		}
+	}
 }
 
 // TestTierTableErrors refuses a tier table with a row that has the wrong
