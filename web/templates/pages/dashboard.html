@@ -33,7 +33,7 @@
   {{- $open := or .Started (eq .N 1)}}
   <section class="tier" aria-labelledby="tier-{{.N}}">
     <div class="tier-head">
-      <h2 id="tier-{{.N}}">{{.Title}} <span class="theme">{{.Theme}}</span></h2>
+      <h2 id="tier-{{.N}}">{{.Label}} <span class="theme">{{.Theme}}</span></h2>
       <p class="state">
         {{- .Passed}} of {{len .Exercises}} pass.
         {{- with .Cert}}

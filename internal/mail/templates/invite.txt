@@ -2,7 +2,7 @@
 {{define "content"}}
 Hello,
 
-{{.E.InvitedBy}} invited you to Go Practice: 25 Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.
+{{.E.InvitedBy}} invited you to Go Practice: {{with .E.Exercises}}{{.}} {{end}}Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.
 {{if .E.Note}}
 A note from {{.E.InvitedBy}}:
 "{{.E.Note}}"

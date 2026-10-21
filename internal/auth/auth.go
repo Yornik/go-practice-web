@@ -48,9 +48,12 @@ type Config struct {
 	PublicURL string
 	// Dev drops the __Host- cookie prefix and the Secure flag, so that
 	// http://localhost works.
-	Dev    bool
-	Logger *slog.Logger     // nil discards
-	Now    func() time.Time // nil is time.Now; tests move the clock
+	Dev bool
+	// Exercises is the number of exercises in the course, which the
+	// invite mail names; 0 leaves the number out.
+	Exercises int
+	Logger    *slog.Logger     // nil discards
+	Now       func() time.Time // nil is time.Now; tests move the clock
 }
 
 // Service runs the account flows. It is safe for concurrent use.
@@ -62,6 +65,7 @@ type Service struct {
 	now       func() time.Time
 	publicURL string
 	dev       bool
+	exercises int
 
 	beginLimit   *Limiter // WebAuthn begin endpoints, per IP
 	recoverIP    *Limiter // recovery requests, per IP
@@ -120,6 +124,7 @@ func New(st *store.Store, mailer *mail.Mailer, cfg Config) (*Service, error) {
 		log:          log,
 		now:          now,
 		publicURL:    origin,
+		exercises:    cfg.Exercises,
 		dev:          cfg.Dev,
 		beginLimit:   NewLimiter(20, time.Minute, now),
 		recoverIP:    NewLimiter(5, time.Hour, now),

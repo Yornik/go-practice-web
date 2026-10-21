@@ -29,13 +29,19 @@ type certJSON struct {
 // certStatus is 1 kind of certificate for a user: how far they are and
 // what they hold.
 type certStatus struct {
-	Kind        string    `json:"kind"`
-	Title       string    `json:"title"`
-	Exercises   []string  `json:"exercises"`
-	Passed      int       `json:"passed"`
-	Total       int       `json:"total"`
-	Eligible    bool      `json:"eligible"`
+	Kind      string   `json:"kind"`
+	Title     string   `json:"title"`
+	Exercises []string `json:"exercises"`
+	Passed    int      `json:"passed"`
+	Total     int      `json:"total"`
+	Eligible  bool     `json:"eligible"`
+	// Certificate is the held certificate when it covers what the kind
+	// covers now.
 	Certificate *certJSON `json:"certificate,omitempty"`
+	// Earlier is a held certificate of the kind that covers what the kind
+	// covered when it was issued (the course grew). It stays valid; a claim
+	// of the kind replaces it.
+	Earlier *certJSON `json:"earlier,omitempty"`
 }
 
 func verifyPath(id string) string { return "/verify/" + id }
@@ -60,14 +66,31 @@ func (s *Server) certificateStatus(ctx context.Context, userID int64) ([]certSta
 			Passed: e.Passed, Total: len(e.Exercises), Eligible: e.Eligible,
 		}
 		if c, ok := byKind[string(e.Kind)]; ok {
-			st.Certificate = &certJSON{
+			j := &certJSON{
 				ID: c.ID, Name: c.NameOnCert, IssuedAt: c.IssuedAt, ShowStats: c.ShowStats,
 				URL: verifyPath(c.ID), PDF: verifyPath(c.ID) + ".pdf",
+			}
+			if s.currentCertificate(e.Kind, c) {
+				st.Certificate = j
+			} else {
+				st.Earlier = j
 			}
 		}
 		out = append(out, st)
 	}
 	return out, nil
+}
+
+// currentCertificate reports whether a held certificate covers what its
+// kind covers in the loaded course. The stored payload is what was signed;
+// the verify page checks the signature, this only reads the exercises.
+func (s *Server) currentCertificate(k cert.Kind, c store.Certificate) bool {
+	p, err := cert.ParsePayload(c.Payload)
+	if err != nil {
+		s.log.Warn("certificate payload does not parse", "id", c.ID, "err", err)
+		return false
+	}
+	return cert.Current(s.cfg.Course, k, cert.Interpret(s.cfg.Course, p))
 }
 
 func (s *Server) listCertificates(w http.ResponseWriter, r *http.Request) {
@@ -100,14 +123,14 @@ func (s *Server) certificatesPage(w http.ResponseWriter, r *http.Request) {
 	}
 	cards := make([]certCard, 0, len(st))
 	for _, k := range st {
-		c := certCard{certStatus: k}
+		c := certCard{certStatus: k, Name: k.Title, Short: "course"}
 		if kind, err := cert.ParseKind(s.cfg.Course, k.Kind); err == nil {
 			if n, ok := kind.Tier(); ok {
 				if t, ok := s.cfg.Course.Tier(n); ok {
-					c.Name, c.Theme = t.Title(), t.Theme
+					c.Short, c.Theme = strings.ToLower(t.Title()), t.Theme
 				}
 			} else {
-				c.Name, c.Theme = "The course", fmt.Sprintf("All %d exercises", len(s.cfg.Course.Exercises))
+				c.Theme = fmt.Sprintf("%d exercises in %d tiers", len(s.cfg.Course.Exercises), len(s.cfg.Course.Tiers))
 			}
 		}
 		for _, slug := range k.Exercises {
@@ -126,9 +149,19 @@ func (s *Server) certificatesPage(w http.ResponseWriter, r *http.Request) {
 // certCard is 1 certificate on the certificates page.
 type certCard struct {
 	certStatus
-	Name    string   // "Tier 2" or "The course"
-	Theme   string   // the tier's theme
+	Name    string   // "Tier 2 · Carrying the Owl" or "The complete course"
+	Short   string   // "tier 2" or "course", for "the tier 2 certificate"
+	Theme   string   // the tier's theme, or "50 exercises in 10 tiers"
 	Missing []string // the numbers of the exercises that do not pass yet
+}
+
+// Held is the certificate the card shows: the current one, or else an
+// earlier one.
+func (c certCard) Held() *certJSON {
+	if c.Certificate != nil {
+		return c.Certificate
+	}
+	return c.Earlier
 }
 
 // issueAttempts bounds the retries on an ID collision, which at 60 bits
@@ -267,7 +300,8 @@ type verifyView struct {
 	Status      string // "lookup", "valid", "revoked", "unknown" or "invalid"
 	Error       string // for a lookup that failed
 	Name        string
-	Title       string
+	Title       string // "Tier 6 · The morning after" or "The complete course"
+	Subtitle    string // the tier's theme, or "25 exercises in 5 tiers"
 	IssuedAt    time.Time
 	RevokedAt   time.Time
 	ReplacedBy  string
@@ -277,8 +311,8 @@ type verifyView struct {
 	Fingerprint string
 	PDF         string
 	URL         string // the absolute link to this page, to share
-	// The drawing area: a tier's exercises, or for the course the 5 tiers
-	// and the course strip.
+	// The drawing area: a tier's exercises, or for the course its tiers
+	// and the course strip, both of the exercises the payload covers.
 	IsCourse bool
 	Tiers    []*course.Tier
 	Strip    strip
@@ -357,33 +391,24 @@ func (s *Server) loadCertificate(ctx context.Context, id string) (verifyView, st
 		v.Status, v.RevokedAt, v.ReplacedBy = "revoked", row.RevokedAt, row.ReplacedBy
 	}
 	v.Name = p.Name
-	if v.Title, err = cert.Title(s.cfg.Course, p.Kind); err != nil {
-		v.Title = string(p.Kind)
-	}
+	cv := cert.Interpret(s.cfg.Course, p)
+	v.Title, v.Exercises, v.Range = cv.Title(), cv.Exercises, cv.Range()
 	v.IssuedAt, _ = p.Issued()
-	for _, slug := range p.Exercises {
-		if e, ok := s.cfg.Course.Exercise(slug); ok {
-			v.Exercises = append(v.Exercises, e)
-		}
-	}
-	if n := len(v.Exercises); n > 0 {
-		v.Range = fmt.Sprintf("%02d to %02d", v.Exercises[0].Number, v.Exercises[n-1].Number)
+	if cv.Tier != nil {
+		v.Subtitle = cv.Tier.Theme
 	}
 	if p.Kind == cert.KindCourse {
-		v.IsCourse, v.Tiers = true, s.cfg.Course.Tiers
-		states := map[string]string{}
+		v.Subtitle = cv.Summary()
+		v.IsCourse, v.Tiers = true, cv.Tiers
+		states, only := map[string]string{}, map[string]bool{}
 		for _, e := range v.Exercises {
-			states[e.Slug] = "passed"
+			states[e.Slug], only[e.Slug] = "passed", true
 		}
-		v.Strip = courseStrip(s.cfg.Course, states)
+		v.Strip = coveredStrip(cv.Tiers, states, only)
 		v.Strip.Label = fmt.Sprintf("The course to scale: all %d exercises pass.", len(v.Exercises))
 	}
 	if p.Stats != nil {
-		v.Stats = p.Stats
-		v.StatsBySlug = map[string]cert.ExerciseStats{}
-		for _, e := range p.Stats.Exercises {
-			v.StatsBySlug[e.Slug] = e
-		}
+		v.Stats, v.StatsBySlug = p.Stats, cv.Stats
 	}
 	return v, row, p, nil
 }

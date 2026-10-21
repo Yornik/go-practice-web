@@ -6,8 +6,8 @@
   </header>
   <ul class="cert-grid" data-display-name="{{.User.DisplayName}}">
     {{- range .Data.Cards}}
-    <li class="cert-card{{if .Certificate}} grid-bg{{end}}" data-kind="{{.Kind}}" data-label="{{if eq .Kind "course"}}course{{else}}{{lower .Name}}{{end}} certificate"
-        {{- with .Certificate}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{end}}>
+    <li class="cert-card{{if .Certificate}} grid-bg{{end}}" data-kind="{{.Kind}}" data-label="{{.Short}} certificate"
+        {{- with .Held}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{end}}>
       <h2>{{.Name}}</h2>
       <p class="theme">{{.Theme}}</p>
       {{- with .Certificate}}
@@ -24,10 +24,19 @@
         <button type="button" class="link-button" data-claim="again">Issue again</button>
       </div>
       {{- else}}
+      {{- with .Earlier}}
+      <p class="progress-line">You hold an earlier certificate of this kind, <span class="mono">{{.ID}}</span>, issued {{shortdate .IssuedAt}}. It stays valid. The course has grown since, so it covers fewer exercises than this one.</p>
+      <div class="cert-actions">
+        <a href="{{.PDF}}">Open the earlier PDF</a>
+        <a href="{{.URL}}">Verify page</a>
+        <button type="button" class="link-button" data-copy-link>Copy the verify link</button>
+      </div>
+      {{- end}}
+      <p class="form-status" role="status" aria-live="polite" data-card-status></p>
       {{- if .Eligible}}
       <p class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
       <div class="cert-actions">
-        <button type="button" class="btn btn-primary" data-claim="new">Claim the {{if eq .Kind "course"}}course{{else}}{{lower .Name}}{{end}} certificate</button>
+        <button type="button" class="btn btn-primary" data-claim="{{if .Earlier}}again{{else}}new{{end}}">Claim the {{.Short}} certificate</button>
       </div>
       {{- else}}
       <p class="progress-line">{{.Passed}} of {{.Total}} pass.{{with .Missing}} {{len .}} to go{{if le (len .) 6}}: {{join . ", "}}{{end}}.{{end}}</p>

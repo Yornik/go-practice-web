@@ -38,6 +38,7 @@ type Invite struct {
 	Note      string // the admin's note; may be empty
 	Link      string
 	Expires   time.Time
+	Exercises int // the number of exercises in the course; 0 leaves it out
 }
 
 // PasskeyAdded is the security notice for a new passkey.

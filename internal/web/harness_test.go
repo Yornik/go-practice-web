@@ -21,6 +21,7 @@ import (
 	"github.com/yornik/go-practice-web/internal/auth/authtest"
 	"github.com/yornik/go-practice-web/internal/cert"
 	"github.com/yornik/go-practice-web/internal/course"
+	"github.com/yornik/go-practice-web/internal/course/coursetest"
 	"github.com/yornik/go-practice-web/internal/mail"
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 	"github.com/yornik/go-practice-web/internal/store"
@@ -32,8 +33,10 @@ const (
 	runnerToken = "test-runner-token-0123456789abcdef"
 )
 
-// testCourse is loaded once: Load renders every README.
-var testCourse *course.Course
+// testCourse is loaded once: Load renders every README. fiftyCourse is
+// the fixture of the course of 50 exercises in 10 named tiers, whose
+// exercises 26 to 50 are the first course's under new slugs.
+var testCourse, fiftyCourse *course.Course
 
 func TestMain(m *testing.M) {
 	c, err := course.Load(filepath.Join("..", "..", "course"))
@@ -42,7 +45,22 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	testCourse = c
-	os.Exit(m.Run())
+	dir, err := os.MkdirTemp("", "web-fifty-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := coursetest.Write(dir, coursetest.Fifty()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if fiftyCourse, err = course.Load(dir); err != nil {
+		fmt.Fprintln(os.Stderr, "load the fixture course:", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
 }
 
 type clock struct {
@@ -267,6 +285,12 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWith(t, testCourse)
+}
+
+// newHarnessWith is newHarness with another course.
+func newHarnessWith(t *testing.T, c *course.Course) *harness {
+	t.Helper()
 	clk := &clock{t: time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)}
 	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "web.db"), store.WithClock(clk.Now))
 	if err != nil {
@@ -293,7 +317,7 @@ func newHarness(t *testing.T) *harness {
 	cfg := web.Config{
 		PublicURL: publicURL,
 		Store:     st,
-		Course:    testCourse,
+		Course:    c,
 		Auth:      a,
 		Runner:    web.NewRunnerClient(rs.URL, runnerToken, nil),
 		Signer:    signer,

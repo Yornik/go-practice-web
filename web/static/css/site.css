@@ -348,9 +348,9 @@
   .table-dense th, .table-dense td { padding-top: 4px; padding-bottom: 3px; font-size: 14px; line-height: 24px; }
   .table-scroll { overflow-x: auto; }
 
-  /* The course to scale: 25 bars as wide as their hours. */
+  /* The course to scale: 1 bar per exercise, as wide as its hours. */
   .course-strip { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
-  .strip-tier { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .strip-tier { display: flex; flex-direction: column; gap: 6px; min-width: 0; container-type: inline-size; }
   .strip-bars { display: flex; gap: 2px; height: 16px; }
   .strip-bars > * { flex-basis: 0; min-width: 3px; background: var(--sheet); box-shadow: inset 0 0 0 1px var(--rule-strong); }
   .strip-bars > a:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
@@ -366,17 +366,25 @@
   /* The hours go under the tier for every tier, so the labels share 1
      baseline even where a tier is narrower than "Tier 1  4 h". */
   .strip-label { display: flex; flex-direction: column; font-size: 13px; line-height: 18px; white-space: nowrap; }
+  /* With 10 tiers a short tier is narrower than "Tier 6": its label keeps
+     the number, and the narrowest drop the hours. */
+  @container (max-width: 52px) {
+    .strip-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  }
+  @container (max-width: 30px) {
+    .strip-label span { display: none; }
+  }
   .strip-label b { font-weight: 700; }
   .strip-label span { color: var(--graphite-2); }
   .strip-lg .strip-bars { height: 24px; }
-  .strip-mini { gap: 4px; }
+  .strip-mini { gap: 3px; }
   .strip-mini .strip-tier { gap: 0; }
   .strip-mini .strip-bars { height: 8px; gap: 1px; }
-  .strip-mini .strip-bars > * { min-width: 2px; }
+  .strip-mini .strip-bars > * { min-width: 1px; }
   .strip-mini .strip-bars > [data-state="here"] { margin-block: -2px; }
   @media (max-width: 720px) {
     .course-strip:not(.strip-mini) { flex-direction: column; gap: var(--s3); }
-    .course-strip:not(.strip-mini) .strip-tier { width: calc(var(--tier-h) / 25 * 100%) !important; flex: none !important; }
+    .course-strip:not(.strip-mini) .strip-tier { width: calc(var(--tier-h) / var(--tier-max) * 100%) !important; flex: none !important; }
   }
 
   /* The public header and the app header. */
@@ -697,11 +705,16 @@
   .verdict-bad .icon { color: var(--red); }
   .drawing { margin-top: var(--s6); padding: var(--s6); border: 1px solid var(--rule-strong); border-radius: var(--r); display: grid; gap: var(--s5); }
   .drawing h2 { font-size: 21px; line-height: 28px; }
+  .drawing h2 + .theme { margin-top: calc(var(--s1) - var(--s5)); font-size: 15px; line-height: 22px; color: var(--graphite-2); }
   .drawing-list { list-style: none; padding: 0; column-gap: var(--s7); font-size: 15px; line-height: 26px; }
   .drawing-list:has(> li:nth-child(4)) { columns: 2; }
   .drawing-list li { break-inside: avoid; display: grid; grid-template-columns: 2.2em 1fr; }
   .drawing-list .no { color: var(--graphite-2); }
   .drawing-tiers { display: grid; gap: var(--s3); }
+  /* 10 tiers take 2 columns of 5, read down. */
+  @media (min-width: 600px) {
+    .drawing-tiers:has(> li:nth-child(6)) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; column-gap: var(--s7); }
+  }
   .drawing .titleblock { justify-self: end; background: var(--sheet); }
   .drawing .titleblock dd { white-space: normal; overflow-wrap: anywhere; }
   .verify-facts { margin-top: var(--s6); display: grid; gap: var(--s5); max-width: 760px; }
@@ -726,8 +739,8 @@
   .result-panel { margin-top: var(--s4); padding: var(--s4); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); display: grid; gap: var(--s3); max-width: 960px; }
   .result-panel .copy-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
   .result-panel .copy-row .text-input { flex: 1 1 320px; }
-  .user-progress { display: flex; align-items: center; gap: var(--s3); min-width: 220px; }
-  .user-progress .course-strip { width: 160px; flex: none; }
+  .user-progress { display: flex; align-items: center; gap: var(--s3); min-width: 260px; }
+  .user-progress .course-strip { width: 200px; flex: none; }
 
   /* Errors */
   .error-page .page-head h1 { font-size: 36px; line-height: 44px; }

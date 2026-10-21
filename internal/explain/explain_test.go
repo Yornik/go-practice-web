@@ -856,3 +856,35 @@ func TestFrameWithRegisters(t *testing.T) {
 		t.Fatalf("findings = %+v", fs)
 	}
 }
+
+func TestWithCourse(t *testing.T) {
+	var e Explanation
+	for _, x := range sortedEntries(catalog()) {
+		if x.course == "12-workerpool" {
+			e = x.explanation(nil, Raw{}, false)
+			break
+		}
+	}
+	if e.Course == "" {
+		t.Fatal("no catalog entry points to 12-workerpool")
+	}
+	if !strings.Contains(e.HTML, `href="/learn/12-workerpool"`) {
+		t.Fatalf("the entry does not link its exercise:\n%s", e.HTML)
+	}
+	got := e.WithCourse("37-workerpool")
+	if got.Course != "37-workerpool" || strings.Contains(got.HTML, "12-workerpool") ||
+		!strings.Contains(got.HTML, `href="/learn/37-workerpool"`) || !strings.Contains(got.HTML, "Course exercise 37-workerpool") {
+		t.Errorf("WithCourse = %q\n%s", got.Course, got.HTML)
+	}
+	if e.Course != "12-workerpool" || !strings.Contains(e.HTML, "12-workerpool") {
+		t.Error("WithCourse changed its receiver")
+	}
+	for _, slug := range []string{"", "12-workerpool"} {
+		if same := e.WithCourse(slug); same.Course != e.Course || same.HTML != e.HTML {
+			t.Errorf("WithCourse(%q) changed the explanation", slug)
+		}
+	}
+	if none := (Explanation{HTML: "x"}).WithCourse("37-workerpool"); none.Course != "" || none.HTML != "x" {
+		t.Errorf("WithCourse on an explanation without a course = %+v", none)
+	}
+}

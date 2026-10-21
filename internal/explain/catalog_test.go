@@ -15,6 +15,8 @@ import (
 	"testing"
 	"testing/fstest"
 	"time"
+
+	"github.com/yornik/go-practice-web/internal/course"
 )
 
 // Word limits for the prose of a body (code blocks and headings do not
@@ -134,7 +136,13 @@ func TestCatalogStyle(t *testing.T) {
 				t.Errorf("%s: the Example section has no code block", e.path)
 			}
 			if e.course != "" && haveCourse {
-				if _, err := os.Stat(filepath.Join(courseDir, e.course)); err != nil {
+				// The catalog may name an exercise by its slug of the first
+				// course; the site renames it (Explanation.WithCourse).
+				_, err := os.Stat(filepath.Join(courseDir, e.course))
+				if renamed, ok := course.Renamed(e.course); err != nil && ok {
+					_, err = os.Stat(filepath.Join(courseDir, renamed))
+				}
+				if err != nil {
 					t.Errorf("%s: course %q is not an exercise in course/exercises", e.path, e.course)
 				}
 			}

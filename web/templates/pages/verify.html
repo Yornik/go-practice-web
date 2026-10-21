@@ -43,10 +43,13 @@
 
   <section class="drawing grid-bg" aria-label="The certificate">
     <h2>{{.Title}}</h2>
+    {{- with .Subtitle}}
+    <p class="theme">{{.}}</p>
+    {{- end}}
     {{- if .IsCourse}}
     <ol class="drawing-tiers drawing-list">
       {{- range .Tiers}}
-      <li><span class="no">{{.N}}</span><span>{{.Theme}}</span></li>
+      <li><span class="no">{{.N}}</span><span>{{if .Name}}{{.Name}}{{else}}{{.Theme}}{{end}}</span></li>
       {{- end}}
     </ol>
     {{template "strip" .Strip}}
@@ -86,9 +89,10 @@
             <thead><tr><th scope="col">Exercise</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col" class="num">Hints</th><th scope="col">Also revealed</th></tr></thead>
             <tbody>
               {{- range $.Data.Exercises}}
+              {{- $ex := .}}
               {{- with index $.Data.StatsBySlug .Slug}}
               <tr>
-                <th scope="row">{{.Slug}}</th>
+                <th scope="row">{{$ex.Slug}}</th>
                 <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
                 <td class="num" data-label="Runs">{{.Runs}}</td>
                 <td class="num" data-label="Hints">{{.Hints}}</td>

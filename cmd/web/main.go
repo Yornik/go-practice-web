@@ -95,7 +95,7 @@ func serve(log *slog.Logger) error {
 		return err
 	}
 	accounts, err := auth.New(st, mail.NewMailer(sender, cfg.PublicURL), auth.Config{
-		PublicURL: cfg.PublicURL, Dev: cfg.Dev, Logger: log,
+		PublicURL: cfg.PublicURL, Dev: cfg.Dev, Logger: log, Exercises: len(crs.Exercises),
 	})
 	if err != nil {
 		return err

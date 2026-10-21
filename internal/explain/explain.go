@@ -277,3 +277,17 @@ func normalizeDiagnostic(d runnerapi.Diagnostic) (source, code, msg string) {
 	}
 	return source, code, msg
 }
+
+// WithCourse returns e with its course exercise named slug. The catalog
+// names exercises by the slug they had when the entry was written; the
+// site passes the slug the loaded course uses now (01-logfmt became
+// 26-logfmt), so the link and its text follow. An empty slug or an
+// explanation without a course exercise returns e unchanged.
+func (e Explanation) WithCourse(slug string) Explanation {
+	if e.Course == "" || slug == "" || slug == e.Course {
+		return e
+	}
+	e.HTML = strings.Replace(e.HTML, linksHTML(e.Links, e.Course), linksHTML(e.Links, slug), 1)
+	e.Course = slug
+	return e
+}

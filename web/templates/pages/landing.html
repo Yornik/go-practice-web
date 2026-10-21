@@ -48,12 +48,16 @@
           <svg class="leaders" aria-hidden="true" focusable="false"></svg>
         </div>
         <figcaption class="fig-caption" id="fig1-caption">
-          <p><b>Figure 1.</b> The retry loop from the scenario of exercise 07. You replace it with the helper that your team's clients share.</p>
+          {{- with .Data.Exercise}}
+          <p><b>Figure 1.</b> The retry loop from the scenario of exercise {{pad2 .Number}}. You replace it with the helper that your team's clients share.</p>
           <dl class="titleblock">
-            <div><dt>Exercise</dt><dd>07</dd></div>
-            <div><dt>Tier</dt><dd>2</dd></div>
-            <div><dt>Estimate</dt><dd>2.5&nbsp;h</dd></div>
+            <div><dt>Exercise</dt><dd>{{pad2 .Number}}</dd></div>
+            <div><dt>Tier</dt><dd>{{.Tier}}</dd></div>
+            <div><dt>Estimate</dt><dd>{{hours .Hours}}</dd></div>
           </dl>
+          {{- else}}
+          <p><b>Figure 1.</b> A retry loop from the scenario of an exercise. You replace it with the helper that your team's clients share.</p>
+          {{- end}}
         </figcaption>
       </figure>
     </section>
@@ -85,7 +89,7 @@
             </details>
             {{- end}}
           </article>
-          <figcaption id="fig2-caption"><b>Figure 2.</b> A compile error in exercise 07, as the editor explains it. The text comes from the catalog of explanations that the site ships.</figcaption>
+          <figcaption id="fig2-caption"><b>Figure 2.</b> A compile error in {{with $.Data.Exercise}}exercise {{pad2 .Number}}{{else}}an exercise{{end}}, as the editor explains it. The text comes from the catalog of explanations that the site ships.</figcaption>
         </figure>
         <ul class="fig2-notes" aria-label="Notes on Figure 2" data-fig2-notes>
           <li data-for="raw"><p>The raw message stays visible. Reading real Go errors is part of the course.</p></li>
@@ -119,7 +123,7 @@
       <div class="course-contents">
         {{- range .Course.Tiers}}
         <div>
-          <h3>{{.Title}}</h3>
+          <h3>{{.Label}}</h3>
           <p>{{.Theme}}</p>
           <ol>
             {{- range .Exercises}}

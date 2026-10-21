@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>{{if .Title}}{{.Title}}, Go Practice{{else}}Go Practice{{end}}</title>
-<meta name="description" content="Practice Go on real operations tasks, without an LLM. 25 exercises in 5 tiers, with the real tests and an explanation for every error.">
+<meta name="description" content="Practice Go on real operations tasks, without an LLM. {{len .Course.Exercises}} exercises in {{len .Course.Tiers}} tiers, with the real tests and an explanation for every error.">
 <link rel="icon" href="{{static "img/favicon.svg"}}" type="image/svg+xml">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/b612-latin-400-normal.woff2"}}">
 {{- if or .Mono .Wide}}
@@ -149,7 +149,7 @@
 {{- end}}
 
 {{define "strip"}}
-<div class="course-strip {{.Class}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
+<div class="course-strip {{.Class}}" style="--tier-max: {{.Max}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
   {{- range .Tiers}}
   <div class="strip-tier" style="flex: {{grow .Hours}} 1 0; --tier-h: {{.Hours}}">
     <div class="strip-bars">
@@ -162,7 +162,7 @@
       {{- end}}
     </div>
     {{- if ne $.Class "strip-mini"}}
-    <p class="strip-label"{{if not $.Links}} aria-hidden="true"{{end}}><b>Tier {{.N}}</b><span>{{hours .Hours}}</span></p>
+    <p class="strip-label"{{if not $.Links}} aria-hidden="true"{{end}}><b><span class="strip-word">Tier </span>{{.N}}</b><span>{{hours .Hours}}</span></p>
     {{- end}}
   </div>
   {{- end}}
