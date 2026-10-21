@@ -398,8 +398,13 @@ func TestNewSandboxGrantsTheToolchainAndCaches(t *testing.T) {
 	if !slices.Contains(sb.write, cacheDir) || !slices.Contains(sb.write, filepath.Join(cacheDir, "sc")) {
 		t.Errorf("write %v lacks the caches", sb.write)
 	}
+	// The rules hold absolute paths.
+	course, err := filepath.Abs(courseDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, list := range [][]string{sb.exec, sb.read, sb.dev} {
-		if slices.Contains(list, courseDir) {
+		if slices.Contains(list, course) {
 			t.Errorf("the course checkout (with solutions/ in development) is reachable: %v", list)
 		}
 	}

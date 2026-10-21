@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -8,8 +9,10 @@ import (
 	"testing"
 )
 
-// courseDir is the course submodule, relative to this package.
-const courseDir = "../../course"
+// courseDir is the course submodule, relative to this package, or the
+// checkout GO_PRACTICE_COURSE names, as for the other packages that test
+// the course the site serves.
+var courseDir = cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course"))
 
 func loadTestCourse(t *testing.T) *Course {
 	t.Helper()
