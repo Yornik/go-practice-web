@@ -12,11 +12,11 @@ import (
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
 
-// runTest posts a test run for 01-logfmt and returns the events of the
+// runTest posts a test run for the logfmt exercise and returns the events of the
 // stream by type: the last of each type, and all explain events in order.
 func (h *harness) runTest(as *user, body map[string]any) (last map[string]map[string]any, explains []map[string]any, types []string) {
 	h.t.Helper()
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: body, as: as})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: body, as: as})
 	wantStatus(h.t, w, http.StatusOK)
 	last = map[string]map[string]any{}
 	for _, ev := range ndjson(h.t, w.Body.String()) {
@@ -46,7 +46,7 @@ func TestRaceUnavailableOnTheRunner(t *testing.T) {
 	h.runner.events = passingRun
 	raceUnavailable := func() any {
 		t.Helper()
-		w := h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: admin})
+		w := h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: admin})
 		wantStatus(t, w, http.StatusOK)
 		return decodeJSON[map[string]any](t, w)["raceUnavailable"]
 	}
@@ -205,7 +205,7 @@ func TestBusyRunnerEndsTheStream(t *testing.T) {
 		t.Errorf("error event = %v", e)
 	}
 	// The run never started, so it is not counted.
-	if p, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt"); err == nil && p.Runs != 0 {
+	if p, err := h.store.Progress(t.Context(), admin.ID, logfmt); err == nil && p.Runs != 0 {
 		t.Errorf("runs = %d, want 0", p.Runs)
 	}
 }
@@ -350,7 +350,7 @@ func TestStreamExplanations(t *testing.T) {
 			t.Errorf("progress = %v", last["progress"])
 		}
 		// A reload still shows the test that hung, as failed.
-		prog, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt")
+		prog, err := h.store.Progress(t.Context(), admin.ID, logfmt)
 		if err != nil {
 			t.Fatal(err)
 		}

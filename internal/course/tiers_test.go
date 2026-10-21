@@ -1,6 +1,7 @@
 package course_test
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ func TestFiftyShape(t *testing.T) {
 // course: either every target exists (the course of 50), or the table is
 // inactive because every old slug is still current (the first course).
 func TestRenamesAgainstTheCourse(t *testing.T) {
-	c, err := course.Load(filepath.Join("..", "..", "course"))
+	c, err := course.Load(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")))
 	if err != nil {
 		t.Fatal(err)
 	}

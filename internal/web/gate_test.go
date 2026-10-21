@@ -77,7 +77,7 @@ func routeRequest(pattern string, u *user) req {
 		p = ex
 	}
 	p = strings.NewReplacer(
-		"{exercise}", "01-logfmt", "{file}", "logfmt.go", "{hash}", "00",
+		"{exercise}", logfmt, "{file}", "logfmt.go", "{hash}", "00",
 	).Replace(p)
 	switch {
 	case strings.HasPrefix(p, "/api/admin/users/"):
@@ -182,19 +182,19 @@ func TestEmailGate(t *testing.T) {
 	h := newHarness(t)
 	admin := h.admin()
 	grace := h.unverifiedLearner(admin, "grace")
-	for _, p := range []string{"/learn", "/learn/01-logfmt", "/learn/99-nope", "/certificates", "/admin"} {
+	for _, p := range []string{"/learn", "/learn/" + logfmt, "/learn/99-nope", "/certificates", "/admin"} {
 		w := h.do(req{method: "GET", path: p, as: grace})
 		if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/check-email" {
 			t.Errorf("GET %s = %d to %q, want 303 to /check-email", p, w.Code, w.Header().Get("Location"))
 		}
 	}
 	for _, r := range []req{
-		{method: "GET", path: "/api/exercises/01-logfmt"},
-		{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": "package logfmt\n"}},
-		{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{}},
-		{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}},
-		{method: "POST", path: "/api/exercises/01-logfmt/reveal", body: map[string]int{"level": 1}},
-		{method: "POST", path: "/api/exercises/01-logfmt/heartbeat", body: map[string]any{}},
+		{method: "GET", path: "/api/exercises/" + logfmt},
+		{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": "package logfmt\n"}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/reveal", body: map[string]int{"level": 1}},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/heartbeat", body: map[string]any{}},
 		{method: "GET", path: "/api/docs/pkg?path=strings"},
 		{method: "GET", path: "/api/certificates"},
 		{method: "POST", path: "/api/certificates", body: map[string]string{"kind": "tier1"}},
@@ -215,7 +215,7 @@ func TestEmailGate(t *testing.T) {
 	if checks != 0 || runs != 0 {
 		t.Errorf("the runner saw %d checks and %d runs", checks, runs)
 	}
-	if code, err := h.store.Code(t.Context(), grace.ID, "01-logfmt"); err != nil || len(code) != 0 {
+	if code, err := h.store.Code(t.Context(), grace.ID, logfmt); err != nil || len(code) != 0 {
 		t.Errorf("saved code = %v, %v", code, err)
 	}
 	if p, err := h.store.UserProgress(t.Context(), grace.ID); err != nil || len(p) != 0 {
@@ -251,7 +251,7 @@ func TestEmailGate(t *testing.T) {
 	// The link opens the gate.
 	grace = h.verify(grace)
 	wantStatus(t, h.do(req{method: "GET", path: "/learn", as: grace}), http.StatusOK)
-	wantStatus(t, h.do(req{method: "GET", path: "/api/exercises/01-logfmt", as: grace}), http.StatusOK)
+	wantStatus(t, h.do(req{method: "GET", path: "/api/exercises/" + logfmt, as: grace}), http.StatusOK)
 	// A verified user changing the address keeps the old one until the new
 	// one is verified, so the gate stays open.
 	w = h.do(req{method: "PUT", path: "/api/account", body: map[string]string{"displayName": "Grace", "email": "grace@example.org"}, as: grace})

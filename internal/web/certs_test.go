@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -23,8 +24,9 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 	if code, body := claim(map[string]any{"kind": "tier1"}); code != http.StatusForbidden || body["code"] != "not_eligible" {
 		t.Fatalf("claim without passes = %d %v", code, body)
 	}
-	if code, body := claim(map[string]any{"kind": "tier9"}); code != http.StatusBadRequest || body["code"] != "bad_kind" {
-		t.Fatalf("claim of tier9 = %d %v", code, body)
+	beyond := fmt.Sprintf("tier%d", len(testCourse.Tiers)+1)
+	if code, body := claim(map[string]any{"kind": beyond}); code != http.StatusBadRequest || body["code"] != "bad_kind" {
+		t.Fatalf("claim of %s = %d %v", beyond, code, body)
 	}
 	tier1, _ := testCourse.Tier(1)
 	for _, e := range tier1.Exercises[:len(tier1.Exercises)-1] {
@@ -91,7 +93,7 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 			} `json:"certificate"`
 		} `json:"kinds"`
 	}](t, h.do(req{method: "GET", path: "/api/certificates", as: admin}))
-	if len(list.Kinds) != 6 || list.Kinds[0].Certificate == nil || list.Kinds[0].Certificate.ID != second["id"] || list.Kinds[1].Eligible {
+	if len(list.Kinds) != len(testCourse.Tiers)+1 || list.Kinds[0].Certificate == nil || list.Kinds[0].Certificate.ID != second["id"] || list.Kinds[1].Eligible {
 		t.Fatalf("certificates = %+v", list)
 	}
 }

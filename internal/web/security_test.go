@@ -35,14 +35,14 @@ func TestEveryMutationNeedsCSRF(t *testing.T) {
 		{"POST", "/api/auth/verify-email"},
 		{"POST", "/api/auth/verify-email/resend"},
 		{"PUT", "/api/account"},
-		{"PUT", "/api/exercises/01-logfmt/files/logfmt.go"},
-		{"POST", "/api/exercises/01-logfmt/files/logfmt.go/reset"},
-		{"POST", "/api/exercises/01-logfmt/check"},
-		{"POST", "/api/exercises/01-logfmt/format"},
-		{"POST", "/api/exercises/01-logfmt/test"},
-		{"POST", "/api/exercises/01-logfmt/reveal"},
-		{"POST", "/api/exercises/01-logfmt/heartbeat"},
-		{"PUT", "/api/exercises/01-logfmt/notes"},
+		{"PUT", "/api/exercises/" + logfmt + "/files/logfmt.go"},
+		{"POST", "/api/exercises/" + logfmt + "/files/logfmt.go/reset"},
+		{"POST", "/api/exercises/" + logfmt + "/check"},
+		{"POST", "/api/exercises/" + logfmt + "/format"},
+		{"POST", "/api/exercises/" + logfmt + "/test"},
+		{"POST", "/api/exercises/" + logfmt + "/reveal"},
+		{"POST", "/api/exercises/" + logfmt + "/heartbeat"},
+		{"PUT", "/api/exercises/" + logfmt + "/notes"},
 		{"POST", "/api/certificates"},
 		{"POST", "/api/admin/invites"},
 		{"DELETE", "/api/admin/invites/" + "00"},
@@ -116,7 +116,7 @@ func TestOneCheckInFlightPerUser(t *testing.T) {
 	check := func(u *user) <-chan *httptest.ResponseRecorder {
 		ch := make(chan *httptest.ResponseRecorder, 1)
 		go func() {
-			ch <- h.do(req{method: "POST", path: "/api/exercises/01-logfmt/check", body: map[string]any{}, as: u})
+			ch <- h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/check", body: map[string]any{}, as: u})
 		}()
 		return ch
 	}
@@ -167,16 +167,16 @@ func TestWritesAreRateLimited(t *testing.T) {
 	grace := h.learner(admin, "grace")
 	// Heartbeats, saves and notes share 1 budget per user.
 	for i := range 120 {
-		w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/heartbeat", as: admin})
+		w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/heartbeat", as: admin})
 		if w.Code != http.StatusOK {
 			t.Fatalf("heartbeat %d: status %d", i, w.Code)
 		}
 	}
 	for _, r := range []req{
-		{method: "POST", path: "/api/exercises/01-logfmt/heartbeat", as: admin},
-		{method: "PUT", path: "/api/exercises/01-logfmt/files/logfmt.go", body: map[string]string{"content": "package logfmt\n"}, as: admin},
-		{method: "POST", path: "/api/exercises/01-logfmt/files/logfmt.go/reset", as: admin},
-		{method: "PUT", path: "/api/exercises/01-logfmt/notes", body: map[string]string{"notes": "x"}, as: admin},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/heartbeat", as: admin},
+		{method: "PUT", path: "/api/exercises/" + logfmt + "/files/logfmt.go", body: map[string]string{"content": "package logfmt\n"}, as: admin},
+		{method: "POST", path: "/api/exercises/" + logfmt + "/files/logfmt.go/reset", as: admin},
+		{method: "PUT", path: "/api/exercises/" + logfmt + "/notes", body: map[string]string{"notes": "x"}, as: admin},
 	} {
 		w := h.do(r)
 		wantStatus(t, w, http.StatusTooManyRequests)
@@ -185,9 +185,9 @@ func TestWritesAreRateLimited(t *testing.T) {
 		}
 	}
 	// Other users have their own budget, and it refills.
-	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/notes", body: map[string]string{"notes": "x"}, as: grace}), http.StatusOK)
+	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/notes", body: map[string]string{"notes": "x"}, as: grace}), http.StatusOK)
 	h.clock.Advance(time.Minute)
-	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/01-logfmt/notes", body: map[string]string{"notes": "x"}, as: admin}), http.StatusOK)
+	wantStatus(t, h.do(req{method: "PUT", path: "/api/exercises/" + logfmt + "/notes", body: map[string]string{"notes": "x"}, as: admin}), http.StatusOK)
 }
 
 func TestCertificateClaimsAreRateLimited(t *testing.T) {
@@ -248,13 +248,13 @@ func TestFakedPassDoesNotPassTheExercise(t *testing.T) {
 		}
 	}
 	h.runner.mu.Unlock()
-	w := h.do(req{method: "POST", path: "/api/exercises/01-logfmt/test", body: map[string]any{}, as: admin})
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusOK)
 	events := ndjson(t, w.Body.String())
 	if last := events[len(events)-1]; last["type"] != "progress" || last["passed"] != false || last["status"] == "passed" {
 		t.Fatalf("progress = %v, want not passed", last)
 	}
-	if p, err := h.store.Progress(t.Context(), admin.ID, "01-logfmt"); err == nil && p.Passed() {
+	if p, err := h.store.Progress(t.Context(), admin.ID, logfmt); err == nil && p.Passed() {
 		t.Fatal("the exercise passed")
 	}
 }

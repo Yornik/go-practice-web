@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -38,13 +39,21 @@ const (
 // exercises 26 to 50 are the first course's under new slugs.
 var testCourse, fiftyCourse *course.Course
 
+// logfmt is the slug of the logfmt exercise in the real course: 01-logfmt
+// in the first course, 26-logfmt in the course of 50. Most tests use it.
+var logfmt string
+
 func TestMain(m *testing.M) {
-	c, err := course.Load(filepath.Join("..", "..", "course"))
+	c, err := course.Load(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "load course:", err)
 		os.Exit(1)
 	}
 	testCourse = c
+	if logfmt = c.CurrentSlug("01-logfmt"); logfmt == "" {
+		fmt.Fprintln(os.Stderr, "the course has no logfmt exercise")
+		os.Exit(1)
+	}
 	dir, err := os.MkdirTemp("", "web-fifty-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

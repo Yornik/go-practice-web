@@ -1,6 +1,7 @@
 package explain
 
 import (
+	"cmp"
 	"io"
 	"net/http"
 	"net/url"
@@ -115,7 +116,7 @@ func TestLoaderReportsCatalogProblems(t *testing.T) {
 // program can check.
 func TestCatalogStyle(t *testing.T) {
 	c := catalog()
-	courseDir := filepath.Join("..", "..", "course", "exercises")
+	courseDir := filepath.Join(cmp.Or(os.Getenv("GO_PRACTICE_COURSE"), filepath.Join("..", "..", "course")), "exercises")
 	_, err := os.Stat(courseDir)
 	haveCourse := err == nil
 	for _, e := range sortedEntries(c) {

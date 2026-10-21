@@ -203,9 +203,11 @@ func writeExercise(dir string, tier int, e Exercise) error {
 	pkg := strings.ReplaceAll(e.Slug[3:], "-", "")
 	hours := strconv.FormatFloat(e.Hours, 'f', -1, 64)
 	readme := fmt.Sprintf("# %02d · %s\n\n**Tier %d · about %s h** · Go: maps · Problem solving: read the spec\n\n"+
-		"The scenario.\n\n## Task\n\nWrite `Run`.\n\n## Run the tests\n\n```bash\n"+
+		"The scenario.\n\n## Task\n\nWrite `Run`.\n\n## Rules\n\n- `Run` returns 1.\n\n## Examples\n\n```go\nRun() // 1\n```\n\n"+
+		"## Run the tests\n\n```bash\n"+
 		"go test -run TestRun -v ./exercises/%[5]s/   # step 1: Run\n"+
-		"go test -race -run TestMore -v ./exercises/%[5]s/   # step 2: more\n```\n",
+		"go test -race -run TestMore -v ./exercises/%[5]s/   # step 2: more\n```\n\n"+
+		"## Docs you can use\n\n- `go doc fmt`\n\n## Stretch goals\n\n- Return 2.\n\n## Stuck?\n\nRead the hints.\n",
 		number(e.Slug), e.Title, tier, hours, e.Slug)
 	stub := "package " + pkg + "\n\n// Run is the stub.\nfunc Run() int {\n\tpanic(\"TODO: implement\")\n}\n"
 	test := "package " + pkg + "_test\n\nimport (\n\t\"testing\"\n\n\t" + pkg + " \"example.com/exercises/" + e.Slug + "\"\n)\n\n" +
