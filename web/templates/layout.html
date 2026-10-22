@@ -5,19 +5,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{{if .Title}}{{.Title}}, Go Practice{{else}}Go Practice{{end}}</title>
+{{- /* "{Title}, Vesper Labs Go Practice"; no comma after a question mark (VESPER.md 10.2). */}}
+<title>{{with .Title}}{{.}}{{if not (hasSuffix . "?")}},{{end}} Vesper Labs Go Practice{{else}}Vesper Labs Go Practice{{end}}</title>
 <meta name="description" content="Practice Go on real operations tasks, without an LLM. {{len .Course.Exercises}} exercises in {{len .Course.Tiers}} tiers, with the real tests and an explanation for every error.">
 <link rel="icon" href="{{static "img/favicon.svg"}}" type="image/svg+xml">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/b612-latin-400-normal.woff2"}}">
-{{- if or .Mono .Wide}}
-<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/spline-sans-mono-latin-400-normal.woff2"}}">
-{{- end}}
+<link rel="icon" href="{{static "img/favicon-32.png"}}" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="{{static "img/apple-touch-icon.png"}}">
+{{- /* Only the 2 faces every first screen sets; Atkinson Mono loads on demand (VESPER.md 4.3). */}}
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2"}}">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{{static "fonts/saira-latin-standard-normal.woff2"}}">
 <link rel="stylesheet" href="{{static "css/site.css"}}">
+{{- /* Each page links its own page sheet: public.css or app.css. */}}
+{{- block "styles" .}}{{end}}
 {{- if .Wide}}
 <link rel="stylesheet" href="{{static "css/ide.css"}}">
 {{- end}}
 <link rel="stylesheet" href="/highlight.css?v={{.Course.Version}}">
-{{/* A classic script, not a module: it must set the theme before the first paint. */}}
+{{/* A classic script, not a module: it must set the theme and the story effects before the first paint. */}}
 <script src="{{static "js/theme-init.js"}}"></script>
 {{.ImportMap}}
 <script type="module" src="{{static "js/site.js"}}"></script>
@@ -28,24 +32,28 @@
 <body class="{{if .Wide}}ide-page{{else if .User}}app{{else}}public{{end}}{{with .Nav}} page-{{.}}{{end}}">
 {{template "sprite"}}
 {{- if .Wide}}
-<a class="skip-link" href="#task-col">Skip to the task</a>
 <a class="skip-link" href="#editor-host">Skip to the editor</a>
-<a class="skip-link" href="#test-results">Skip to the tests</a>
-<a class="skip-link" href="#problems-col">Skip to the problems</a>
 {{- else}}
 <a class="skip-link" href="#main">Skip to content</a>
 {{template "site-head" .}}
+{{- /* A page that shows the readout strip defines "readout" with telem-landing or telem-app (partials/story.html). */}}
+{{- block "readout" .}}{{end}}
 {{- end}}
 <main id="main" tabindex="-1">
 {{template "content" .}}
 </main>
 {{- if not .Wide}}
 <footer class="site-foot">
-  <div class="wrap">
-    <span>Go Practice runs the <a href="https://github.com/Yornik/go-practice">go-practice course</a> by Yornik, version <span class="mono">{{.Course.Version}}</span>.</span>
-    <a href="/guide">Guide</a>
-    <a href="/verify">Verify a certificate</a>
+  <div class="wrap site-foot-in">
+    <p>Go Practice runs the go-practice course by Yornik.</p>
+    <nav aria-label="Footer">
+      <a href="/guide">Guide</a>
+      <a href="/verify">Verify a certificate</a>
+      <a href="https://github.com/Yornik/go-practice">The course on GitHub</a>
+    </nav>
   </div>
+  {{- /* The landing page alone puts its disclaimer here, as the last element of the page (VESPER.md 8.1). */}}
+  {{- block "foot-end" .}}{{end}}
 </footer>
 {{- end}}
 <div class="toast-region">
@@ -56,41 +64,52 @@
 </html>
 {{- end}}
 
+{{/* The header (VESPER.md 6.5). The app header goes to a signed-in user
+     whose address is verified, outside the gate's own pages; at 1060 px
+     and less its links, the divider and the Story effects toggle fold into
+     "Menu". */}}
 {{define "site-head"}}
-<header class="site-head">
-  <div class="wrap">
-    <a class="brand" href="{{if .User}}/learn{{else}}/{{end}}"{{if .User}} aria-label="Go Practice: your course"{{end}}><span class="brand-mark" aria-hidden="true">Go</span>Go Practice</a>
+<header class="site-head{{if .AppHeader}} is-app{{end}}">
+  <div class="wrap site-head-in">
+    <a class="brand" href="{{if .AppHeader}}/learn{{else}}/{{end}}" aria-label="Vesper Labs Go Practice, home">{{template "lockup"}}{{template "mark" "gpw-brand-mark"}}<span class="gpw-brand-sub">Go Practice</span></a>
     <nav class="site-nav" aria-label="Main">
       {{- template "nav-links" .}}
     </nav>
-    <button type="button" class="text-button nav-toggle" aria-expanded="false" aria-controls="nav-sheet" data-nav-toggle>Menu</button>
     <div class="head-end">
+      {{- if .AppHeader}}
+      <span class="gpw-nav-sep" aria-hidden="true"></span>
+      {{template "story-switch"}}
+      {{- end}}
+      <button type="button" class="text-button nav-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="nav-sheet" data-nav-toggle>Menu</button>
       {{- template "theme-menu" .}}
-      {{- if .User}}
+      {{- if .AppHeader}}
       {{template "avatar-menu" .}}
-      {{- else if ne .Nav "login"}}
+      {{- else if .User}}
+      <button type="button" class="btn btn-sm" data-logout>Sign out</button>
+      {{- else if not (or (eq .Page "login") (eq .Page "join"))}}
       <a class="btn btn-sm" href="/login">Sign in</a>
       {{- end}}
     </div>
   </div>
   <div class="nav-sheet" id="nav-sheet" hidden data-nav-sheet>
-    <nav aria-label="Main">
-      {{- template "nav-links" .}}
-    </nav>
-    <fieldset>
-      <legend>Theme</legend>
-      <div class="theme-choice">
+    <div class="wrap">
+      <nav aria-label="Main">
+        {{- template "nav-links" .}}
+      </nav>
+      <div class="gpw-sheet-row">{{template "story-switch"}}</div>
+      <fieldset class="gpw-sheet-theme">
+        <legend class="gpw-lbl">Theme</legend>
         <label class="check"><input type="radio" name="nav-theme" value="system" data-theme-radio> System</label>
         <label class="check"><input type="radio" name="nav-theme" value="light" data-theme-radio> Light</label>
         <label class="check"><input type="radio" name="nav-theme" value="dark" data-theme-radio> Dark</label>
-      </div>
-    </fieldset>
+      </fieldset>
+    </div>
   </div>
 </header>
 {{end}}
 
 {{define "nav-links"}}
-      {{- if .User}}
+      {{- if .AppHeader}}
       <a href="/learn"{{if eq .Nav "learn"}} aria-current="page"{{end}}>Course</a>
       <a href="/guide"{{if eq .Nav "guide"}} aria-current="page"{{end}}>Guide</a>
       <a href="/certificates"{{if eq .Nav "certificates"}} aria-current="page"{{end}}>Certificates</a>
@@ -103,22 +122,41 @@
       {{- end}}
 {{- end}}
 
+{{/* The Story effects toggle (VESPER.md 6.5, 16.5): the pressed state
+     carries the meaning, so the state word is hidden from the name.
+     theme-init's data-story picks the word before the first paint;
+     site.js sets aria-pressed. */}}
+{{define "story-switch"}}<button type="button" class="text-button gpw-switch" aria-pressed="true" data-story-toggle>Story effects <b aria-hidden="true"><span class="gpw-story-line">On</span><span class="gpw-plain-line">Off</span></b></button>{{end}}
+
 {{define "theme-menu"}}
       <div class="menu-wrap theme-menu" data-menu>
-        <button type="button" class="text-button" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" data-menu-button>Theme <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <button type="button" class="text-button gpw-theme-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" data-menu-button>Theme</button>
         <div class="menu" id="theme-menu" role="menu" aria-label="Theme" hidden>
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="system"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>System</button>
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="light"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Light</button>
-          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="dark"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Dark</button>
+          {{- template "theme-items"}}
         </div>
       </div>
 {{- end}}
 
+{{define "theme-items"}}
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="system"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>System</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="light"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Light</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="dark"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Dark</button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" role="menuitemcheckbox" aria-checked="true" data-story-item><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Story effects</button>
+{{- end}}
+
+{{/* The staff badge (VESPER.md 6.5, 16.6): the initials and the highest
+     stamped tag, the Key when the course certificate is held, or "Day 1"
+     before the first tag. */}}
+{{define "badge"}}<button type="button" class="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="{{.Label}}" data-menu-button><span>{{.Initials}}</span>
+  {{- if .Known}}{{if .Key}}<span class="gpw-badge-tag">Key</span>{{else}}{{with .Tag}}<span class="gpw-badge-tag">{{zero (printf "T%d" .N)}}</span>{{else}}<span class="gpw-badge-day">Day 1</span>{{end}}{{end}}{{end -}}
+</button>{{end}}
+
 {{define "avatar-menu"}}
       <div class="menu-wrap" data-menu>
-        <button type="button" class="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="{{.User.DisplayName}}" data-menu-button>{{initials .User.DisplayName}}</button>
+        {{template "badge" .Badge}}
         <div class="menu" hidden>
-          <p class="menu-label">{{.User.DisplayName}}<small>{{.User.Username}}</small></p>
+          <p class="menu-label">{{.Badge.Name}}{{with .Badge.Menu}}<small>{{.}}</small>{{end}}</p>
           <div id="account-menu" role="menu" aria-label="Account">
             <a role="menuitem" href="/account">Account</a>
             <button type="button" role="menuitem" data-logout>Sign out</button>
@@ -129,52 +167,46 @@
 
 {{define "avatar-menu-ide"}}
       <div class="menu-wrap" data-menu>
-        <button type="button" class="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="{{.User.DisplayName}}" data-menu-button>{{initials .User.DisplayName}}</button>
+        {{template "badge" .Badge}}
         <div class="menu" hidden>
-          <p class="menu-label">{{.User.DisplayName}}<small>{{.User.Username}}</small></p>
+          <p class="menu-label">{{.Badge.Name}}{{with .Badge.Menu}}<small>{{.}}</small>{{end}}</p>
           <div id="account-menu" role="menu" aria-label="Account">
             <a role="menuitem" href="/account">Account</a>
-            <button type="button" role="menuitem" data-logout>Sign out</button>
-            {{- /* On a phone the theme menu leaves the top bar and lives here. */}}
+            {{- /* Below 900 px the theme menu leaves the top bar and lives here. */}}
             <div class="menu-phone-only" role="group" aria-label="Theme">
-              <hr>
+              <div class="menu-sep" role="separator"></div>
               <p class="menu-group-label" aria-hidden="true">Theme</p>
-              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="system"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>System</button>
-              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="light"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Light</button>
-              <button type="button" role="menuitemradio" aria-checked="false" data-theme-choice="dark"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Dark</button>
+              {{- template "theme-items"}}
             </div>
+            <div class="menu-sep" role="separator"></div>
+            <button type="button" role="menuitem" data-logout>Sign out</button>
           </div>
         </div>
       </div>
 {{- end}}
 
-{{define "strip"}}
-<div class="course-strip {{.Class}}" style="--tier-max: {{.Max}}"{{if not .Links}} role="img" aria-label="{{.Label}}"{{end}}>
-  {{- range .Tiers}}
-  <div class="strip-tier" style="flex: {{grow .Hours}} 1 0; --tier-h: {{.Hours}}">
-    <div class="strip-bars">
-      {{- range .Bars}}
-      {{- if $.Links}}
-      <a href="/learn/{{.Slug}}" style="flex-grow: {{grow .Hours}}" data-state="{{.State}}" aria-label="{{.Name}}" title="{{.Name}}"></a>
-      {{- else}}
-      <span style="flex-grow: {{grow .Hours}}" data-state="{{.State}}"></span>
-      {{- end}}
-      {{- end}}
-    </div>
-    {{- if ne $.Class "strip-mini"}}
-    <p class="strip-label"{{if not $.Links}} aria-hidden="true"{{end}}><b><span class="strip-word">Tier </span>{{.N}}</b><span>{{hours .Hours}}</span></p>
-    {{- end}}
-  </div>
-  {{- end}}
-</div>
-{{end}}
+{{/* The lockup: the 16 px cut of the mark and the wordmark as outlines
+     (VESPER.md 5.3). Inline, so the plate takes the ink and the star the
+     amber of the theme. */}}
+{{define "lockup"}}<svg class="gpw-lockup" viewBox="0 -69.8 938.6 70.8" aria-hidden="true"><g transform="translate(0 -68.80) scale(4.3000)"><path class="gpw-mk-plate" fill-rule="evenodd" d="M0 0H16V12.5L12.5 16H0ZM2 6.6H5.4L8 11.8L10.6 6.6H14L9.7 14.6H6.3ZM8 1.1L10.1 3.2L8 5.3L5.9 3.2Z"/><path class="gpw-mk-star" d="M8 1.1L10.1 3.2L8 5.3L5.9 3.2Z"/></g><g class="gpw-mk-word" transform="translate(103.20 0)"><path d="M28.5 0 2.04 -68.8H18.93L38.6 -16.17H39.17L58.72 -68.8H75.26L48.95 0Z M92.94 0V-68.8H148.15V-56.6H108.95V-40.71H142.37V-28.64H108.95V-12.2H148.15V0Z M199.12 0.8Q194.55 0.8 189.19 0.59Q183.84 0.37 178.72 0.01Q173.59 -0.35 169.44 -0.83V-12.67Q173.82 -12.3 178.38 -12Q182.94 -11.7 187.12 -11.55Q191.31 -11.4 194.23 -11.4Q199.98 -11.4 203.16 -11.7Q206.35 -11.99 208.04 -12.84Q209.32 -13.52 209.82 -14.51Q210.31 -15.51 210.43 -16.9Q210.54 -18.28 210.54 -19.88Q210.54 -21.95 210.3 -23.3Q210.06 -24.64 209.31 -25.39Q208.56 -26.14 206.97 -26.54Q205.38 -26.94 202.78 -27.16L184.8 -28.99Q179.38 -29.54 175.88 -30.83Q172.39 -32.12 170.5 -34.5Q168.61 -36.89 167.86 -40.53Q167.12 -44.17 167.12 -49.35Q167.12 -56.35 169.33 -60.42Q171.54 -64.5 175.52 -66.47Q179.49 -68.45 184.83 -69.02Q190.17 -69.6 196.4 -69.6Q200.95 -69.6 205.81 -69.36Q210.67 -69.13 215.11 -68.66Q219.55 -68.2 222.65 -67.6V-56Q219.53 -56.5 215.4 -56.8Q211.27 -57.1 206.94 -57.25Q202.6 -57.4 198.8 -57.4Q193.91 -57.4 190.83 -57.1Q187.75 -56.81 186.05 -56.06Q184 -55.21 183.62 -53.66Q183.23 -52.12 183.23 -49.85Q183.23 -47.18 183.62 -45.74Q184 -44.31 185.74 -43.66Q187.48 -43.01 191.37 -42.64L209.63 -40.84Q212.93 -40.54 215.72 -39.84Q218.52 -39.14 220.69 -37.71Q222.85 -36.29 224.28 -33.56Q225.08 -32.14 225.6 -30.21Q226.13 -28.29 226.39 -25.91Q226.65 -23.53 226.65 -20.51Q226.65 -14.38 225.24 -10.41Q223.83 -6.43 221.3 -4.14Q218.78 -1.85 215.33 -0.79Q211.87 0.27 207.76 0.54Q203.65 0.8 199.12 0.8Z M248.64 0V-68.8H285.83Q293.25 -68.8 297.88 -67.23Q302.5 -65.65 304.96 -62.7Q307.43 -59.75 308.34 -55.51Q309.25 -51.27 309.25 -46.02Q309.25 -41.19 308.4 -37.05Q307.55 -32.92 305.1 -29.82Q302.65 -26.72 297.98 -25.03Q293.3 -23.34 285.6 -23.34H264.7V0ZM264.7 -35.39H279.31Q284.23 -35.39 287.03 -35.88Q289.84 -36.38 291.18 -37.56Q292.51 -38.73 292.91 -40.79Q293.31 -42.85 293.31 -46.02Q293.31 -49.22 292.95 -51.3Q292.59 -53.39 291.25 -54.56Q289.92 -55.73 287.18 -56.23Q284.45 -56.73 279.61 -56.73H264.7Z M329.74 0V-68.8H384.95V-56.6H345.75V-40.71H379.17V-28.64H345.75V-12.2H384.95V0Z M406.91 0V-68.8H445Q452.45 -68.8 457.09 -67.31Q461.73 -65.83 464.2 -63.01Q466.68 -60.2 467.59 -56.2Q468.5 -52.2 468.5 -47.15Q468.5 -42.64 467.67 -38.71Q466.83 -34.77 464.52 -31.79Q462.21 -28.82 457.68 -27.02L469.75 0H452.99L440.73 -29.02L446.92 -26.62Q445.35 -25.32 443.8 -25.09Q442.25 -24.87 440.85 -24.87H423V0ZM423 -36.68H438.33Q443.33 -36.68 446.18 -37.15Q449.04 -37.61 450.42 -38.77Q451.79 -39.93 452.19 -41.95Q452.59 -43.97 452.59 -47.04Q452.59 -49.97 452.23 -51.85Q451.86 -53.74 450.49 -54.81Q449.12 -55.88 446.33 -56.31Q443.55 -56.73 438.63 -56.73H423Z"/><path d="M531.96 0V-68.8H539.97V-6.97H578.79V0Z M592.71 0 624.18 -68.8H633.57L664.99 0H656.28L647.37 -19.62H609.94L600.92 0ZM612.88 -26.44H644.43L629.15 -61.13H628.35Z M686.76 0V-68.8H724.8Q732.25 -68.8 736.53 -66.65Q740.8 -64.5 742.62 -60.6Q744.44 -56.7 744.44 -51.55Q744.44 -47.25 743.14 -43.93Q741.84 -40.6 739.07 -38.41Q736.29 -36.21 731.7 -35.35V-34.95Q737.4 -34 740.32 -31.5Q743.25 -29 744.27 -25.5Q745.29 -22 745.29 -18.08Q745.29 -14.61 744.45 -11.35Q743.6 -8.1 741.38 -5.54Q739.16 -2.97 735.01 -1.49Q730.85 0 724.25 0ZM694.77 -6.77H722.62Q728.27 -6.77 731.48 -8.07Q734.68 -9.38 736.01 -12.11Q737.33 -14.84 737.33 -19.12Q737.33 -23.4 735.88 -26.13Q734.43 -28.86 731.2 -30.14Q727.97 -31.42 722.62 -31.42H694.77ZM694.77 -38.24H722.27Q727.13 -38.24 730.26 -39.59Q733.38 -40.94 734.93 -43.59Q736.48 -46.24 736.48 -50.06Q736.48 -54.23 735.26 -56.85Q734.03 -59.47 730.95 -60.73Q727.87 -61.98 722.27 -61.98H694.77Z M799.5 0.8Q795.15 0.8 790.08 0.63Q785.01 0.45 780.11 0.13Q775.21 -0.2 771.26 -0.6V-7.32Q775.46 -6.97 780.23 -6.67Q785.01 -6.37 789.54 -6.19Q794.06 -6.02 797.27 -6.02Q803.11 -6.02 806.61 -6.29Q810.11 -6.57 812.72 -7.57Q814.92 -8.47 815.98 -10.17Q817.03 -11.88 817.38 -14.18Q817.74 -16.49 817.74 -18.94Q817.74 -22.4 817.49 -24.56Q817.24 -26.71 816.23 -27.87Q815.23 -29.02 813 -29.59Q810.76 -30.17 806.8 -30.52L786.29 -32.47Q780.39 -33.02 776.9 -34.3Q773.4 -35.57 771.7 -37.75Q770.01 -39.92 769.46 -43.09Q768.91 -46.27 768.91 -50.56Q768.91 -57.25 770.83 -61.1Q772.76 -64.95 776.4 -66.78Q780.05 -68.6 785.28 -69.1Q790.5 -69.6 797.05 -69.6Q801.5 -69.6 806.13 -69.4Q810.75 -69.2 814.87 -68.83Q819 -68.45 821.75 -68V-61.48Q818.59 -61.93 814.49 -62.21Q810.39 -62.48 806.09 -62.63Q801.79 -62.78 798.05 -62.78Q791.64 -62.78 787.69 -62.41Q783.73 -62.03 781.23 -60.83Q778.48 -59.52 777.72 -56.92Q776.97 -54.31 776.97 -50.75Q776.97 -46.85 777.55 -44.64Q778.12 -42.44 780.3 -41.44Q782.48 -40.44 787.13 -39.99L807.54 -38.14Q811.84 -37.79 815.17 -37.14Q818.5 -36.49 820.78 -35.04Q823.05 -33.59 824.2 -30.53Q824.85 -29.08 825.17 -27.39Q825.5 -25.69 825.65 -23.71Q825.8 -21.74 825.8 -19.35Q825.8 -13.09 824.37 -9.19Q822.95 -5.29 820.42 -3.19Q817.9 -1.1 814.57 -0.25Q811.25 0.6 807.4 0.7Q803.55 0.8 799.5 0.8Z"/></g></svg>{{end}}
 
+{{/* The mark, 16 px cut (VESPER.md 5.1): an ink plate with the V cut out
+     and the evening star as an amber diamond. The argument is its class. */}}
+{{define "mark"}}<svg class="{{.}}" viewBox="0 0 16 16" aria-hidden="true"><path class="gpw-mk-plate" fill-rule="evenodd" d="M0 0H16V12.5L12.5 16H0ZM2 6.6H5.4L8 11.8L10.6 6.6H14L9.7 14.6H6.3ZM8 1.1L10.1 3.2L8 5.3L5.9 3.2Z"/><path class="gpw-mk-star" d="M8 1.1L10.1 3.2L8 5.3L5.9 3.2Z"/></svg>{{end}}
+
+{{/* The icons (VESPER.md 5.5): a 16 px grid, square caps and miter
+     joins. The stroke width comes from CSS (svg.icon, gpw-pi-s), so it is
+     not set here. The Key is the 1 filled icon. */}}
 {{define "sprite"}}<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-<symbol id="i-tick" viewBox="0 0 16 16"><path d="M3.25 8.5l3 3L12.75 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-<symbol id="i-cross" viewBox="0 0 16 16"><path d="M4.25 4.25l7.5 7.5M11.75 4.25l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
-<symbol id="i-dash" viewBox="0 0 16 16"><path d="M4 8h8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
-<symbol id="i-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.75"/></symbol>
-<symbol id="i-arc" viewBox="0 0 16 16"><path d="M8 3.25a4.75 4.75 0 1 1-4.75 4.75" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
-<symbol id="i-chevron" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-<symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.25" fill="currentColor"/></symbol>
+<symbol id="i-tick" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-cross" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-dash" viewBox="0 0 16 16"><path d="M4 8h8" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-arc" viewBox="0 0 16 16"><path d="M8 3.25a4.75 4.75 0 1 1-4.75 4.75" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.25" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-key" viewBox="-13 -13 74 26"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M11.62 3L36 3L36 11L41 11L41 3L44 3L44 8L48.5 8L48.5 3L52 3L52 11L60 11L60 -3L11.62 -3A12 12 0 1 0 11.62 3ZM5 0A5 5 0 1 0 -5 0A5 5 0 1 0 5 0Z"/></symbol>
+<symbol id="i-keyring" viewBox="0 0 24 24"><path d="M12 1v6" fill="none" stroke="currentColor"/><circle cx="12" cy="13" r="6" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-moon" viewBox="0 0 16 16"><path d="M12.5 10.2A5.6 5.6 0 0 1 5.8 3.5a5.6 5.6 0 1 0 6.7 6.7Z" fill="none" stroke="currentColor"/></symbol>
+<symbol id="i-lock" viewBox="0 0 16 16"><path d="M3.5 7.5h9v6.5h-9zM5.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5" fill="none" stroke="currentColor"/></symbol>
 </svg>{{end}}

@@ -1,84 +1,158 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/app.css"}}">
+{{- end}}
+{{define "readout"}}{{with .Story}}{{template "telem-app" .Readout}}{{end}}{{end}}
 {{define "content"}}
+{{- $s := .Story}}
 {{- with .Data}}
-<div class="wrap page course">
-  <header class="course-head">
-    <h1>Your course</h1>
-    <p class="summary"><span data-stat="passed">{{.Passed}}</span> of {{.Total}} exercises pass. {{duration .ActiveSeconds}} active{{if .Runs}}, {{plural .Runs "test run" "test runs"}}{{end}}.</p>
-    {{template "strip" .Strip}}
-    {{- if eq .Started 0}}
-    <div class="course-next">
-      {{- with .Next}}
-      <p>Start with {{pad2 .Number}} {{.Title}}. It takes about {{hours .Hours}}.</p>
-      <a class="btn btn-primary" href="/learn/{{.Slug}}">Start exercise {{pad2 .Number}}</a>
-      {{- end}}
+<div class="gpw-wrap gpw-dash">
+  {{- with $s}}
+  {{- /* The count is said once, here (VESPER.md 8.6, 16.3). */}}
+  <div class="gpw-dash-head">
+    <p class="gpw-bignum"><span class="gpw-count-in" aria-hidden="true"><span class="gpw-count-n">{{zero (pad2 .Ledger.Count)}}</span><span class="gpw-count-of">{{zero (printf "/%d" .Ledger.Total)}}</span></span><span class="gpw-vh">{{.Ledger.Said}}</span></p>
+    <div class="gpw-dash-title">
+      <h1 class="gpw-h1-app">Your page of the Ledger</h1>
+      <p class="gpw-sum">{{.Ledger.Intro}}</p>
     </div>
-    {{- else}}
-    {{- with .Next}}
-    <div class="course-next">
-      <p>Next: {{pad2 .Number}} {{.Title}}</p>
-      <a class="btn btn-primary" href="/learn/{{.Slug}}">{{if $.Data.NextStarted}}Continue{{else}}Start{{end}} exercise {{pad2 .Number}}</a>
-    </div>
-    {{- else}}
-    <div class="course-next">
-      <p class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
-      <a class="btn btn-primary" href="/certificates">Claim the course certificate</a>
-    </div>
-    {{- end}}
-    {{- end}}
-    <p class="help">This page is your learning log. Step 10 of the course asks you to keep one: the time, the runs and the help you used per exercise. The site keeps it for you.</p>
-  </header>
-
-  {{- range .Tiers}}
-  {{- $tier := .}}
-  {{- $open := or .Started (eq .N 1)}}
-  <section class="tier" aria-labelledby="tier-{{.N}}">
-    <div class="tier-head">
-      <h2 id="tier-{{.N}}">{{.Label}} <span class="theme">{{.Theme}}</span></h2>
-      <p class="state">
-        {{- .Passed}} of {{len .Exercises}} pass.
-        {{- with .Cert}}
-        {{- if .Certificate}} Certificate issued {{shortdate .Certificate.IssuedAt}}.
-        {{- else if .Eligible}} <a href="/certificates">Claim the tier {{$tier.N}} certificate</a>
-        {{- else}} {{sub (len $tier.Exercises) $tier.Passed}} to go for the certificate.
+  </div>
+  <dl class="gpw-ro4">
+    <div><dt class="gpw-lbl">Active</dt><dd>{{zero .Ledger.Active}}</dd></div>
+    <div><dt class="gpw-lbl">Runs</dt><dd>{{zero .Ledger.Runs}}</dd></div>
+    <div><dt class="gpw-lbl">Hints revealed</dt><dd>{{zero .Ledger.Hints}}</dd></div>
+    <div><dt class="gpw-lbl">On shift since</dt><dd>{{if .Ledger.SinceAt.IsZero}}{{zero .Ledger.Since}}{{else}}<time datetime="{{iso .Ledger.SinceAt}}">{{zero .Ledger.Since}}</time>{{end}}</dd></div>
+  </dl>
+  <div class="gpw-dash-grid">
+    <div class="gpw-dash-main">
+      {{- with .Slab}}
+      <section class="gpw-oncall{{if .Key}} gpw-oncall-key{{end}}" aria-labelledby="oc-h">
+        {{- if .Key}}
+        <span class="gpw-hazard gpw-oncall-edge" aria-hidden="true"></span>
         {{- end}}
-        {{- end}}
-      </p>
-      <button type="button" class="btn btn-quiet" aria-expanded="{{if $open}}true{{else}}false{{end}}" aria-controls="tier-{{.N}}-log" data-fold>{{if $open}}Hide{{else}}Show{{end}}<span class="visually-hidden"> tier {{.N}}</span></button>
-    </div>
-    <div class="table-scroll" id="tier-{{.N}}-log"{{if not $open}} hidden{{end}}>
-      <table class="table log table-stack">
-        <colgroup><col class="col-no"><col><col class="col-est"><col class="col-active"><col class="col-runs"><col class="col-help"><col class="col-passed"></colgroup>
-        <thead>
-          <tr><th scope="col">No.</th><th scope="col">Exercise</th><th scope="col" class="num">Estimate</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col">Help</th><th scope="col">Passed</th></tr>
-        </thead>
-        <tbody>
-          {{- range .Exercises}}
-          <tr{{if eq .Status "started"}} class="is-started"{{end}}>
-            <td class="no">{{pad2 .Number}}</td>
-            <th scope="row" class="ex-title"><a href="/learn/{{.Slug}}">{{.Title}}</a></th>
-            <td class="num" data-label="Estimate">{{hours .Hours}}</td>
-            {{- /* An exercise not started has no log yet: its cells stay empty. */}}
-            {{- if eq .Status ""}}
-            <td class="num is-empty" data-label="Active"></td>
-            <td class="num is-empty" data-label="Runs"></td>
-            <td class="is-empty" data-label="Help"></td>
-            {{- else}}
-            <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
-            <td class="num" data-label="Runs">{{.Runs}}</td>
-            <td data-label="Help">{{if .Levels}}{{level .Levels}}{{if gt .Levels 1}}<span class="visually-hidden"> and the levels before it</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
-            {{- end}}
-            <td data-label="Passed">
-              {{- if eq .Status "passed"}}<span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><time datetime="{{iso .PassedAt}}">{{shortdate .PassedAt}}</time></span>
-              {{- else if eq .Status "started"}}<span>started</span>
-              {{- else}}<span class="muted">not started</span>{{end}}
-            </td>
-          </tr>
+        <div class="gpw-oncall-mark">
+          {{- if .Key}}{{template "key" "gpw-keybig"}}{{else}}<svg class="icon gpw-pi-ring" aria-hidden="true"><use href="#i-keyring"/></svg>{{end}}
+          {{- with .MarkLines}}<span class="gpw-lbl">{{range $i, $l := .}}{{if $i}} {{end}}<span>{{zero $l}}</span>{{end}}</span>{{end -}}
+        </div>
+        <div class="gpw-oncall-body">
+          <p class="gpw-lbl">{{.Lead}}</p>
+          <h2 id="oc-h">{{with .Exercise}}<span class="gpw-oncall-n">{{zero (pad2 .Number)}}</span> {{zero .Title}}{{else}}{{.Heading}}{{end}}</h2>
+          {{- with .Facts}}
+          <dl class="gpw-oncall-facts">{{range .}}<div><dt class="gpw-lbl">{{.Label}}</dt><dd>{{zero .Value}}</dd></div>{{end}}</dl>
           {{- end}}
-        </tbody>
-      </table>
+        </div>
+        <a class="gpw-btn gpw-btn-ink" href="{{.Href}}">{{zero .Button}}</a>
+      </section>
+      {{- end}}
+      <figure class="gpw-skyfig">
+        <figcaption class="gpw-skyfig-h"><span class="gpw-lbl">Your skyline: {{zero .Total}} tools, each as tall as its estimate</span><span class="gpw-lbl">{{zero .Skyline.Caption}}</span></figcaption>
+        {{template "skyline" .Skyline}}
+        <p class="gpw-sky-legend" aria-hidden="true"><span><i class="gpw-tw gpw-tw-on"></i>In the Ledger</span>{{if .OnCall}}<span><i class="gpw-tw gpw-tw-cur"></i>{{.Skyline.CurWord}}</span>{{end}}{{with .Skyline.OffWord}}<span><i class="gpw-tw"></i>{{.}}</span>{{end}}</p>
+      </figure>
     </div>
-  </section>
+    <aside class="gpw-dash-side" aria-label="Your ring">
+      {{- with .Ring}}
+      <section class="gpw-ringcard gpw-brk" aria-labelledby="ring-h" data-ring>
+        <div class="gpw-ringcard-h"><h2 id="ring-h" class="gpw-lbl">Your ring</h2><span class="gpw-lbl">{{zero .Count}}</span></div>
+        {{- with .SVG}}
+        {{- /* Story effects off hide the drawing; the count, the tags and the link stay: they are certificates (VESPER.md 16.1). */}}
+        <div class="gpw-story">{{.}}</div>
+        {{- end}}
+        <p class="gpw-ringline">{{template "key" "gpw-pi-key"}}{{.Line}}</p>
+        {{- with .Items}}
+        <ul class="gpw-taglist" aria-label="{{if eq (len .) 1}}Your live tag{{else}}Your live tags{{end}}">
+          {{- range .}}
+          <li class="gpw-tl-{{trimPrefix .TagClass "gpw-tag-"}}">{{if .Fold}}<span class="gpw-tag gpw-tag-ready">{{zero (upper .Fold)}}</span>{{else}}{{template "tag" (dict "N" .N "Name" .Name "State" (trimPrefix .TagClass "gpw-tag-"))}}{{end}}{{if .Href}}<a class="gpw-link" href="{{.Href}}">{{.Text}}<span class="gpw-vh">: {{if .Fold}}{{.Fold}}{{else}}{{.Label}}{{end}}</span></a>{{else}}<span>{{.Text}}</span>{{end}}</li>
+          {{- end}}
+        </ul>
+        {{- end}}
+        <p class="gpw-taglink"><a class="gpw-link" href="/certificates">All {{len $s.Tiers}} tags and the Key</a></p>
+      </section>
+      {{- end}}
+    </aside>
+  </div>
+  {{template "calm" (dict "Kind" "strip" "Level" 2 "After50" .Calm.Moved)}}
   {{- end}}
+
+  <section class="gpw-ledger" aria-label="The Ledger">
+    {{- /* The open tier: the tier of the on-call exercise (VESPER.md 16.1). */}}
+    {{- range .Tiers}}{{if and .Tag .Tag.IsOpen}}
+    <div class="gpw-tierbar">
+      {{template "tag" (dict "N" .N "Name" .Name "State" "cur")}}
+      <div><h2 id="tier-{{.N}}">{{zero .Label}}</h2><p>{{.Tag.Topics}}</p></div>
+      <p class="gpw-prog">{{zero .Tag.InLedger}}{{with .Tag.ToGoForTag}}<span class="gpw-prog-sub">{{zero .}}</span>{{end}}</p>
+    </div>
+    {{template "ledger-table" .}}
+    <p class="gpw-ladder-key"><span class="gpw-lbl">Help</span><span class="gpw-ladder" aria-hidden="true"><i class="gpw-rev">1</i></span>revealed<span class="gpw-ladder" aria-hidden="true"><i>2</i></span>not revealed<span class="gpw-ladder-words">1 to 3 are hints. E is the explanation, W the walkthrough, S the solution.</span></p>
+    {{- end}}{{end}}
+
+    {{- /* A tier whose tag is stamped folds to 1 row. */}}
+    {{- range .Tiers}}{{if and .Tag .Tag.IsStamped}}
+    <div class="gpw-tierbar gpw-tierbar-fold">
+      {{template "tag" (dict "N" .N "Name" .Name "State" "on")}}
+      <div><h2 id="tier-{{.N}}">{{zero .Label}}</h2><p>{{.Tag.Topics}}</p></div>
+      <p class="gpw-prog">{{if eq .Passed (len .Exercises)}}<span class="gpw-done"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg>{{zero .Tag.InLedger}}</span>{{else}}<span class="gpw-done">{{zero .Tag.InLedger}}</span>{{end}}<span class="gpw-prog-sub">{{zero .Tag.StampedText}}</span></p>
+      <button type="button" class="gpw-btn gpw-btn-q gpw-btn-sq" aria-expanded="false" aria-controls="tier-{{.N}}-log" data-fold>Show<span class="gpw-vh"> tier {{.N}}</span></button>
+    </div>
+    {{template "ledger-table" .}}
+    {{- end}}{{end}}
+
+    {{- with $s}}{{with .Ledger.Rest}}
+    <h2 class="gpw-tiers-h">{{zero .}}</h2>
+    {{- end}}{{end}}
+    <ul class="gpw-tierrows">
+      {{- range .Tiers}}{{if or (not .Tag) (and (not .Tag.IsOpen) (not .Tag.IsStamped))}}
+      <li class="gpw-tierrow">
+        {{template "tag" (dict "N" .N "Name" .Name "State" (or (and .Tag .Tag.IsReady "ready") "off"))}}
+        <p>{{with .Tag}}{{.Topics}}{{else}}{{.ThemeHTML}}.{{end}}</p>
+        <span class="gpw-cnt">{{if and .Tag (eq .Passed (len .Exercises))}}<span class="gpw-done"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg>{{zero .Tag.InLedger}}</span>{{else}}{{zero (printf "%d of %d in the Ledger" .Passed (len .Exercises))}}{{end}}</span>
+        <button type="button" class="gpw-btn gpw-btn-q gpw-btn-sq" aria-expanded="false" aria-controls="tier-{{.N}}-log" data-fold>Show<span class="gpw-vh"> tier {{.N}}</span></button>
+        {{template "ledger-table" .}}
+      </li>
+      {{- end}}{{end}}
+    </ul>
+  </section>
 </div>
+<div class="gpw-endpad"></div>
 {{- end}}
 {{end}}
+
+{{/* 1 tier's tools (VESPER.md 8.6): the open tier's table shows; a folded
+     tier's waits behind its "Show" button. */}}
+{{define "ledger-table"}}
+{{- $open := and .Tag .Tag.IsOpen}}
+<div class="gpw-ledger-log" id="tier-{{.N}}-log"{{if not $open}} hidden{{end}}>
+  <table class="gpw-tbl">
+    <caption class="gpw-vh">Tier {{.N}} exercises</caption>
+    <thead><tr><th scope="col" class="gpw-lbl">No.</th><th scope="col" class="gpw-lbl">Tool</th><th scope="col" class="gpw-lbl gpw-r">Estimate</th><th scope="col" class="gpw-lbl gpw-r">Active</th><th scope="col" class="gpw-lbl gpw-r">Runs</th><th scope="col" class="gpw-lbl">Help</th><th scope="col" class="gpw-lbl">In the Ledger</th><th scope="col" class="gpw-lbl">Author</th><th scope="col" class="gpw-lbl">Reviewer</th></tr></thead>
+    <tbody>
+      {{- range .Exercises}}
+      {{- $row := .}}
+      <tr{{if .OnCall}} class="gpw-cur"{{end}}>
+        <td class="gpw-id" data-label="No.">{{zero (pad2 .Number)}}</td>
+        <th scope="row" data-label="Tool"><a class="gpw-tool" href="/learn/{{.Slug}}">{{.Title}}</a></th>
+        <td class="gpw-r" data-label="Estimate">{{zero (hours .Hours)}}</td>
+        {{- if eq .Status ""}}
+        <td class="gpw-r" data-label="Active">–</td>
+        <td class="gpw-r" data-label="Runs">–</td>
+        {{- else}}
+        <td class="gpw-r" data-label="Active">{{zero (duration .ActiveSeconds)}}</td>
+        <td class="gpw-r" data-label="Runs">{{zero .Runs}}</td>
+        {{- end}}
+        <td data-label="Help"><span class="gpw-ladder" aria-hidden="true">{{range $i, $l := helpLevels}}<i{{if $row.Revealed (inc $i)}} class="gpw-rev"{{end}}>{{$l}}</i>{{end}}</span><span class="gpw-vh">{{.RevealedText}}</span></td>
+        <td data-label="In the Ledger">
+          {{- if eq .Status "passed"}}<span class="gpw-done"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg><span>entered <time datetime="{{iso .PassedAt}}">{{daymonth .PassedAt}}</time></span></span>
+          {{- else if eq .Status "started"}}waiting for a pass
+          {{- else}}<span class="gpw-quiet">not started</span>{{end -}}
+        </td>
+        {{- if eq .Status "passed"}}
+        <td data-label="Author"><span class="gpw-you">you</span></td>
+        <td data-label="Reviewer"><code>go test -race</code></td>
+        {{- else}}
+        <td data-label="Author">–</td>
+        <td data-label="Reviewer">–</td>
+        {{- end}}
+      </tr>
+      {{- end}}
+    </tbody>
+  </table>
+</div>
+{{- end}}

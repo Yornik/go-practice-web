@@ -18,16 +18,17 @@ func TestPagesRender(t *testing.T) {
 		as   *user
 		want []string
 	}{
-		{"/", nil, []string{"Practice Go on real operations tasks", "Tier 1", "Sign in", "Figure 2", "is not declared where you use it"}},
+		{"/", nil, []string{"Practice Go on the night shift.", "T1 · BADGE IN", "Sign in with a passkey", "When it breaks, you get the reason", `class="gpw-disclaim"`}},
 		{"/login", nil, []string{"Sign in with a passkey", `autocomplete="username webauthn"`}},
 		{"/guide", nil, []string{"The guide", "The rules", "How to read a Go error message", "Print the checklist"}},
 		{"/recover", nil, []string{"Recover your account"}},
 		{"/verify", nil, []string{"Verify a certificate"}},
 		{"/verify-email?token=x", nil, []string{"Confirm my address"}},
-		{"/learn", admin, []string{"Your course", "learning log", "Parse logfmt log lines", `data-stat="passed"`}},
-		{"/learn/" + logfmt, admin, []string{"data-exercise=\"" + logfmt + "\"", "Run tests", "Hint 1", "All tests", "A nudge"}},
+		{"/learn", admin, []string{"Your page of the Ledger", "0 of 50 tools are in the Ledger.", "Parse logfmt log lines", "Start exercise"}},
+		{"/learn/" + logfmt, admin, []string{"data-exercise=\"" + logfmt + "\"", "Run tests", "Hint 1", "All tests", "A nudge",
+			"Skip to the editor", "AI assistance off, Rule 1", "REFUSED: RULE 1", `aria-label="A note from HUSH" hidden data-hush>`, `<span class="balloon is-locked" role="img" aria-label="Explanation: locked" data-rung-balloon>E</span>`}},
 		{"/account", admin, []string{"Passkeys", "ada@example.com", "Sign out everywhere"}},
-		{"/certificates", admin, []string{"Tier 1 · Badge In", "The complete course", "5 to go: 01, 02, 03, 04, 05."}},
+		{"/certificates", admin, []string{"Tier 1, Badge In", "The Key: the course certificate", "0 of 5 in the Ledger."}},
 		{"/admin", admin, []string{"Create an invite", "Ada Admin"}},
 	}
 	for _, tt := range tests {
@@ -39,6 +40,11 @@ func TestPagesRender(t *testing.T) {
 			}
 			if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "script-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") {
 				t.Fatalf("CSP = %q", csp)
+			}
+			// Only the IDE, for Monaco, allows inline styles.
+			ide := strings.HasPrefix(tt.path, "/learn/")
+			if csp := w.Header().Get("Content-Security-Policy"); strings.Contains(csp, "'unsafe-inline'") != ide {
+				t.Errorf("CSP = %q", csp)
 			}
 			body := w.Body.String()
 			for _, s := range tt.want {

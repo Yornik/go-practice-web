@@ -1,12 +1,13 @@
 {{define "subject"}}A passkey was added to your account{{end}}
+{{define "hush"}}{{template "security"}}{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What happened: a new passkey, “{{.E.Passkey}}”, was added to your Go Practice account on {{when .E.When}}.
 
-A new passkey, "{{.E.Passkey}}", was added to your Go Practice account on {{when .E.When}}.
+If you added it: you need to do nothing.
 
-If you added it, you need to do nothing.
+WARNING: If you did not add it, someone else can sign in to your account. Open your account page, remove the passkey and sign out everywhere.
 
-If you did not, someone else can sign in to your account. Open your account page, remove the passkey and sign out everywhere:
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
 
-{{.SiteURL}}/account
+What the link does: it opens your account page. You sign in there with your passkey, as always.
 {{end}}

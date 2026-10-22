@@ -1,12 +1,18 @@
-// leader.js: the blue line from a problem's line to its explanation
-// (".design/FINAL.md", section 7.6). Only at 1280 px and wider, only for
-// the selected problem. The line is decoration: "Line 120 in retry.go" in
+// leader.js: the trace, an amber line from a problem's line to its
+// explanation (".design/VESPER.md", 6.9 and 7.6). Only at 1600 px and
+// wider, where the problems column stands beside the editor, and only for
+// the selected problem. The trace is decoration: "Line 120 in retry.go" in
 // the explanation carries the same fact for keyboard and screen readers.
 //
 // A leader always points at the problem's own subject. When that subject
 // is out of view (a line above or below the editor's view, a test row
 // scrolled away or inside a folded step), the leader ends at the edge of
-// the view with a quiet button that brings the subject into view.
+// the view with a quiet button that brings the subject into view. The
+// editor's button docks in the bar beside that edge, the file bar above
+// or the test panel's bar below, so it never covers code.
+
+import { h } from "../ui/dom.js";
+import { zero } from "../ui/zero.js";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -17,11 +23,13 @@ export class Leader {
    * @param {SVGSVGElement} o.svg
    * @param {any} o.editor
    * @param {any} o.files
-   * @param {HTMLElement} o.column the problems column (scrolls)
+   * @param {HTMLElement} o.column the scroll area of the problems column
    * @param {HTMLElement} o.view the problem view inside it
    * @param {HTMLElement} o.results the test panel
    * @param {HTMLElement} o.treeWrap the scrolling box of the test tree
    * @param {HTMLButtonElement} o.jump "Line 120 is below"
+   * @param {{top: HTMLElement, bottom: HTMLElement}} o.docks where the jump
+   *   docks: the first child of the file bar's end, or before the run controls
    * @param {HTMLButtonElement} o.treeJump "TestDoPermanent is below"
    */
   constructor(o) {
@@ -30,7 +38,7 @@ export class Leader {
     this.frame = 0;
     this.tests = null; // the test runner, set once it exists
     this.problems = null;
-    this.wide = matchMedia("(min-width: 1280px)");
+    this.wide = matchMedia("(min-width: 1600px)");
     const later = () => this.redraw();
     this.editor.onDidScrollChange(later);
     this.editor.onDidLayoutChange(later);
@@ -43,7 +51,9 @@ export class Leader {
     this.jump.addEventListener("click", () => {
       const p = this.problem;
       const at = this.place(p);
-      if (at) this.files.reveal(at.file, at.line, 1, { focus: false });
+      // The button hides once its line shows. If it held the focus, the
+      // focus goes to that line in the editor, not to the page's body.
+      if (at) this.files.reveal(at.file, at.line, 1, { focus: document.activeElement === this.jump });
     });
     this.treeJump.addEventListener("click", () => {
       if (this.treeTarget) this.tests?.revealTest(this.treeTarget);
@@ -124,7 +134,7 @@ export class Leader {
     if (!pos) return null;
     if (pos.top < 0) return [right, er.top + 4, "top"];
     if (pos.top + pos.height > layout.height) return [right, er.top + layout.height - 4, "bottom"];
-    // 8 px after the text and the balloon at the end of the line.
+    // 8 px after the text and the 18 px marker 10 px after it.
     const x = Math.min(er.left + pos.left + 36, right);
     return [x, er.top + pos.top + pos.height / 2, null];
   }
@@ -142,34 +152,37 @@ export class Leader {
       const at = this.place(p);
       this.jump.hidden = false;
       this.jump.dataset.edge = edge;
-      this.jump.textContent = `Line ${at.line} is ${edge === "top" ? "above" : "below"}`;
+      const dock = this.docks?.[edge];
+      if (edge === "top" && dock && dock.firstElementChild !== this.jump) dock.prepend(this.jump);
+      if (edge === "bottom" && dock && dock.previousElementSibling !== this.jump) dock.before(this.jump);
+      // A Saira button: its 0 is slashed (VESPER.md 3.3).
+      this.jump.replaceChildren(zero(`Line ${at.line} is ${edge === "top" ? "above" : "below"}`));
     } else if (edge) {
       const e = edge.slice(5);
       this.treeJump.hidden = false;
       this.treeJump.dataset.edge = e;
-      this.treeJump.textContent = `${this.treeTarget.split("/").pop().replace(/_/g, " ")} is ${e === "top" ? "above" : "below"}`;
+      // A test name is code: it keeps its form inside the capitals.
+      this.treeJump.replaceChildren(h("code", {}, this.treeTarget.split("/").pop()), ` is ${e === "top" ? "above" : "below"}`);
     }
     const box = this.root.getBoundingClientRect();
     const col = this.column.getBoundingClientRect();
-    const head = this.column.querySelector(".problems-head")?.getBoundingClientRect();
     const a = article.getBoundingClientRect();
+    // The problem hangs on its rule, the article's left border.
     const railX = a.left;
-    const top = Math.max(a.top, head ? head.bottom : col.top);
+    const top = Math.max(a.top, col.top);
     const bottom = Math.min(a.bottom, col.bottom);
     if (top >= bottom) return;
     const ballY = Math.min(Math.max(a.top + 11, top + 2), bottom - 2);
     const lx = (x) => x - box.left;
     const ly = (y) => y - box.top;
     let d;
-    let end;
     if (y0 >= top + 4 && y0 <= bottom - 4) {
       // The rail is beside the start: straight across.
       d = `M${lx(x0)} ${ly(y0)} H${lx(railX)}`;
-      end = [railX, y0];
     } else {
-      const knee = col.left + 12;
-      d = `M${lx(x0)} ${ly(y0)} H${lx(knee)} V${ly(ballY)} H${lx(railX - 11)}`;
-      end = null;
+      // 12 px past the editor's right edge, then down or up to the rule: 1 knee pair.
+      const knee = Math.min(this.editor.getDomNode().getBoundingClientRect().right + 12, railX - 4);
+      d = `M${lx(x0)} ${ly(y0)} H${lx(knee)} V${ly(ballY)} H${lx(railX)}`;
     }
     const path = document.createElementNS(NS, "path");
     path.setAttribute("d", d);
@@ -178,11 +191,10 @@ export class Leader {
       const c = document.createElementNS(NS, "circle");
       c.setAttribute("cx", String(lx(x)));
       c.setAttribute("cy", String(ly(y)));
-      c.setAttribute("r", "2.5");
+      c.setAttribute("r", "1.5"); // a 3 px dot at the start
       this.svg.append(c);
     };
     dot(x0, y0);
-    if (end) dot(end[0], end[1]);
     if (animate) {
       path.style.setProperty("--len", String(path.getTotalLength()));
       this.svg.classList.remove("draw");

@@ -41,8 +41,8 @@ func TestKindsOfFifty(t *testing.T) {
 		t.Fatalf("Kinds = %v", kinds)
 	}
 	for k, want := range map[Kind]string{
-		"tier2":    "Tier 2 · The Key",
-		"tier10":   "Tier 10 · The Key Turns",
+		"tier2":    "Tier 2, The Key",
+		"tier10":   "Tier 10, The Key Turns",
 		KindCourse: "The complete course",
 	} {
 		if got, err := Title(fifty, k); err != nil || got != want {
@@ -69,7 +69,7 @@ func TestInterpretOldTierInFifty(t *testing.T) {
 		t.Fatalf("the first course's tier 1 is %v", p.Exercises)
 	}
 	cv := Interpret(fifty, p)
-	if cv.Tier == nil || cv.Tier.N != 6 || cv.Title() != "Tier 6 · Forensics" {
+	if cv.Tier == nil || cv.Tier.N != 6 || cv.Title() != "Tier 6, Forensics" {
 		t.Fatalf("old tier1 reads as %v %q", cv.Tier, cv.Title())
 	}
 	if got := numbers(cv.Exercises); !slices.Equal(got, []int{26, 27, 28}) || cv.Range() != "26 to 28" || len(cv.Unknown) != 0 {
@@ -87,12 +87,12 @@ func TestInterpretOldTierInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Title != "Tier 6 · Forensics" || d.Tier != 6 || d.Subtitle != "Warm-up: Go idioms on real data" ||
+	if d.Title != "Tier 6, Forensics" || d.Tier != 6 || d.TierName != "Forensics" || d.TierLine != "you read what the machine wrote, every quote and every column" ||
 		d.Range != "26 to 28" || d.Count != 3 || len(d.Items) != 3 || d.Items[0].Number != "26" || d.Items[2].Title != "Percentiles and histogram quantiles" {
 		t.Errorf("document = %+v", d)
 	}
 	// Its PDF of then says Tier 1, 01 to 03: the new rendering says so too.
-	const issuedAs = "Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6 · Forensics."
+	const issuedAs = "Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6, Forensics."
 	if got := cv.IssuedAs(); got != issuedAs || d.IssuedAs != issuedAs {
 		t.Errorf("IssuedAs = %q, document %q", got, d.IssuedAs)
 	}
@@ -126,8 +126,7 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Title != "The complete course" || d.Subtitle != "25 exercises in 5 tiers" || len(d.Bars) != 25 || len(d.Items) != 5 ||
-		d.Items[0].Number != "Tier 6" || d.Items[0].Title != "Forensics" || d.Range != "26 to 50" {
+	if d.Title != "The complete course" || len(d.Bars) != 25 || len(d.Items) != 0 || d.Bars[0].Tier != 6 || d.Range != "26 to 50" {
 		t.Errorf("document = %+v", d)
 	}
 	const issuedAs = "Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25. The current course numbers them 26 to 50, in tiers 6 to 10."
@@ -145,7 +144,7 @@ func TestInterpretOldCourseInFifty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(d.Bars) != 50 || len(d.Items) != 10 || d.Items[1].Title != "The Key" || d.Range != "01 to 50" || d.IssuedAs != "" {
+	if len(d.Bars) != 50 || len(d.Items) != 0 || d.Range != "01 to 50" || d.IssuedAs != "" {
 		t.Errorf("document = %+v", d)
 	}
 	if d.Bars[49].Tier != 10 || d.Bars[0].Tier != 1 {
@@ -168,8 +167,8 @@ func TestInterpretStatsAndUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i := slices.IndexFunc(d.Items, func(it Item) bool { return it.Number == "32" }); i < 0 || d.Items[i].Detail != "2 h, 9 test runs, 2 hints" {
-		t.Errorf("items = %+v", d.Items)
+	if !slices.ContainsFunc(d.Items, func(it Item) bool { return it.Number == "32" }) || d.Stats == nil || d.Stats.Runs != 9 || d.Stats.Hints != 2 {
+		t.Errorf("items = %+v, stats %+v", d.Items, d.Stats)
 	}
 
 	// A tier payload whose exercises span 2 tiers keeps its kind's number.
@@ -210,23 +209,23 @@ func TestRenderLayouts(t *testing.T) {
 		want  []string
 	}{
 		{"fifty-course.pdf", fifty, KindCourse, slugsOf(t, fifty, KindCourse), false,
-			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 10", "The Key Turns", "01 to 50"}},
+			[]string{"COURSE CERTIFICATE", "held the Key through 50 exercises", "YEAR 2", "T10", "01 to 50"}},
 		{"fifty-course-stats.pdf", fifty, KindCourse, slugsOf(t, fifty, KindCourse), true,
-			[]string{"The complete course", "50 exercises in 10 tiers", "Tier 5", "Dead Air", "Explanations"}},
+			[]string{"COURSE CERTIFICATE", "T5", "EXPLANATIONS", "WALKTHROUGHS"}},
 		{"fifty-old-course.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), false,
-			[]string{"25 exercises in 5 tiers", "Tier 6", "Forensics", "26 to 50", "Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25."}},
+			[]string{"held the Key through 25 exercises", "T6", "26 to 50", "Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25."}},
 		{"fifty-old-course-stats.pdf", fifty, KindCourse, slugsOf(t, first, KindCourse), true,
-			[]string{"25 exercises in 5 tiers", "Tier 10", "The Key Turns"}},
+			[]string{"held the Key through 25 exercises", "T10", "YEAR 2", "ACTIVE"}},
 		{"fifty-old-tier1.pdf", fifty, "tier1", slugsOf(t, first, "tier1"), false,
-			[]string{"Tier 6 · Forensics", "tier 6", "Parse logfmt log lines", "26 to 28", "Issued as Tier 1 of the first course, exercises 01 to 03."}},
+			[]string{"TIER CERTIFICATE", "FORENSICS", "completed Tier 6, Forensics, of the go-practice course", "Parse logfmt log lines", "26 to 28", "Issued as Tier 1 of the first course, exercises 01 to 03."}},
 		{"fifty-tier2-stats.pdf", fifty, "tier2", slugsOf(t, fifty, "tier2"), true,
-			[]string{"Tier 2 · The Key", "Types with methods", "06 to 10"}},
+			[]string{"completed Tier 2, The Key, of the go-practice course", "Which nodes went dark?", "06 to 10", "RUNS"}},
 		{"fifty-tier10.pdf", fifty, "tier10", slugsOf(t, fifty, "tier10"), false,
-			[]string{"Tier 10 · The Key Turns", "Capstone: a health-aware load balancer", "45 to 50"}},
+			[]string{"completed Tier 10, The Key Turns, of the go-practice", "Capstone: a health-aware load balancer", "45 to 50"}},
 		{"first-course.pdf", first, KindCourse, slugsOf(t, first, KindCourse), true,
-			[]string{"The complete course", "25 exercises in 5 tiers", "Warm-up: Go idioms on real data"}},
+			[]string{"COURSE CERTIFICATE", "held the Key through 25 exercises", "YEAR 1", "T5"}},
 		{"first-tier2.pdf", first, "tier2", slugsOf(t, first, "tier2"), false,
-			[]string{"Tier 2", "Streams, state, time, types, errors and locks", "04 to 09"}},
+			[]string{"completed Tier 2 of the go-practice course.", "Typed config from the environment", "04 to 09"}},
 	}
 	text, haveText := exec.LookPath("pdftotext")
 	png, havePNG := exec.LookPath("pdftoppm")
@@ -243,10 +242,9 @@ func TestRenderLayouts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// The list ends above the drawing area's bottom edge, with room
-		// for the descenders.
-		if top := areaT + max(-headSlack, ((areaB-areaT)-(headHeight(d)+listHeight(d))-30)/2); top+headHeight(d)+listHeight(d) > areaB-4 {
-			t.Errorf("%s: the list ends at %.0f, below the area at %.0f", tc.file, top+headHeight(d)+listHeight(d), areaB)
+		// The body ends above the foot.
+		if l, err := drawSheet(testCanvas(t), d); err != nil || l.contentBottom > l.bodyBottom {
+			t.Errorf("%s: the body ends at %.0f, below the foot at %.0f (%v)", tc.file, l.contentBottom, l.bodyBottom, err)
 		}
 		var buf bytes.Buffer
 		if err := Render(&buf, d); err != nil {
@@ -266,8 +264,11 @@ func TestRenderLayouts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("pdftotext %s: %v", tc.file, err)
 		}
+		// pdftotext reads a kerned or letter-spaced run as several words,
+		// so the words are compared without their spaces.
+		squash := func(s string) string { return strings.Join(strings.Fields(s), "") }
 		for _, w := range tc.want {
-			if !strings.Contains(string(out), w) {
+			if !strings.Contains(squash(string(out)), squash(w)) {
 				t.Errorf("%s lacks %q:\n%s", tc.file, w, out)
 			}
 		}

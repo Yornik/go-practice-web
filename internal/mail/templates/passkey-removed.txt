@@ -1,10 +1,13 @@
 {{define "subject"}}A passkey was removed from your account{{end}}
+{{define "hush"}}{{template "security"}}{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What happened: the passkey “{{.E.Passkey}}” was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.
 
-The passkey "{{.E.Passkey}}" was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.
+If you removed it: you need to do nothing.
 
-WARNING: If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys:
+WARNING: If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys.
 
-{{.SiteURL}}/account
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+
+What the link does: it opens your account page. You sign in there with your passkey, as always.
 {{end}}

@@ -107,11 +107,12 @@ export class Files {
     this.testMenu.replaceChildren();
     for (const [name, e] of this.entries) {
       if (e.file.kind !== "test") continue;
-      this.testMenu.append(h("button", { type: "button", role: "menuitem", onclick: () => this.open(name) }, name));
+      this.testMenu.append(h("button", { type: "button", role: "menuitem", onclick: () => this.open(name) }, name, h("span", { class: "gpw-mi-val" }, "read only")));
     }
-    this.formatItem = h("button", { type: "button", role: "menuitem", class: "narrow-only", onclick: () => this.format?.() }, "Format the file");
-    this.resetItem = h("button", { type: "button", role: "menuitem", class: "danger-item", onclick: () => this.resetActive() }, "Reset");
-    this.testMenu.append(h("hr", { role: "separator" }), this.formatItem, this.resetItem);
+    this.formatItem = h("button", { type: "button", role: "menuitem", class: "narrow-only reset-item", onclick: () => this.format?.() }, "Format the file");
+    // A plain item: the WARNING dialog it opens carries the danger (VESPER.md 6.1).
+    this.resetItem = h("button", { type: "button", role: "menuitem", class: "reset-item", onclick: () => this.resetActive() }, "Reset");
+    this.testMenu.append(h("div", { class: "menu-sep", role: "separator" }), this.formatItem, this.resetItem);
   }
 
   tabKey(event) {
@@ -168,7 +169,7 @@ export class Files {
       const stub = entry.file.kind === "stub";
       this.resetItem.hidden = !stub;
       this.formatItem.hidden = !stub;
-      this.resetItem.textContent = `Reset ${entry.file.name} to the stub`;
+      this.resetItem.textContent = `Reset ${entry.file.name}`;
     }
     if (focus) this.editor.focus();
     this.onOpen?.(name);
@@ -276,12 +277,20 @@ export class Files {
     entry.backupTimer = setTimeout(() => this.backup(entry), 400);
   }
 
+  // The keys hold the account, so a backup waits for its owner and no
+  // other learner on the same browser is offered it. Sign-out keeps them:
+  // a backup exists for the save that a lost session refused.
   backupKey(entry, slug = this.slug) {
-    return `gpw-unsaved:${slug}:${entry.file.name}`;
+    return `gpw-unsaved:${this.user}:${slug}:${entry.file.name}`;
   }
 
   offerKey(entry, slug = this.slug) {
-    return `gpw-offered:${slug}:${entry.file.name}`;
+    return `gpw-offered:${this.user}:${slug}:${entry.file.name}`;
+  }
+
+  /** The keys of builds before the account was in them: [backup, offer]. */
+  legacyKeys(entry, slug) {
+    return [`gpw-unsaved:${slug}:${entry.file.name}`, `gpw-offered:${slug}:${entry.file.name}`];
   }
 
   /** Keeps the unsaved code in this browser, so a lost save loses nothing. */
@@ -389,15 +398,19 @@ export class Files {
       // backups cannot overwrite it.
       const copies = [...readList(this.offerKey(e)), ...readList(this.backupKey(e))];
       save(this.backupKey(e), null);
-      if (this.renamedFrom) {
-        // A tab that was open while the course grew kept its code under the
-        // old slug: the server refuses that slug now, so the copies join the
-        // offer here, in time order, and leave the old keys.
-        copies.push(...readList(this.offerKey(e, this.renamedFrom)), ...readList(this.backupKey(e, this.renamedFrom)));
-        copies.sort((a, b) => (a.at || 0) - (b.at || 0));
-        save(this.offerKey(e, this.renamedFrom), null);
-        save(this.backupKey(e, this.renamedFrom), null);
+      // A tab that was open while the course grew kept its code under the
+      // old slug: the server refuses that slug now. Copies of builds that
+      // kept no account in the key have no owner to wait for. Both join
+      // the offer here, in time order, and leave their keys.
+      const others = [this.legacyKeys(e, this.slug)];
+      if (this.renamedFrom) others.push([this.backupKey(e, this.renamedFrom), this.offerKey(e, this.renamedFrom)], this.legacyKeys(e, this.renamedFrom));
+      for (const keys of others) {
+        for (const key of keys) {
+          copies.push(...readList(key));
+          save(key, null);
+        }
       }
+      copies.sort((a, b) => (a.at || 0) - (b.at || 0));
       const kept = [];
       for (const b of copies.reverse()) {
         if (b.content !== server && !kept.some((k) => k.content === b.content)) kept.push(b);

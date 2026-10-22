@@ -1,28 +1,34 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page">
-  <section class="auth medium" aria-labelledby="recover-title">
-    <header class="page-head">
-      <h1 id="recover-title">Add a new passkey</h1>
-      {{- with .Data}}{{if not .Error}}
-      <p class="lede">The new passkey is for <b>{{.Name}}</b> (username <span class="mono">{{.Username}}</span>) on this device.</p>
-      {{- end}}{{end}}
-    </header>
-    {{- with .Data}}
+<div class="wrap gpw-gate">
+  {{- with .Data}}
+  <section class="gpw-gate-panel gpw-ghost" aria-labelledby="recover-title">
     {{- if .Error}}
-    <p class="callout callout-warning" role="alert">{{.Error}}</p>
-    <p class="mt-4"><a href="/recover">Ask for a new recovery link</a>.</p>
+    {{template "gate-strip-site" .Host}}
     {{- else}}
-    <form id="recover-confirm-form" class="auth-form" data-token="{{.Token}}">
-      <label class="check" for="recover-remove">
-        <input id="recover-remove" name="removeOthers" type="checkbox" aria-describedby="recover-remove-warning">
-        <span>Remove all my other passkeys and sign out every session</span>
-      </label>
-      <p class="callout callout-warning mt-3" id="recover-remove-warning" hidden data-remove-warning><b>WARNING:</b> Every other device loses access. Use this if a device is lost or stolen.</p>
-      <button type="submit" class="btn btn-primary btn-lg">Add the new passkey</button>
-      <p class="form-status mt-4" role="status" aria-live="polite"></p>
-    </form>
+    <dl class="gpw-gate-strip"><div><dt class="gpw-lbl">Account</dt><dd>{{zero .Name}}</dd></div><div><dt class="gpw-lbl">Username</dt><dd class="gpw-addr">{{.Username}}</dd></div><div><dt class="gpw-lbl">New passkey for</dt><dd>{{zero .Host}}</dd></div></dl>
     {{- end}}
-    {{- end}}
+    <div class="gpw-gate-in">
+      <h1 id="recover-title" class="gpw-h1-app">Add a new passkey</h1>
+      {{- if .Error}}
+      <p class="gpw-err gpw-gate-p" role="alert">{{.Error}}</p>
+      <p class="gpw-gate-p"><a href="/recover">Ask for a new recovery link</a>.</p>
+      {{- else}}
+      <p class="gpw-sum">The new passkey is for <b>{{.Name}}</b> (username <span class="mono">{{.Username}}</span>) on this device.</p>
+      <form id="recover-confirm-form" class="gpw-gate-form" data-token="{{.Token}}">
+        <label class="check gpw-cb" for="recover-remove">
+          <input id="recover-remove" name="removeOthers" type="checkbox" aria-describedby="recover-remove-warning">
+          <span class="gpw-cb-t">Remove all my other passkeys and sign out every session</span>
+        </label>
+        <p class="callout callout-warning gpw-gate-warn" id="recover-remove-warning" hidden data-remove-warning><b>WARNING:</b> Every other device loses access. Use this if a device is lost or stolen.</p>
+        <button type="submit" class="btn btn-primary gpw-btn-wide">Add the new passkey</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+      {{- end}}
+    </div>
   </section>
+  {{- end}}
 </div>
 {{end}}

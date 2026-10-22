@@ -1,9 +1,7 @@
-{{define "heading"}}Your account was recovered{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}">On {{when .E.When}}, a recovery link from this address added a new passkey, <strong>{{.E.Passkey}}</strong>, to your Go Practice account.</p>
-{{if .E.RemovedOthers}}<p style="{{template "p"}}">{{.E.RemovedOthers}} old {{plural .E.RemovedOthers "passkey was" "passkeys were"}} removed, and every session was signed out.</p>
-{{end}}<p style="{{template "p"}}">If this was you, you need to do nothing.</p>
-<p style="{{template "p"}}"><strong>WARNING:</strong> If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/recover" style="{{template "button"}}">Recover my account</a></p>
+<p style="{{template "p"}}"><b>What happened:</b> on {{when .E.When}}, a recovery link sent to this address added a new passkey, <b>“{{.E.Passkey}}”</b>, to your Go Practice account.{{if .E.RemovedOthers}} {{.E.RemovedOthers}} old {{plural .E.RemovedOthers "passkey was" "passkeys were"}} removed, and every session was signed out.{{end}}</p>
+<p style="{{template "p"}}"><b>If this was you:</b> you need to do nothing.</p>
+{{template "warning" "If it was not you, someone can read your email. Secure your email account first. Then recover your Go Practice account again and remove the passkeys you do not know."}}
+{{template "action" (action "Recover my account" (print .SiteURL "/recover"))}}
+<p style="{{template "p-last"}}"><b>What the link does:</b> it opens the recovery page. It does not sign you in, and it holds no token.</p>
 {{end}}

@@ -27,6 +27,14 @@ import (
 type Config struct {
 	PublicURL string // GPW_PUBLIC_URL; mutations must come from this origin
 	Dev       bool   // GPW_DEV: templates and static files are read again on each request
+	// MovedFrom is GPW_MOVED_FROM, the host the site moved away from; ""
+	// when it never moved. The sign-in pages then say that a passkey made
+	// there does not work here.
+	MovedFrom string
+	// MailFrom is GPW_MAIL_FROM, the sender of every mail; "" is
+	// mail.DefaultFrom. The check-email page names it, so the learner
+	// knows what to look for in the inbox.
+	MailFrom string
 
 	Store  *store.Store
 	Course *course.Course

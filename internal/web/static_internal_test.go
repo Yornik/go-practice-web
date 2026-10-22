@@ -70,8 +70,11 @@ func TestStaticVersions(t *testing.T) {
 	if snap.cspHash != "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'" {
 		t.Errorf("csp hash %s does not match the map", snap.cspHash)
 	}
-	if !strings.Contains(pageCSP(snap.cspHash), "script-src 'self' "+snap.cspHash+";") {
-		t.Errorf("page CSP = %s", pageCSP(snap.cspHash))
+	if p := pageCSP(snap.cspHash, false); !strings.Contains(p, "script-src 'self' "+snap.cspHash+";") || !strings.Contains(p, "style-src 'self';") {
+		t.Errorf("page CSP = %s", p)
+	}
+	if p := pageCSP(snap.cspHash, true); !strings.Contains(p, "style-src 'self' 'unsafe-inline';") {
+		t.Errorf("the IDE's CSP = %s", p)
 	}
 
 	// A file with its own version is cached for a year; the rewritten CSS

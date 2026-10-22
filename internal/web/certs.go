@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -55,6 +56,12 @@ func (s *Server) certificateStatus(ctx context.Context, userID int64) ([]certSta
 	if err != nil {
 		return nil, err
 	}
+	return s.certificateStatusFrom(passed, held), nil
+}
+
+// certificateStatusFrom is certificateStatus for rows already read: the
+// story reads the progress anyway.
+func (s *Server) certificateStatusFrom(passed []string, held []store.Certificate) []certStatus {
 	byKind := map[string]store.Certificate{}
 	for _, c := range held {
 		byKind[c.Kind] = c
@@ -78,7 +85,7 @@ func (s *Server) certificateStatus(ctx context.Context, userID int64) ([]certSta
 		}
 		out = append(out, st)
 	}
-	return out, nil
+	return out
 }
 
 // currentCertificate reports whether a held certificate covers what its
@@ -105,63 +112,95 @@ func (s *Server) listCertificates(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) certificatesPage(w http.ResponseWriter, r *http.Request) {
 	id, _ := identity(r)
-	st, err := s.certificateStatus(r.Context(), id.User.ID)
+	story, err := s.loadStory(r.Context(), id.User, "")
 	if err != nil {
 		s.log.Error("certificates", "err", err)
 		s.errorPage(w, r, http.StatusInternalServerError, "The certificates could not load.")
 		return
 	}
-	passed, err := s.cfg.Store.PassedExercises(r.Context(), id.User.ID)
-	if err != nil {
-		s.log.Error("certificates", "err", err)
-		s.errorPage(w, r, http.StatusInternalServerError, "The certificates could not load.")
-		return
-	}
-	done := map[string]bool{}
-	for _, slug := range passed {
-		done[slug] = true
-	}
-	cards := make([]certCard, 0, len(st))
-	for _, k := range st {
-		c := certCard{certStatus: k, Name: k.Title, Short: "course"}
-		if kind, err := cert.ParseKind(s.cfg.Course, k.Kind); err == nil {
-			if n, ok := kind.Tier(); ok {
-				if t, ok := s.cfg.Course.Tier(n); ok {
-					c.Short, c.Theme = strings.ToLower(t.Title()), t.Theme
-				}
-			} else {
-				c.Theme = fmt.Sprintf("%d exercises in %d tiers", len(s.cfg.Course.Exercises), len(s.cfg.Course.Tiers))
-			}
+	// The Key's rail shows the learner's own skyline at the rail's size.
+	sky := story.Skyline
+	sky.Class = skyKinds["dash"] + " " + skyKinds["key"]
+	keyCaption := ""
+	if oc := story.OnCall; oc != nil {
+		keyCaption = fmt.Sprintf("%02d is next", oc.Number)
+		if story.KeyOnRing {
+			keyCaption = fmt.Sprintf("%02d on call", oc.Number)
 		}
-		for _, slug := range k.Exercises {
-			if e, ok := s.cfg.Course.Exercise(slug); ok && !done[slug] {
-				c.Missing = append(c.Missing, fmt.Sprintf("%02d", e.Number))
-			}
-		}
-		cards = append(cards, c)
 	}
 	s.render(w, r, http.StatusOK, "certificates", view{
 		Title: "Certificates", Nav: "certificates", Script: "pages/certificates.js",
-		Data: map[string]any{"Cards": cards, "Fingerprint": s.cfg.Signer.Fingerprint()},
+		Data: map[string]any{
+			"Fingerprint": s.cfg.Signer.Fingerprint(),
+			// The head, the strip and the tag rail (VESPER.md 8.7); the
+			// tiers and the Key are in .Story.
+			"Head":       story.CertsHead,
+			"KeySky":     sky,
+			"KeyCaption": keyCaption,
+			"Earlier":    s.earlierNotes(r.Context(), story),
+		},
+		Story: story,
 	})
 }
 
-// certCard is 1 certificate on the certificates page.
-type certCard struct {
-	certStatus
-	Name    string   // "Tier 2 · The Key" or "The complete course"
-	Short   string   // "tier 2" or "course", for "the tier 2 certificate"
-	Theme   string   // the tier's theme, or "50 exercises in 10 tiers"
-	Missing []string // the numbers of the exercises that do not pass yet
+// earlierCert is what the certificates page says about an earlier
+// certificate of a kind: what it covers, and what it was issued as.
+type earlierCert struct {
+	Covers string // "The complete course, 25 exercises in 5 tiers"
+	Note   string // cert.Coverage.IssuedAs
 }
 
-// Held is the certificate the card shows: the current one, or else an
-// earlier one.
-func (c certCard) Held() *certJSON {
-	if c.Certificate != nil {
-		return c.Certificate
+// earlierNotes reads each earlier certificate's payload: its PDF of then
+// shows the first course's numbers. A certificate that cannot be read
+// gets no note; the page still loads.
+func (s *Server) earlierNotes(ctx context.Context, st *story) map[string]earlierCert {
+	out := map[string]earlierCert{}
+	for _, k := range st.certs {
+		if k.Earlier == nil {
+			continue
+		}
+		row, err := s.cfg.Store.Certificate(ctx, k.Earlier.ID)
+		if err != nil {
+			s.log.Warn("earlier certificate", "id", k.Earlier.ID, "err", err)
+			continue
+		}
+		p, err := cert.ParsePayload(row.Payload)
+		if err != nil {
+			s.log.Warn("earlier certificate payload", "id", k.Earlier.ID, "err", err)
+			continue
+		}
+		cv := cert.Interpret(s.cfg.Course, p)
+		out[k.Kind] = earlierCert{Covers: cv.Title() + ", " + cv.Summary(), Note: cv.IssuedAs()}
 	}
-	return c.Earlier
+	return out
+}
+
+// notEligible says which exercises a claim still needs (VESPER.md 10.5):
+// "Tier 2 needs every exercise to pass. 08 and 09 do not pass yet."
+func notEligible(c *course.Course, k cert.Kind, passed []string) string {
+	done := make(map[string]bool, len(passed))
+	for _, slug := range passed {
+		done[slug] = true
+	}
+	who := "The course certificate"
+	if n, ok := k.Tier(); ok {
+		who = fmt.Sprintf("Tier %d", n)
+	}
+	exs, err := cert.Exercises(c, k)
+	if err != nil {
+		return who + " needs every exercise to pass."
+	}
+	var missing []int
+	for _, e := range exs {
+		if !done[e.Slug] {
+			missing = append(missing, e.Number)
+		}
+	}
+	verb := "do not pass yet."
+	if len(missing) == 1 {
+		verb = "does not pass yet."
+	}
+	return who + " needs every exercise to pass. " + numberList(missing, true) + " " + verb
 }
 
 // issueAttempts bounds the retries on an ID collision, which at 60 bits
@@ -180,7 +219,7 @@ func (s *Server) claimCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := identity(r)
 	ctx := r.Context()
-	if err := limit(s.claimLimit, id.User.ID); err != nil {
+	if err := limit(s.claimLimit, id.User.ID, limitClaims); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -195,7 +234,7 @@ func (s *Server) claimCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ok, err := cert.Eligible(s.cfg.Course, kind, passed); err != nil || !ok {
-		s.fail(w, r, errorf(http.StatusForbidden, "not_eligible", "Pass every exercise this certificate covers first."))
+		s.fail(w, r, errorf(http.StatusForbidden, "not_eligible", notEligible(s.cfg.Course, kind, passed)))
 		return
 	}
 	name := in.Name
@@ -300,8 +339,7 @@ type verifyView struct {
 	Status      string // "lookup", "valid", "revoked", "unknown" or "invalid"
 	Error       string // for a lookup that failed
 	Name        string
-	Title       string // "Tier 6 · Forensics" or "The complete course"
-	Subtitle    string // the tier's theme, or "25 exercises in 5 tiers"
+	Title       string // "Tier 6, Forensics" or "The complete course"
 	IssuedAt    time.Time
 	RevokedAt   time.Time
 	ReplacedBy  string
@@ -311,15 +349,25 @@ type verifyView struct {
 	Fingerprint string
 	PDF         string
 	URL         string // the absolute link to this page, to share
-	// The drawing area: a tier's exercises, or for the course its tiers
-	// and the course strip, both of the exercises the payload covers.
+	// The paper (VESPER.md 8.9) repeats the PDF's body and title block:
+	// a tier's tag and its exercises, or for the course the Key and the
+	// course to scale, both of the exercises the payload covers.
 	IsCourse bool
-	Tiers    []*course.Tier
-	Strip    strip
-	Range    string // the exercises as a range, "04 to 09"
+	TierN    int          // the tier a tier certificate covers, from its kind
+	Tier     *course.Tier // that tier in the course; nil when it no longer exists
+	Sky      skyline      // the course certificate's exercises to scale
+	Range    string       // the exercises as a range, "04 to 09"
+	Host     string       // the portal in the issuer line: "vesper-labs.org"
+	QR       template.HTML
 	// IssuedAs says what a certificate of the first course was issued as,
 	// for a reader who holds its PDF of then (cert.Coverage.IssuedAs).
 	IssuedAs string
+	// NameRow: the name takes the title block's whole first row, as on
+	// the PDF, and Issued moves into the second row (VESPER.md 13.1.1).
+	NameRow bool
+	// NameOther: Saira cannot set the name, so the paper sets it in
+	// another face at a size that face fits, as the PDF does.
+	NameOther bool
 }
 
 // verifyLookup answers the "enter an ID" form.
@@ -332,9 +380,10 @@ func (s *Server) verifyLookup(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, verifyPath(id), http.StatusSeeOther)
 			return
 		}
-		v.Error = "This is not a certificate ID. IDs look like GP-7Q2M-K9XD-3HFA."
+		// The field keeps what was typed, so it can be corrected (VESPER.md 6.3).
+		v.ID, v.Error = raw, "This is not a certificate ID. IDs look like GP-7Q2M-K9XD-3HFA."
 	}
-	s.render(w, r, http.StatusOK, "verify", view{Title: "Verify a certificate", Data: v})
+	s.render(w, r, http.StatusOK, "verify", view{Title: "Verify a certificate", Nav: "verify", Data: v})
 }
 
 func (s *Server) verifyPage(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +394,7 @@ func (s *Server) verifyPage(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := cert.ParseID(raw)
 	if err != nil {
-		s.render(w, r, http.StatusNotFound, "verify", view{Title: "Unknown certificate",
+		s.render(w, r, http.StatusNotFound, "verify", view{Title: "Unknown certificate", Nav: "verify",
 			Data: verifyView{ID: raw, Status: "unknown", Fingerprint: s.cfg.Signer.Fingerprint()}})
 		return
 	}
@@ -365,7 +414,7 @@ func (s *Server) verifyPage(w http.ResponseWriter, r *http.Request) {
 	if v.Status == "unknown" {
 		status, title = http.StatusNotFound, "Unknown certificate"
 	}
-	s.render(w, r, status, "verify", view{Title: title, Data: v})
+	s.render(w, r, status, "verify", view{Title: title, Nav: "verify", Data: v})
 }
 
 // loadCertificate reads a certificate and checks its signature. The page
@@ -394,21 +443,41 @@ func (s *Server) loadCertificate(ctx context.Context, id string) (verifyView, st
 		v.Status, v.RevokedAt, v.ReplacedBy = "revoked", row.RevokedAt, row.ReplacedBy
 	}
 	v.Name = p.Name
+	if v.NameRow, err = cert.NameTakesTitleRow(p.Name); err != nil {
+		// The page still shows every fact; only the cells keep their place.
+		s.log.Warn("measure the name for the title block", "id", id, "err", err)
+	}
+	if saira, err := cert.NameInSaira(p.Name); err == nil {
+		v.NameOther = !saira
+	}
 	cv := cert.Interpret(s.cfg.Course, p)
 	v.Title, v.Exercises, v.Range, v.IssuedAs = cv.Title(), cv.Exercises, cv.Range(), cv.IssuedAs()
 	v.IssuedAt, _ = p.Issued()
+	v.Host = s.host()
+	v.QR = qrSVG(v.URL)
+	// A certificate of the first course names its tier as the course reads
+	// it now (cert.Interpret); its PDF of then has the old number.
+	v.Tier = cv.Tier
+	v.TierN, _ = p.Kind.Tier()
 	if cv.Tier != nil {
-		v.Subtitle = cv.Tier.Theme
+		v.TierN = cv.Tier.N
 	}
 	if p.Kind == cert.KindCourse {
-		v.Subtitle = cv.Summary()
-		v.IsCourse, v.Tiers = true, cv.Tiers
-		states, only := map[string]string{}, map[string]bool{}
+		v.IsCourse = true
+		// Every tower passed, so every tower is ink, as on the PDF; only
+		// the tiers the certificate covers stand.
+		covered := map[string]bool{}
 		for _, e := range v.Exercises {
-			states[e.Slug], only[e.Slug] = "passed", true
+			covered[e.Slug] = true
 		}
-		v.Strip = coveredStrip(cv.Tiers, states, only)
-		v.Strip.Label = fmt.Sprintf("The course to scale: all %d exercises pass.", len(v.Exercises))
+		v.Sky = drawSkyline(&course.Course{Tiers: cv.Tiers}, func(e *course.Exercise) string {
+			if covered[e.Slug] {
+				return "on"
+			}
+			return ""
+		})
+		v.Sky.Class = skyKinds["key"]
+		v.Sky.Label = fmt.Sprintf("The course to scale: %d towers, 1 per exercise, as tall as its estimate. All of them pass.", len(v.Exercises))
 	}
 	if p.Stats != nil {
 		v.Stats, v.StatsBySlug = p.Stats, cv.Stats
@@ -471,6 +540,33 @@ func (s *Server) publicKey(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write([]byte(s.cfg.Signer.PublicKeyBase64() + "\n"))
+}
+
+// qrSVG draws the verify link's QR code as the PDF does (cert.QRMatrix),
+// 1 rectangle per run of dark modules, with a quiet zone of 2 modules.
+// "" when the link does not encode.
+func qrSVG(link string) template.HTML {
+	m, err := cert.QRMatrix(link)
+	if err != nil || len(m) == 0 {
+		return ""
+	}
+	n := len(m)
+	var d strings.Builder
+	for y, row := range m {
+		for x := 0; x < n; {
+			if !row[x] {
+				x++
+				continue
+			}
+			start := x
+			for x < n && row[x] {
+				x++
+			}
+			fmt.Fprintf(&d, "M%d %dh%dv1h-%dZ", start, y, x-start, x-start)
+		}
+	}
+	return template.HTML(fmt.Sprintf(`<svg class="gpw-pp-qrsvg" viewBox="-2 -2 %d %d" aria-hidden="true"><rect class="gpw-pp-qrbg" x="-2" y="-2" width="%d" height="%d"/><path class="gpw-pp-qrm" d="%s"/></svg>`, //nolint:gosec // numbers only
+		n+4, n+4, n+4, n+4, d.String()))
 }
 
 // verifyURL is the absolute verify link, for pages that show it.

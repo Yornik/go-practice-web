@@ -1,104 +1,135 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/app.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page account">
-  <header class="page-head">
-    <h1>Account</h1>
-  </header>
+<div class="gpw-wrap gpw-acct">
+  <div class="gpw-acct-head">
+    {{- /* The header's badge as a card (VESPER.md 8.10, 16.6); the badge button names the same facts. */}}
+    {{- with .Badge}}
+    <div class="gpw-sb" aria-hidden="true">
+      <span class="gpw-sb-slot"></span>
+      <span class="gpw-sb-in">{{.Initials}}</span>
+      <span class="gpw-sb-name">{{.Name}}</span>
+      {{- if .Known}}{{if .Key}}<span class="gpw-tag gpw-tag-on">COURSE · THE KEY</span>{{else}}{{with .Tag}}{{template "tag" (dict "N" .N "Name" .Name "State" "on")}}{{else}}<span class="gpw-sb-day">Day 1</span>{{end}}{{end}}{{end}}
+    </div>
+    {{- end}}
+    <div class="gpw-acct-title">
+      <h1 class="gpw-h1-app">Account</h1>
+      <p class="gpw-sum">Signed in as <b>{{.User.Username}}</b>, on {{plural .Data.Sessions "browser" "browsers"}}. Your staff badge shows your initials and your highest tag.</p>
+    </div>
+  </div>
 
-  <section class="section" aria-labelledby="profile-title">
-    <h2 id="profile-title">Profile</h2>
-    <form id="profile-form" novalidate>
-      <dl class="facts">
-        <dt>Username</dt>
-        <dd><span class="mono fact-value">{{.User.Username}}</span><p class="help">Your username cannot change.</p></dd>
-        <dt><label for="profile-name">Display name</label></dt>
-        <dd>
-          <input class="text-input" id="profile-name" name="displayName" value="{{.User.DisplayName}}" required maxlength="64" autocomplete="name" aria-describedby="profile-name-help">
-          <p class="help" id="profile-name-help">Printed on new certificates.</p>
-        </dd>
-        <dt><label for="profile-email">Email</label></dt>
-        <dd>
-          <input class="text-input" id="profile-email" name="email" type="email" value="{{.User.Email}}" required maxlength="254" autocomplete="email" aria-describedby="profile-email-status">
-          <p class="help" id="profile-email-status">
-            {{- if .User.EmailVerified}}<span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>verified</span> Recovery links and security notices go here.
-            {{- else if .User.Email}}Not verified. Open the link in the email to start the course. Recovery works after that.
-            {{- else}}No address. Add an address to start the course. It is your way back in if you lose your passkeys.{{end}}
-            {{- if or .Data.PendingEmail (and .User.Email (not .User.EmailVerified))}} <button type="button" class="link-button" data-resend>Send the link again</button>.{{end}}
-          </p>
-        </dd>
-      </dl>
+  <section class="gpw-as" aria-labelledby="profile-title">
+    <h2 id="profile-title" class="gpw-as-h">Profile</h2>
+    <form id="profile-form" class="gpw-as-body" novalidate>
+      <dl class="gpw-fl gpw-as-fact"><dt>Username</dt><dd><b>{{.User.Username}}</b><span class="help">Your username cannot change.</span></dd></dl>
+      <div class="field">
+        <label for="profile-name">Display name</label>
+        <input class="text-input" id="profile-name" name="displayName" value="{{.User.DisplayName}}" required maxlength="64" autocomplete="name" aria-describedby="profile-name-help">
+        <p class="help" id="profile-name-help">Printed on new certificates.</p>
+      </div>
+      <div class="field">
+        <label for="profile-email">Email</label>
+        <input class="text-input" id="profile-email" name="email" type="email" value="{{.User.Email}}" required maxlength="254" autocomplete="email" aria-describedby="profile-email-status">
+        <p class="help" id="profile-email-status">
+          {{- if .User.EmailVerified}}<span class="gpw-okword"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg>Verified.</span> Recovery links and security notices go here.
+          {{- else if .User.Email}}Not verified. Open the link in the email to start the course. Recovery works after that.
+          {{- else}}No address. Add an address to start the course. It is your way back in if you lose your passkeys.{{end}}
+          {{- if or .Data.PendingEmail (and .User.Email (not .User.EmailVerified))}} <button type="button" class="link-button" data-resend>Send the link again</button>.{{end}}
+        </p>
+      </div>
       {{- with .Data.PendingEmail}}{{if ne . $.User.Email}}
-      <p class="callout mt-4"><b>NOTE:</b> {{.}} is waiting for verification.{{if $.User.EmailVerified}} Recovery links still go to {{$.User.Email}}.{{end}}</p>
+      <p class="callout gpw-as-note"><b>NOTE:</b> {{.}} is waiting for verification.{{if $.User.EmailVerified}} Recovery links still go to {{$.User.Email}}.{{end}}</p>
       {{- end}}{{end}}
-      <div class="btn-row mt-5">
+      <div class="btn-row gpw-as-btns">
         <button type="submit" class="btn btn-primary">Save the profile</button>
       </div>
-      <p class="form-status mt-3" role="status" aria-live="polite" data-status="profile"></p>
+      <p class="form-status" role="status" aria-live="polite" data-status="profile"></p>
     </form>
   </section>
 
-  <section class="section" aria-labelledby="passkeys-title">
-    <h2 id="passkeys-title">Passkeys</h2>
-    <p class="help">Add a passkey on every device you use. Synced passkeys move with your phone or password manager.</p>
-    <div class="table-scroll mt-3">
-      <table class="table table-stack passkeys">
-        <thead><tr><th scope="col">Name</th><th scope="col">Added</th><th scope="col">Last used</th><th scope="col">Synced</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <section class="gpw-as" aria-labelledby="passkeys-title">
+    <h2 id="passkeys-title" class="gpw-as-h">Passkeys</h2>
+    <div class="gpw-as-body gpw-as-wide">
+      <p class="help">Add a passkey on every device you use. Synced passkeys move with your phone or password manager. A passkey works only on <span class="gpw-nobr">{{.Data.Host}}</span>, the site that made it.</p>
+      {{- $only := eq (len .Data.Passkeys) 1}}
+      <table class="gpw-pk passkeys">
+        <caption class="gpw-vh">Your passkeys</caption>
+        <thead><tr><th scope="col" class="gpw-lbl">Name</th><th scope="col" class="gpw-lbl">Added</th><th scope="col" class="gpw-lbl">Last used</th><th scope="col" class="gpw-lbl">Synced</th><th scope="col"><span class="gpw-vh">Actions</span></th></tr></thead>
         <tbody>
-          {{- $only := eq (len .Data.Passkeys) 1}}
           {{- range .Data.Passkeys}}
           <tr data-passkey="{{b64url .ID}}">
             <th scope="row"><span data-passkey-name>{{.Name}}</span></th>
             <td data-label="Added"><time datetime="{{iso .CreatedAt}}">{{shortdate .CreatedAt}}</time></td>
-            <td data-label="Last used">{{if .LastUsedAt.IsZero}}never{{else}}<time datetime="{{iso .LastUsedAt}}">{{datetime .LastUsedAt}}</time>{{end}}</td>
-            <td data-label="Synced">{{if .BackupState}}yes{{else}}no{{end}}</td>
-            <td class="actions">
-              <button type="button" class="btn btn-sm" data-rename>Rename<span class="visually-hidden"> {{.Name}}</span></button>
-              <button type="button" class="btn btn-sm btn-danger" data-delete{{if $only}} aria-disabled="true" aria-describedby="last-passkey"{{end}}>Delete passkey<span class="visually-hidden"> {{.Name}}</span></button>
+            <td data-label="Last used">{{if .LastUsedAt.IsZero}}Never{{else}}<time datetime="{{iso .LastUsedAt}}">{{datetime .LastUsedAt}}</time>{{end}}</td>
+            <td data-label="Synced">{{if .BackupState}}Yes{{else}}No{{end}}</td>
+            <td class="gpw-pk-act">
+              <button type="button" class="btn btn-sm" data-rename aria-haspopup="dialog">Rename<span class="gpw-vh"> {{.Name}}</span></button>
+              <button type="button" class="btn btn-sm" data-delete aria-haspopup="dialog"{{if $only}} aria-disabled="true" aria-describedby="last-passkey"{{end}}>Delete passkey<span class="gpw-vh"> {{.Name}}</span></button>
             </td>
           </tr>
           {{- if .CloneWarning}}
-          <tr class="warning-row"><td colspan="5"><p class="callout callout-warning"><b>WARNING:</b> {{.Name}} reported an older counter than before. 2 copies of the key can exist. If you did not copy it, delete it and add a new passkey.</p></td></tr>
+          <tr class="gpw-pk-warn"><td colspan="5"><p class="callout callout-warning"><b>WARNING:</b> {{.Name}} reported an older counter than before. 2 copies of the key can exist. If you did not copy it, delete it and add a new passkey.</p></td></tr>
           {{- end}}
           {{- end}}
         </tbody>
       </table>
-    </div>
-    {{- if $only}}<p class="help mt-2" id="last-passkey">You cannot delete your last passkey. Add another one first.</p>{{end}}
-    <p class="mt-4"><button type="button" class="btn" data-add-passkey>Add a passkey</button></p>
-    <p class="form-status mt-3" role="status" aria-live="polite" data-status="passkeys"></p>
-  </section>
-
-  <section class="section" aria-labelledby="theme-title">
-    <h2 id="theme-title">Theme</h2>
-    <fieldset class="theme-choice-row">
-      <legend class="visually-hidden">Theme</legend>
-      <label class="check"><input type="radio" name="account-theme" value="system" data-theme-radio> System</label>
-      <label class="check"><input type="radio" name="account-theme" value="light" data-theme-radio> Light</label>
-      <label class="check"><input type="radio" name="account-theme" value="dark" data-theme-radio> Dark</label>
-    </fieldset>
-    <p class="help mt-2">This browser keeps the choice. System follows the setting of your device.</p>
-  </section>
-
-  <section class="section" aria-labelledby="editor-title">
-    <h2 id="editor-title">Editor</h2>
-    <div class="field narrow">
-      <label for="editor-size">Text size in the editor</label>
-      <select class="select" id="editor-size" data-editor-size aria-describedby="editor-size-help">
-        <option value="13">13 px, the default</option>
-        <option value="14">14 px</option>
-        <option value="15">15 px</option>
-        <option value="16">16 px</option>
-        <option value="18">18 px</option>
-      </select>
-      <p class="help" id="editor-size-help">This browser keeps the choice. The Keys menu of the exercise page has it too.</p>
+      {{- if $only}}<p class="help gpw-as-reason" id="last-passkey">You cannot delete your last passkey. Add another one first.</p>{{end}}
+      <div class="btn-row gpw-as-btns"><button type="button" class="btn" data-add-passkey>Add a passkey</button></div>
+      <p class="form-status" role="status" aria-live="polite" data-status="passkeys"></p>
     </div>
   </section>
 
-  <section class="section" aria-labelledby="sessions-title">
-    <h2 id="sessions-title">Sessions</h2>
-    <p>You are signed in on {{plural .Data.Sessions "browser" "browsers"}}.</p>
-    <div class="btn-row mt-4">
-      <button type="button" class="btn btn-danger" data-logout-everywhere>Sign out everywhere</button>
-      <span class="help">Ends every session, also this one.</span>
+  <section class="gpw-as" aria-labelledby="display-title">
+    <h2 id="display-title" class="gpw-as-h">Display</h2>
+    <div class="gpw-as-body">
+      <fieldset class="gpw-fs">
+        <legend>Theme</legend>
+        <div class="gpw-rdrow">
+          <label class="gpw-rd"><input type="radio" name="account-theme" value="system" data-theme-radio><span>System</span></label>
+          <label class="gpw-rd"><input type="radio" name="account-theme" value="light" data-theme-radio><span>Light</span></label>
+          <label class="gpw-rd"><input type="radio" name="account-theme" value="dark" data-theme-radio><span>Dark</span></label>
+        </div>
+        <p class="help">This browser keeps the choice. System follows the setting of your device.</p>
+      </fieldset>
+      {{- /* The same setting as the header's toggle: theme.js keeps them in sync (VESPER.md 16.5). */}}
+      <div class="gpw-as-row">
+        <p class="gpw-flabel">Story effects</p>
+        <label class="gpw-cb"><input type="checkbox" checked data-story-check aria-describedby="story-help"><span><span class="gpw-cb-t">Show story effects</span>
+          <span class="help" id="story-help">The Calm Score, HUSH's note in the IDE, the ring drawing and the story lines of the work loop. The course and its tags stay. The header has the same switch. This browser keeps the choice.</span></span></label>
+      </div>
+      <div class="gpw-as-row">
+        <p class="gpw-flabel">AI assistance</p>
+        <p class="gpw-as-ai"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-lock"/></svg>AI assistance is off in this IDE. Rule 1.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="gpw-as" aria-labelledby="editor-title">
+    <h2 id="editor-title" class="gpw-as-h">Editor</h2>
+    <div class="gpw-as-body">
+      <div class="field gpw-field-s">
+        <label for="editor-size">Text size in the editor</label>
+        <select class="select" id="editor-size" data-editor-size aria-describedby="editor-size-help">
+          <option value="13">13 px</option>
+          <option value="14">14 px, the default</option>
+          <option value="15">15 px</option>
+          <option value="16">16 px</option>
+          <option value="18">18 px</option>
+        </select>
+        <p class="help" id="editor-size-help">This browser keeps the choice. The Keys menu of the exercise page has it too.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="gpw-as" aria-labelledby="sessions-title">
+    <h2 id="sessions-title" class="gpw-as-h">Sessions</h2>
+    <div class="gpw-as-body">
+      <p>You are signed in on {{plural .Data.Sessions "browser" "browsers"}}.</p>
+      <div class="btn-row gpw-as-btns">
+        <button type="button" class="btn" data-logout-everywhere aria-haspopup="dialog">Sign out everywhere</button>
+        <span class="help">Ends every session, also this one.</span>
+      </div>
     </div>
   </section>
 </div>

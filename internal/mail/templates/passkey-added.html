@@ -1,8 +1,7 @@
-{{define "heading"}}A passkey was added{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}">A new passkey, <strong>{{.E.Passkey}}</strong>, was added to your Go Practice account on {{when .E.When}}.</p>
-<p style="{{template "p"}}">If you added it, you need to do nothing.</p>
-<p style="{{template "p"}}">If you did not, someone else can sign in to your account. Open your account page, remove the passkey and sign out everywhere.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Check my passkeys</a></p>
+<p style="{{template "p"}}"><b>What happened:</b> a new passkey, <b>“{{.E.Passkey}}”</b>, was added to your Go Practice account on {{when .E.When}}.</p>
+<p style="{{template "p"}}"><b>If you added it:</b> you need to do nothing.</p>
+{{template "warning" "If you did not add it, someone else can sign in to your account. Open your account page, remove the passkey and sign out everywhere."}}
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+<p style="{{template "p-last"}}"><b>What the link does:</b> it opens your account page. You sign in there with your passkey, as always.</p>
 {{end}}

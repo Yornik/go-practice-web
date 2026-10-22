@@ -23,11 +23,36 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if c.PublicURL != "https://go-learn.party" || c.RunnerURL != "http://runner.go-practice-runner.svc:8081" {
 		t.Fatalf("URLs = %q %q", c.PublicURL, c.RunnerURL)
 	}
-	if c.SMTP.Port != 465 || c.SMTP.From != "Go Practice <go-practice@yornik.eu>" || c.SMTP.Enabled() {
+	if c.SMTP.Port != 465 || c.SMTP.From != "HUSH · Vesper Labs <hush@vesper-labs.org>" || c.SMTP.Enabled() {
 		t.Fatalf("SMTP = %+v", c.SMTP)
 	}
 	if len(c.TrustedProxies) != 1 || c.TrustedProxies[0].String() != "10.244.0.0/16" || c.Dev {
 		t.Fatalf("proxies %v dev %v", c.TrustedProxies, c.Dev)
+	}
+	if c.MovedFrom != "" {
+		t.Fatalf("MovedFrom = %q, want none: the site did not move", c.MovedFrom)
+	}
+}
+
+// GPW_MOVED_FROM names the old host for the sign-in page's note.
+func TestLoadConfigMovedFrom(t *testing.T) {
+	c, err := loadConfig([]string{
+		"GPW_PUBLIC_URL=https://vesper-labs.org",
+		"GPW_RUNNER_URL=http://runner:8081",
+		"GPW_RUNNER_TOKEN=" + token,
+		"GPW_MOVED_FROM=Go-Learn.Party",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MovedFrom != "go-learn.party" {
+		t.Fatalf("MovedFrom = %q, want go-learn.party", c.MovedFrom)
+	}
+	// Digits are fine anywhere but in a last label that is all number.
+	for _, host := range []string{"123.example", "go-learn2.party", "example.0xg", "x.1a"} {
+		if got, err := parseMovedFrom(host, "https://vesper-labs.org"); err != nil || got != host {
+			t.Errorf("parseMovedFrom(%q) = %q, %v", host, got, err)
+		}
 	}
 }
 
@@ -76,6 +101,20 @@ func TestLoadConfigErrors(t *testing.T) {
 		{"bad sender", map[string]string{"GPW_MAIL_FROM": "nobody"}, "GPW_MAIL_FROM"},
 		{"bad proxy", map[string]string{"GPW_TRUSTED_PROXIES": "10.0.0.0/8,banana"}, "GPW_TRUSTED_PROXIES"},
 		{"bad dev", map[string]string{"GPW_DEV": "yes please"}, "GPW_DEV"},
+		{"moved from a URL", map[string]string{"GPW_MOVED_FROM": "https://go-learn.party"}, "GPW_MOVED_FROM"},
+		{"moved from a host and port", map[string]string{"GPW_MOVED_FROM": "go-learn.party:443"}, "GPW_MOVED_FROM"},
+		{"moved from 1 label", map[string]string{"GPW_MOVED_FROM": "localhost"}, "GPW_MOVED_FROM"},
+		{"moved from an IPv4 address", map[string]string{"GPW_MOVED_FROM": "10.0.0.1"}, "GPW_MOVED_FROM"},
+		// A browser reads these as IPv4 addresses too (WHATWG URL: the
+		// host ends in a number).
+		{"moved from a short IPv4 address", map[string]string{"GPW_MOVED_FROM": "127.1"}, "GPW_MOVED_FROM"},
+		{"moved from a 3-part IPv4 address", map[string]string{"GPW_MOVED_FROM": "10.1.1"}, "GPW_MOVED_FROM"},
+		{"moved from a hex IPv4 address", map[string]string{"GPW_MOVED_FROM": "0x7f.0.0.1"}, "GPW_MOVED_FROM"},
+		{"moved from an IPv4 address with a leading zero", map[string]string{"GPW_MOVED_FROM": "192.168.0.010"}, "GPW_MOVED_FROM"},
+		{"moved from a name that ends in a number", map[string]string{"GPW_MOVED_FROM": "example.123"}, "GPW_MOVED_FROM"},
+		{"moved from a name that ends in a hex number", map[string]string{"GPW_MOVED_FROM": "example.0xff"}, "GPW_MOVED_FROM"},
+		{"moved from a name over 253 characters", map[string]string{"GPW_MOVED_FROM": strings.Repeat("a.", 126) + "org"}, "GPW_MOVED_FROM"},
+		{"moved from itself", map[string]string{"GPW_PUBLIC_URL": "https://go-learn.party", "GPW_MOVED_FROM": "go-learn.party"}, "the host of GPW_PUBLIC_URL"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

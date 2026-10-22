@@ -106,6 +106,38 @@ func (s *Store) UserCertificates(ctx context.Context, userID int64) ([]Certifica
 	return out, nil
 }
 
+// FirstIssued returns, per kind of the user's valid certificates, when the
+// first certificate of its chain of re-issues was issued. A re-issue fixes
+// a name or the activity row; it is the same tag, stamped on the first
+// date. A claim that replaces a certificate of an earlier course goes on
+// with its chain too. A revoke without a replacement ends a chain, so a
+// claim after it starts a new one.
+func (s *Store) FirstIssued(ctx context.Context, userID int64) (map[string]time.Time, error) {
+	type row struct {
+		kind string
+		at   time.Time
+	}
+	rows, err := queryAll(ctx, s.db, func(r scanner) (row, error) {
+		var v row
+		err := r.Scan(&v.kind, tcol(&v.at))
+		return v, err
+	}, `WITH RECURSIVE chain (kind, id, issued_at) AS (
+			SELECT kind, id, issued_at FROM certificates WHERE user_id = ? AND revoked_at IS NULL
+			UNION ALL
+			SELECT chain.kind, c.id, c.issued_at FROM certificates c JOIN chain ON c.replaced_by = chain.id
+			WHERE c.user_id = ?
+		)
+		SELECT kind, MIN(issued_at) FROM chain GROUP BY kind`, userID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("store: first issued: %w", err)
+	}
+	out := make(map[string]time.Time, len(rows))
+	for _, r := range rows {
+		out[r.kind] = r.at
+	}
+	return out, nil
+}
+
 // RevokeCertificate revokes a valid certificate without a replacement.
 func (s *Store) RevokeCertificate(ctx context.Context, id string) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE certificates SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL`,

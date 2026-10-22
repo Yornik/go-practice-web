@@ -193,7 +193,7 @@ func rateLimited(retry time.Duration) *Error {
 	return &Error{
 		Status:     http.StatusTooManyRequests,
 		Code:       "rate_limited",
-		Message:    "Too many attempts. Wait a moment and try again.",
+		Message:    "Too many attempts. Wait " + WaitText(retry) + ", then try again.",
 		RetryAfter: retry,
 	}
 }

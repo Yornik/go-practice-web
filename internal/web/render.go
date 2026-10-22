@@ -57,7 +57,7 @@ func newRenderer(fsys fs.FS, dev bool, static func(string) string) (*renderer, e
 }
 
 func (r *renderer) parse(name string) (*template.Template, error) {
-	t, err := template.New(name).Funcs(r.funcs).ParseFS(r.fsys, "layout.html", "pages/"+name+".html")
+	t, err := template.New(name).Funcs(r.funcs).ParseFS(r.fsys, "layout.html", "partials/*.html", "pages/"+name+".html")
 	if err != nil {
 		return nil, fmt.Errorf("web: parse template %s: %w", name, err)
 	}
@@ -79,17 +79,29 @@ func (r *renderer) template(name string) (*template.Template, error) {
 
 // view is what every page template gets.
 type view struct {
-	Title  string      // the <title> before ", Go Practice"; "" for the landing page
+	Title  string      // the <title> before ", Vesper Labs Go Practice"; "" for the landing page
 	User   *store.User // nil for a visitor
 	Nav    string      // the current item of the main navigation
 	Script string      // the page's ES module below /static/js/, or ""
 	Wide   bool        // the IDE: full width and height, its own top bar, no footer
-	Mono   bool        // the first screen shows code: preload the mono font
+	Mono   bool        // the first screen shows code; no longer preloads a font (VESPER.md 4.3)
 	Data   any         // the page's own data
 	Course *course.Course
 	Dev    bool
 	// ImportMap maps every ES module path to its versioned URL.
 	ImportMap template.HTML
+	// Page and AppHeader are set by render: the template's name, and the
+	// app header for a signed-in user whose address is verified, outside
+	// the gate's own pages.
+	Page      string
+	AppHeader bool
+	// Story is the signed-in learner's place in the story (story.go): the
+	// readout strip, the staff badge, the ring and the slab. nil for a
+	// visitor, on a 5xx page, and when it could not load.
+	Story *story
+	// Badge is the signed-in user's staff badge, also when Story is nil;
+	// zero for a visitor.
+	Badge staffBadge
 }
 
 // render executes a page into a buffer first, so that a template error
@@ -99,7 +111,26 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 		u := id.User
 		v.User = &u
 	}
-	v.Course, v.Dev = s.cfg.Course, s.cfg.Dev
+	v.Course, v.Dev, v.Page = s.cfg.Course, s.cfg.Dev, name
+	if v.User != nil {
+		// A user the email gate turns away gets the public header with
+		// "Sign out" on every page: the app header's links lead only back
+		// to /check-email.
+		v.AppHeader = !gatePages[name] && v.User.EmailVerified()
+		// Every app page's header shows the badge and the readout strip.
+		// A 5xx page skips the queries: the store can be its cause.
+		if v.Story == nil && status < http.StatusInternalServerError {
+			st, err := s.loadStory(r.Context(), *v.User, "")
+			if err != nil {
+				s.log.Error("story", "page", name, "err", err)
+			}
+			v.Story = st
+		}
+		v.Badge = unknownBadge(v.User.DisplayName)
+		if v.Story != nil {
+			v.Badge = v.Story.Badge
+		}
+	}
 	assets := s.static.current()
 	v.ImportMap = assets.importMap
 	t, err := s.pages.template(name)
@@ -115,28 +146,92 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy", pageCSP(assets.cspHash))
+	w.Header().Set("Content-Security-Policy", pageCSP(assets.cspHash, v.Wide))
 	// Pages show the user's own data; no shared cache may keep them.
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
 }
 
-// errorPage renders the error page: what happened as the heading, then
-// what to do.
+// errorView is the error page (VESPER.md 8.12): the status as a numeral,
+// what happened as the heading, then what to do. A 404 adds the roll call.
+type errorView struct {
+	Status  int
+	Message string // the heading: what happened
+	Detail  string // what to do
+	// A 404's roll call: the time of the check and its rows, the asked-for
+	// path last.
+	At   time.Time
+	Rows []rollRow
+}
+
+// rollRow is 1 line of the 404's roll call.
+type rollRow struct {
+	State, Path, Beat, Hush string
+	Miss                    bool // the asked-for path: no page answers it
+}
+
+// rollPaths are the pages the roll call finds healthy: pages that answer
+// every visitor.
+var rollPaths = []string{"/learn", "/guide", "/verify", "/certificates"}
+
+// maxPathRunes cuts the asked-for path: it is user text, and a long one
+// would push the roll call off a phone.
+const maxPathRunes = 60
+
+// errorPage renders the error page. msg says what happened; a 5xx page
+// adds the time to look for in the server log.
 func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int, msg string) {
-	var detail string
+	now := s.now().UTC()
+	v := errorView{Status: status, Message: msg}
 	switch {
+	case status == http.StatusNotFound:
+		// The story's 404 (VESPER.md 10.7); the roll call names the path.
+		v.Message = "This page is not in the inventory."
+		v.Detail = "If it starts sending heartbeats, tell Noor. Until then, check the address, or go to 1 of these pages."
+		v.At = now
+		for i, p := range rollPaths {
+			// The heartbeats are a moment apart, as a real roll call's are.
+			beat := now.Add(-time.Duration(1+i*2/3) * time.Second)
+			v.Rows = append(v.Rows, rollRow{State: "healthy", Path: p, Beat: beat.Format("15:04:05"), Hush: "calm"})
+		}
+		v.Rows = append(v.Rows, rollRow{State: "unknown", Path: cutRunes(r.URL.Path, maxPathRunes), Beat: "never", Hush: "RESTING", Miss: true})
 	case status == http.StatusForbidden:
-		detail = "Admin pages need an admin account."
+		v.Detail = "Admin pages need an admin account."
 	case status >= 500:
-		detail = "Try again in a minute. If it fails again, the site owner can find the cause in the server log with the time " +
-			s.now().UTC().Format("15:04:05") + " UTC."
+		v.Message = "The server could not finish this request."
+		v.Detail = msg + " Try again in a minute. If it fails again, the site owner can find the cause in the server log with the time " +
+			now.Format("15:04:05") + " UTC."
 	}
-	s.render(w, r, status, "error", view{
-		Title: http.StatusText(status),
-		Data:  map[string]any{"Status": status, "Message": msg, "Detail": detail},
-	})
+	s.render(w, r, status, "error", view{Title: errorTitle(status), Data: v})
+}
+
+// errorTitle is the error page's title in sentence case (VESPER.md 10.2):
+// http.StatusText is in title case ("Not Found").
+func errorTitle(status int) string {
+	switch status {
+	case http.StatusNotFound:
+		return "Page not found"
+	case http.StatusForbidden:
+		return "No access"
+	}
+	if status >= 500 {
+		return "Server error"
+	}
+	t := http.StatusText(status)
+	if t == "" {
+		return "Error"
+	}
+	return t[:1] + strings.ToLower(t[1:])
+}
+
+// cutRunes cuts s to at most n runes, the last of them an ellipsis.
+func cutRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
 }
 
 func (s *Server) notFoundPage(w http.ResponseWriter, r *http.Request) {
@@ -155,6 +250,8 @@ func templateFuncs(static func(string) string) template.FuncMap {
 			return t.UTC().Format("2" + nbsp + "January 2006")
 		},
 		"shortdate": shortDate,
+		// daymonth is a date in a tag's line or a Ledger row: "22 Sep".
+		"daymonth": dayMonth,
 		"datetime": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
@@ -183,8 +280,6 @@ func templateFuncs(static func(string) string) template.FuncMap {
 		// catalogHTML marks the HTML of an explanation as safe: the catalog
 		// renders its Markdown without raw HTML (internal/explain).
 		"catalogHTML": func(s string) template.HTML { return template.HTML(s) }, //nolint:gosec // see above
-		// grow is the flex-grow of a bar in the course strip: 10 per hour.
-		"grow": func(h float64) string { return strconv.FormatFloat(h*10, 'f', -1, 64) },
 		"seq": func(n int) []int {
 			out := make([]int, n)
 			for i := range out {
@@ -209,6 +304,12 @@ func templateFuncs(static func(string) string) template.FuncMap {
 			}
 			return itoa(n) + " " + many
 		},
+		// The helpers of the Vesper Labs design (design.go).
+		"zero":      zero,
+		"dict":      dict,
+		"skyline":   skylineFunc,
+		"upper":     strings.ToUpper,
+		"hasSuffix": strings.HasSuffix,
 	}
 }
 
@@ -230,22 +331,6 @@ func formatDuration(secs int64) string {
 
 // formatHours writes an estimate: "2.5 h".
 func formatHours(h float64) string { return strconv.FormatFloat(h, 'f', -1, 64) + nbsp + "h" }
-
-// initials are the avatar's letters: the first letters of the first and
-// the last word of the name, "AL" for "Ada Lovelace".
-func initials(name string) string {
-	words := strings.Fields(name)
-	if len(words) == 0 {
-		return "?"
-	}
-	first := []rune(words[0])
-	out := strings.ToUpper(string(first[0]))
-	if len(words) > 1 {
-		last := []rune(words[len(words)-1])
-		out += strings.ToUpper(string(last[0]))
-	}
-	return out
-}
 
 // apiError is a client error of the web layer itself.
 type apiError struct {

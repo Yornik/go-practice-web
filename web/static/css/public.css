@@ -1,0 +1,723 @@
+/* public.css: the pages of a visitor (VESPER.md 8): the landing page, the
+   guide, the sign-in family (sign in, join, setup, recover, check your
+   email, the verified address) and the error pages. It holds only the
+   pages layer: tokens and components come from site.css. The story
+   objects of these pages live in pages.story, where a Go test allows only
+   gpw- classes. */
+@layer pages {
+  /* ---------- Landing: the hero ---------- */
+  /* The projection field: a dot lattice behind the hero, nowhere else. */
+  .gpw-hero { position: relative; overflow: hidden; padding-bottom: 104px; }
+  .gpw-hero::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 760px; pointer-events: none;
+    background: radial-gradient(circle, var(--dot) 1px, transparent 1.5px) 0 0 / 24px 24px;
+  }
+  /* The grid made visible: the 12 columns lettered A to L, ticks every 8 px. */
+  .gpw-ruler { position: relative; height: 32px; border-bottom: 1px solid var(--rule); background: var(--ground); }
+  .gpw-ruler .gpw-g12 { height: 100%; }
+  .gpw-ruler span {
+    height: 100%; padding: 7px 0 0 7px; border-left: 1px solid var(--rule-strong);
+    font: 600 12px/1 var(--f-disp); letter-spacing: .14em; color: var(--ink-2);
+    background: repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 8px) left bottom / 100% 5px no-repeat;
+  }
+  .gpw-hero-grid { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); padding-top: 20px; }
+  .gpw-hero-copy { grid-column: 1 / span 7; grid-row: 1; align-self: center; padding: 8px 0 24px; }
+  .gpw-hero .gpw-h1 { margin-bottom: 30px; }
+  .gpw-hero .gpw-h1 span { display: block; margin-top: .1em; color: var(--signal); }
+  .gpw-hero .gpw-lede { margin-bottom: 34px; }
+  /* "go test -race" never breaks at its hyphen. */
+  .gpw-lede code { white-space: nowrap; }
+  .gpw-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 30px; }
+  .gpw-cta .gpw-link { display: inline-flex; align-items: center; min-height: 32px; }
+  .gpw-invite { margin-top: 16px; font-size: 15px; color: var(--ink-2); }
+
+  /* ---------- Landing: the bands ---------- */
+  /* Every band is its own object; a registration cross marks where its
+     rule meets the grid margin. */
+  .gpw-sec { position: relative; border-top: 1px solid var(--rule); padding: 104px 0 112px; }
+  .gpw-sec::before {
+    content: ""; position: absolute; top: -7px; width: 13px; height: 13px;
+    left: max(calc(var(--edge) - 7px), calc((100% - var(--max)) / 2 + var(--edge) - 7px));
+    background: linear-gradient(var(--rule-strong), var(--rule-strong)) center / 1px 100% no-repeat, linear-gradient(var(--rule-strong), var(--rule-strong)) center / 100% 1px no-repeat;
+  }
+  .gpw-sec-h { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: end; margin-bottom: 44px; }
+  .gpw-sec-h .gpw-h2 { grid-column: 1 / span 8; }
+  .gpw-sec-h .gpw-where { grid-column: 9 / span 4; justify-self: end; text-align: right; line-height: 1.6; }
+  .gpw-sec-h .gpw-sec-lede { grid-column: 1 / span 7; margin-top: 20px; }
+  /* The disclaimer: the last element of the landing page, small. */
+  .gpw-disclaim { max-width: 110ch; margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+
+  /* ---------- The sign-in family: an access panel and plain help ---------- */
+  .gpw-gate { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); row-gap: 48px; align-items: start; padding-top: 56px; padding-bottom: 112px; }
+  .gpw-gate-panel { grid-column: 1 / span 6; position: relative; isolation: isolate; min-width: 0; border-top: 2px solid var(--ink); }
+  /* The plane is chamfered on a pseudo-element, so no focus ring inside is cut. */
+  .gpw-gate-panel::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--surface);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%);
+  }
+  /* The facts in cells. An address takes the width it needs; the short
+     cells give way. */
+  .gpw-gate-strip { display: grid; grid-auto-flow: column; grid-auto-columns: auto; border-bottom: 1px solid var(--rule); }
+  .gpw-gate-strip[hidden] { display: none; }
+  .gpw-gate-strip > div { min-width: 0; padding: 12px 12px 13px 16px; border-left: 1px solid var(--rule); }
+  .gpw-gate-strip > div:first-child { border-left: 0; padding-left: 28px; }
+  .gpw-gate-strip dd { margin-top: 3px; font: 600 16px/1.3 var(--f-disp); overflow-wrap: anywhere; }
+  .gpw-addr { font: 500 14px/1.35 var(--f-code); letter-spacing: 0; }
+  .gpw-addr, .gpw-addr-t { overflow-wrap: normal; }
+  /* A half that is wider than its cell on a phone still breaks, so it
+     never leaves the panel; break-word keeps the cell as wide as the half
+     where there is room. */
+  .gpw-addr .gpw-nobr, .gpw-addr-t .gpw-nobr { display: inline-block; max-width: 100%; white-space: normal; overflow-wrap: break-word; }
+  .gpw-gate-in { padding: 30px 28px 34px; }
+  .gpw-gate-in .gpw-sum { margin-top: 12px; }
+  .gpw-gate-form { margin-top: 30px; }
+  .gpw-gate-form > .btn-primary { margin-top: 26px; min-height: 52px; }
+  /* 26 px is the gap under a field; a form without one starts with its button. */
+  .gpw-gate-form > .btn-primary:first-child { margin-top: 0; }
+  .gpw-gate-form > .gpw-cb + .btn-primary, .gpw-gate-warn + .btn-primary { margin-top: 22px; }
+  .gpw-gate-warn { margin-top: 14px; }
+  .gpw-gate-form > .form-status:not(:empty), .gpw-gate-stat:not(:empty) { margin-top: 18px; }
+  .gpw-gate-more { display: grid; gap: 8px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 15.5px; color: var(--ink-2); }
+  .gpw-gate-more a, .gpw-gate-more .link-button { color: var(--ink); }
+  .gpw-gate-from { margin-top: 22px; font-weight: 700; }
+  .gpw-quote { margin-top: 8px; padding: 4px 0 4px 16px; box-shadow: inset 2px 0 0 var(--rule-strong); font-style: italic; color: var(--ink-2); overflow-wrap: anywhere; }
+  .gpw-gate-p { margin-top: 22px; max-width: 58ch; }
+  .gpw-gate-btns { margin-top: 26px; }
+  .gpw-gate-ok { display: flex; align-items: center; gap: 8px; margin-top: 22px; color: var(--ink); font-weight: 700; }
+  .gpw-gate-aside { grid-column: 8 / span 5; min-width: 0; padding-top: 18px; border-top: 2px solid var(--ink); font-size: 16.5px; }
+  .gpw-gate-aside > p + p, .gpw-gate-aside > .gpw-olist + p { margin-top: 12px; }
+  .gpw-gate-aside > .btn { margin-top: 22px; }
+  .gpw-gate-ah { margin-bottom: 14px; font: 650 24px/1.2 var(--f-disp); }
+  .gpw-olist { display: grid; gap: 10px; padding: 0; list-style: none; counter-reset: gpw-step; }
+  .gpw-olist li { counter-increment: gpw-step; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+  .gpw-olist li::before { content: counter(gpw-step); font: 300 22px/1 var(--f-disp); font-stretch: 125%; color: var(--ink-2); }
+  /* Join: 2 numbered steps; the numbers are the building's numerals. */
+  .gpw-steps { padding: 0; list-style: none; }
+  .gpw-steps > li { display: grid; grid-template-columns: 52px minmax(0, 1fr); column-gap: 18px; padding: 22px 0 8px; border-top: 1px solid var(--rule-strong); }
+  .gpw-steps > li + li { margin-top: 18px; }
+  .gpw-steps > li > div { min-width: 0; }
+  .gpw-step-n { font: 250 52px/.82 var(--f-disp); font-stretch: 125%; color: var(--ink-2); }
+  .gpw-step-h { margin-bottom: 16px; font: 650 22px/1.2 var(--f-disp); }
+  .gpw-steps .form-status:not(:empty) { margin-top: 14px; }
+  .gpw-step-note { margin-top: 14px; }
+
+  /* ---------- The guide: a manual with numbered sections ---------- */
+  .gpw-guide { padding-top: 48px; padding-bottom: 112px; }
+  .gpw-guide-h1 { font: 640 clamp(40px, 5vw, 64px)/1 var(--f-disp); font-stretch: 106%; letter-spacing: -.015em; }
+  .gpw-guide-head .gpw-sum { margin-top: 14px; font-size: 19px; }
+  /* The course in numbers, said once. */
+  .gpw-guide-spec { max-width: 66ch; margin-top: 18px; padding-top: 12px; border-top: 2px solid var(--ink); font: 600 17px/1.4 var(--f-disp); font-variant-numeric: tabular-nums; }
+  .gpw-guide-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: start; margin-top: 56px; }
+  .gpw-toc { grid-column: 1 / span 3; position: sticky; top: 24px; }
+  .gpw-toc > .gpw-lbl { padding-bottom: 10px; }
+  .gpw-toc ol { padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+  .gpw-toc a {
+    display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 4px; align-items: baseline; min-height: 32px; padding: 8px 8px 8px 12px;
+    border-bottom: 1px solid var(--rule); font-size: 15.5px; line-height: 1.35; color: var(--ink-2); text-decoration: none;
+  }
+  .gpw-toc a span { font: 300 15px/1 var(--f-disp); font-stretch: 125%; }
+  .gpw-toc a:hover { color: var(--ink); }
+  .gpw-toc a[aria-current="true"] { color: var(--ink); font-weight: 700; box-shadow: inset 2px 0 0 var(--signal); }
+  .gpw-guide-body { grid-column: 4 / span 7; min-width: 0; }
+  .gpw-gs { scroll-margin-top: 24px; }
+  .gpw-gs + .gpw-gs { margin-top: 64px; }
+  .gpw-gs-h { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: end; padding-top: 18px; border-top: 2px solid var(--ink); }
+  .gpw-gs-n { font: 250 64px/.8 var(--f-disp); font-stretch: 125%; color: var(--ink-2); }
+  .gpw-gs-h h2 { font: 640 36px/1.05 var(--f-disp); font-stretch: 106%; letter-spacing: -.012em; }
+  .gpw-guide .gpw-prose { max-width: 66ch; margin-top: 22px; font-size: 17.5px; line-height: 1.62; }
+  .gpw-guide .gpw-prose > * + * { margin-top: 14px; }
+  .gpw-guide .gpw-prose h3 { margin: 34px 0 10px; font: 650 21px/1.25 var(--f-disp); }
+  .gpw-guide .gpw-prose ol, .gpw-guide .gpw-prose ul { margin-top: 12px; padding-left: 1.4em; }
+  /* Room for a marker of 2 digits: "10." */
+  .gpw-guide .gpw-prose ol { padding-left: 2em; }
+  .gpw-guide .gpw-prose ol { list-style: decimal; }
+  .gpw-guide .gpw-prose ul { list-style: square; }
+  .gpw-guide .gpw-prose li + li { margin-top: 6px; }
+  /* A flag such as -race never breaks at its hyphen. A block keeps its own
+     white-space: pre, so its tabs and blank lines stay. */
+  .gpw-guide .gpw-prose :not(pre) > code { font-size: .88em; white-space: nowrap; }
+  /* guide.js marks a phrase: it wraps at its spaces, each word whole. */
+  .gpw-guide .gpw-prose code.gpw-code-words { white-space: normal; }
+  .gpw-guide .gpw-prose a { text-decoration-color: var(--signal); }
+  /* The checklist: a card that prints on 1 page. */
+  .gpw-guide-card { max-width: 66ch; margin-top: 22px; padding: 4px 22px 20px; background: var(--surface); box-shadow: inset 0 2px 0 var(--ink); }
+  .gpw-guide-card .gpw-prose { margin-top: 14px; font-size: 17px; }
+  .gpw-guide-card .gpw-prose p { font-weight: 700; }
+  .gpw-guide-card-h { display: none; }
+  .gpw-guide-print { margin-top: 20px; }
+  /* The 4 guides on reading Go messages, as disclosures. */
+  /* minmax(0, 1fr): a wide pre scrolls in its own frame instead of widening the page. */
+  .gpw-guide-guides { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 66ch; margin-top: 18px; border-top: 1px solid var(--rule); }
+  .gpw-guide-guides details { border-bottom: 1px solid var(--rule); }
+  .gpw-guide-guides summary {
+    display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; list-style: none;
+    font: 700 17px/1.3 var(--f-read);
+  }
+  .gpw-guide-guides summary::-webkit-details-marker { display: none; }
+  .gpw-guide-guides summary .icon { width: 14px; height: 14px; color: var(--signal); stroke-width: 2; }
+  .gpw-guide-guides details[open] summary .icon { transform: rotate(90deg); }
+  .gpw-guide-guides .gpw-prose { margin: 0 0 22px 24px; font-size: 16.5px; }
+  .gpw-guide-guides .gpw-prose h2 { margin-top: 22px; font: 650 18px/1.3 var(--f-disp); }
+  .gpw-guide-keys { margin-top: 4px; align-items: baseline; }
+  .gpw-guide-keys dt { white-space: nowrap; }
+  /* The README's tools table and its Go code block. */
+  .gpw-guide-tools table { margin: 14px 0 18px; border-collapse: collapse; font-size: 15px; line-height: 1.45; }
+  .gpw-guide-tools thead th { padding: 8px 12px 6px 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule-strong); text-align: left; font: 700 12.5px/1.2 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+  .gpw-guide-tools td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .gpw-guide-tools td:first-child, .gpw-guide-tools th:first-child { padding-left: 0; }
+  .gpw-guide-tools td:first-child { white-space: nowrap; font: 400 14px/1.45 var(--f-code); }
+  /* 1 pre block that keeps its tabs and line breaks (round 2's broken block). */
+  .gpw-guide pre { margin-top: 14px; padding: 12px 16px; overflow-x: auto; white-space: pre; tab-size: 4; background: var(--surface); box-shadow: inset 2px 0 0 var(--rule-strong); font: 400 14.5px/1.5 var(--f-code); }
+  .gpw-guide pre code { font-size: 1em; white-space: inherit; }
+  .gpw-guide pre .line, .gpw-guide pre .cl { display: inline; }
+
+  /* ---------- Errors: 404, 403, 500 ---------- */
+  .gpw-nf { padding-top: 40px; padding-bottom: 96px; }
+  .gpw-nf-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: end; }
+  .gpw-nf-num { grid-column: 1 / span 5; margin-left: -8px; font: 200 176px/.8 var(--f-disp); font-stretch: 125%; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .gpw-nf-title { grid-column: 6 / span 7; padding-bottom: 8px; }
+  .gpw-nf-title .gpw-sum { margin-top: 14px; }
+  .gpw-nf-ways { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; padding: 0; list-style: none; }
+
+  /* ---------- From 1180 px down ---------- */
+  @media (max-width: 1180px) {
+    .gpw-hero-copy { grid-column: 1 / span 6; }
+  }
+  @media (max-width: 1080px) {
+    .gpw-gate-panel { grid-column: 1 / span 7; }
+    .gpw-gate-aside { grid-column: 8 / span 5; }
+    .gpw-toc { grid-column: 1 / -1; position: static; margin-bottom: 48px; }
+    .gpw-toc ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--gut); }
+    .gpw-guide-body { grid-column: 1 / -1; }
+  }
+  @media (max-width: 900px) {
+    .gpw-hero-grid { display: flex; flex-direction: column; padding-top: 40px; }
+    .gpw-hero-copy { order: 1; padding-bottom: 8px; }
+    .gpw-hero::before { height: 640px; }
+    .gpw-gate-panel, .gpw-gate-aside { grid-column: 1 / -1; max-width: 640px; }
+    .gpw-nf-head { display: block; }
+    .gpw-nf-num { margin-bottom: 32px; }
+  }
+
+  /* ---------- Phones: 720 px and down ---------- */
+  @media (max-width: 720px) {
+    .gpw-ruler .gpw-g12 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .gpw-ruler span:nth-child(n+5) { display: none; }
+    .gpw-hero { padding-bottom: 64px; }
+    .gpw-hero .gpw-h1 { font-size: 46px; margin-bottom: 22px; }
+    .gpw-hero .gpw-lede { font-size: 17px; }
+    .gpw-cta .btn-primary { width: 100%; }
+    .gpw-sec { padding: 64px 0 72px; }
+    .gpw-sec-h { display: block; margin-bottom: 30px; }
+    .gpw-sec-h .gpw-where { display: block; margin-top: 12px; text-align: left; }
+    .gpw-gate { padding-top: 28px; padding-bottom: 72px; row-gap: 40px; }
+    /* The strip becomes a 1-column title block: a label beside its value. */
+    .gpw-gate-strip { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
+    /* Start, not baseline: a wrapped address would pull its label down
+       to its last line. */
+    .gpw-gate-strip > div, .gpw-gate-strip > div:first-child { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: start; column-gap: 10px; padding: 9px 16px; border-left: 0; }
+    .gpw-gate-strip dt { padding-top: 3px; }
+    .gpw-gate-strip > div + div { border-top: 1px solid var(--rule); }
+    .gpw-gate-strip dd { margin-top: 0; }
+    .gpw-gate-in { padding: 22px 16px 26px; }
+    .gpw-gate-form > .btn-primary, .gpw-steps .btn-primary, .gpw-gate-btns .btn-primary { width: 100%; white-space: normal; text-align: center; line-height: 1.25; padding-top: 10px; padding-bottom: 10px; }
+    .gpw-gate-btns .btn { flex: 1 1 auto; }
+    .gpw-steps > li { grid-template-columns: 34px minmax(0, 1fr); column-gap: 12px; }
+    .gpw-step-n { font-size: 40px; font-weight: 300; }
+    .gpw-guide { padding-top: 28px; padding-bottom: 72px; }
+    .gpw-guide-h1 { font-size: 40px; }
+    .gpw-guide-head .gpw-sum { font-size: 17px; }
+    .gpw-guide-grid { margin-top: 40px; }
+    .gpw-toc ol { grid-template-columns: minmax(0, 1fr); }
+    .gpw-gs-h { grid-template-columns: 52px minmax(0, 1fr); }
+    .gpw-gs-n { font-size: 48px; }
+    .gpw-gs-h h2 { font-size: 28px; }
+    .gpw-guide .gpw-prose { font-size: 16.5px; }
+    .gpw-guide-card { padding: 4px 16px 18px; }
+    .gpw-guide-guides .gpw-prose { margin-left: 0; }
+    .gpw-nf-num { font-size: 120px; margin-bottom: 28px; }
+    .gpw-nf-ways .btn { padding: 0 16px; }
+  }
+  @media (max-width: 400px) {
+    .gpw-hero .gpw-h1 { font-size: 42px; }
+    .gpw-nf-num { font-size: 104px; }
+  }
+
+  /* ---------- Preferences ---------- */
+  @media (prefers-reduced-transparency: reduce) {
+    .gpw-hero::before { display: none; }
+  }
+  @media (prefers-contrast: more) {
+    .gpw-hero::before { display: none; }
+  }
+  @media (forced-colors: active) {
+    .gpw-gate-panel { border: 1px solid CanvasText; }
+    .gpw-gate-panel::before { display: none; }
+    .gpw-nf-num { forced-color-adjust: none; color: CanvasText; }
+    .gpw-toc a[aria-current="true"] { border-left: 2px solid Highlight; }
+  }
+  @media print {
+    .gpw-ruler, .gpw-hero::before { display: none; }
+    /* "Print the checklist" prints the card alone: ink on white, no story. */
+    body.print-checklist * { visibility: hidden; }
+    body.print-checklist [data-checklist], body.print-checklist [data-checklist] * { visibility: visible; }
+    body.print-checklist [data-checklist] { position: absolute; left: 0; top: 0; width: 100%; max-width: none; margin: 0; background: #FFFFFF; color: #000000; box-shadow: inset 0 2px 0 #000000; }
+    body.print-checklist .gpw-guide-card-h { display: block; padding-top: 14px; font: 700 20px/1.2 var(--f-read); }
+    .gpw-toc { display: none !important; }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The story objects of these pages (VESPER.md 6.19 to 6.37). Every     */
+/* selector uses gpw- classes only; a Go test checks it.                */
+/* ------------------------------------------------------------------ */
+@layer pages.story {
+  /* SVG drawing classes: the Spire and the 404's floor scale. Text sizes
+     are in user units: each drawing's scale is known, so labels render at
+     12 px or more. */
+  .gpw-sv-h { stroke: var(--rule); fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .gpw-sv-h2 { stroke: var(--rule-strong); fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .gpw-sv-rain { stroke: var(--rule-strong); fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .55; }
+  .gpw-sv-plane { fill: var(--surface); stroke: none; }
+  .gpw-sv-am { stroke: var(--signal); fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .gpw-sv-amf { fill: var(--signal-fill); stroke: none; }
+  .gpw-sv-amw { fill: var(--signal-wash); stroke: var(--signal); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .gpw-spire .gpw-sv-cy { stroke: var(--hush); fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .gpw-sv-cyf { fill: var(--hush-wash); stroke: var(--hush); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .gpw-sv-dash { stroke-dasharray: 4 4; }
+  .gpw-sv-t { fill: var(--ink-2); font: 600 14px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; }
+  .gpw-sv-t-ink { fill: var(--ink); }
+  .gpw-sv-t-am { fill: var(--signal); }
+  .gpw-sv-t-cy { fill: var(--hush); }
+  .gpw-sv-t-lg { font-size: 16px; font-weight: 700; }
+  .gpw-sv-t-nar { font-size: 12.5px; font-stretch: 70%; letter-spacing: .08em; font-weight: 700; }
+  /* A 0 in a Saira label is set in Atkinson Mono, whose 0 is slashed. */
+  .gpw-sv-z { font-family: var(--f-code); font-weight: 600; letter-spacing: 0; }
+  .gpw-sv-unit { text-transform: none; letter-spacing: .02em; }
+
+  /* The Spire (6.26): the hero's section drawing. */
+  .gpw-spire { grid-column: 8 / span 5; grid-row: 1; align-self: start; }
+  .gpw-spire svg { display: block; width: 100%; height: auto; overflow: visible; }
+  /* 93 % from 1101 px: the labels stay at 12 px or more, and the Rule's
+     first line reaches the first 800 px. */
+  .gpw-spire-win, .gpw-spire-list { display: none !important; }
+
+  /* The Rule poster (6.19): the loudest type on the site, across the grid. */
+  .gpw-lobby { grid-column: 1 / -1; grid-row: 2; position: relative; isolation: isolate; margin-top: 14px; padding: 0 0 28px; container-type: inline-size; }
+  .gpw-lobby::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--surface);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%);
+  }
+  .gpw-rulebar { display: flex; align-items: stretch; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); }
+  .gpw-rulebar .gpw-hazard { flex: none; width: 96px; }
+  .gpw-rule1 { padding: 10px 22px 9px 18px; border-right: 1px solid var(--rule); font: 780 30px/1 var(--f-disp); font-stretch: 66%; text-transform: uppercase; letter-spacing: .02em; }
+  .gpw-rulebar .gpw-lbl { align-self: center; padding: 0 18px; }
+  .gpw-rulebar-end { margin-left: auto; }
+  .gpw-poster { padding: 16px 0 0; overflow: hidden; }
+  .gpw-poster p { font-family: var(--f-disp); font-weight: 380; font-stretch: 125%; text-transform: uppercase; line-height: .9; letter-spacing: 0; color: var(--ink); }
+  .gpw-poster span { display: block; padding-left: 4cqi; white-space: nowrap; }
+  .gpw-poster-3 { font-size: calc(92cqi / 9.74); }
+  .gpw-poster-5 { display: none; }
+  .gpw-poster .gpw-poster-hv { font-weight: 700; }
+  /* The caption stands level with the screen's label row, so no empty
+     field opens under the poster. */
+  .gpw-lobby-foot { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: start; margin-top: 32px; padding: 0 4cqi; }
+  .gpw-lobby-cap { grid-column: 1 / span 6; max-width: 56ch; padding: 0 0 6px 18px; border-left: 2px solid var(--signal-fill); font-size: 17px; color: var(--ink-2); }
+  .gpw-lobby-foot .gpw-calm-lobby { grid-column: 9 / span 4; }
+
+  /* Figure 1 (6.37): the projected number against the raw log. */
+  .gpw-fig1-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: stretch; }
+  .gpw-wall { grid-column: 1 / span 4; display: flex; flex-direction: column; padding: 18px 20px; }
+  .gpw-wall-num { display: block; margin: 26px 0 8px -4px; font: 200 210px/.8 var(--f-disp); font-stretch: 125%; }
+  .gpw-wall-val { font: 500 17px/1.3 var(--f-disp); }
+  .gpw-wall-bars { display: flex; gap: 3px; align-items: flex-end; height: 44px; margin-top: 24px; border-bottom: 1px solid var(--screen-hush); }
+  .gpw-wall-bars i { flex: 1; height: 40px; border: 1px solid var(--screen-rule); border-bottom: 0; }
+  .gpw-wall-axis { display: flex; justify-content: space-between; margin-top: 6px; font: 600 12px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; color: var(--screen-2); }
+  .gpw-wall-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 18px; }
+  .gpw-log { grid-column: 5 / span 8; min-width: 0; padding: 18px 24px 22px; background-color: var(--surface); }
+  .gpw-log-h { display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .gpw-log-h code { font-size: 12px; text-transform: none; letter-spacing: 0; }
+  .gpw-log-lines { padding: 0; list-style: none; font: 400 14.5px/1.5 var(--f-code); }
+  /* text-wrap: wrap, not the site's pretty: pretty breaks a raw line at
+     the hyphen of a host name ("vl-" / "gw-2"). */
+  .gpw-log-lines li { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 14px; align-items: start; padding: 9px 0; border-bottom: 1px dashed var(--rule); text-wrap: wrap; }
+  .gpw-log-lines li:last-child { border-bottom: 0; }
+  .gpw-log-lines li > span:first-child { overflow-wrap: anywhere; }
+  .gpw-log mark { padding: 0 2px; background: var(--signal-wash); color: var(--signal); box-shadow: inset 0 -2px 0 var(--signal); }
+  .gpw-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 16px; padding: 16px 0 0; list-style: none; border-top: 1px solid var(--rule); }
+  .gpw-notes li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; font-size: 15px; line-height: 1.45; }
+  .gpw-figcap { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: start; margin-top: 22px; }
+  .gpw-figcap figcaption { grid-column: 1 / span 6; font-size: 15.5px; color: var(--ink-2); }
+  .gpw-figcap figcaption b { color: var(--ink); font-weight: 700; }
+  .gpw-facts { grid-column: 8 / span 5; display: flex; justify-self: end; }
+  .gpw-facts > div { padding: 0 18px; border-left: 1px solid var(--rule-strong); }
+  .gpw-facts dd { margin-top: 3px; font: 600 15.5px/1.35 var(--f-disp); white-space: nowrap; }
+
+  /* The anatomy drawing (6.30): a dimensioned drawing of a compiler
+     message. The raw line, its brackets, the leaders and the legend are
+     measured in ch of the mono font. */
+  .gpw-dimfig { padding-top: 22px; border-top: 2px solid var(--ink); container-type: inline-size; }
+  .gpw-dim-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px 24px; margin-bottom: 36px; }
+  .gpw-prob-src { display: flex; gap: 12px; align-items: center; font-size: 15px; color: var(--ink-2); }
+  .gpw-prob-title { max-width: 32ch; margin: 14px 0 6px; font: 700 26px/1.2 var(--f-read); text-wrap: balance; }
+  .gpw-prob-title code { color: var(--signal); font-size: .9em; }
+  .gpw-dim-frame { margin-top: 34px; overflow-x: auto; scrollbar-width: thin; }
+  .gpw-dim-frame:focus-visible { outline-offset: -3px; }
+  .gpw-dim, .gpw-dim-legend { width: 37ch; font: 400 min(48px, 100cqi / 23.4)/1 var(--f-code); }
+  .gpw-dim-raw { position: relative; padding-bottom: 52px; white-space: pre; color: var(--ink); }
+  .gpw-dp { position: relative; display: inline-block; padding: 2px 0; }
+  .gpw-dp::after { content: ""; position: absolute; left: .12ch; right: .12ch; top: calc(100% + 6px); height: 12px; border: 1px solid var(--ink-2); border-top: 0; }
+  /* The letter is drawn from data-part, so the message keeps its exact
+     text for copying. */
+  .gpw-dp::before {
+    content: attr(data-part); position: absolute; left: 50%; top: calc(100% + 26px); transform: translateX(-50%);
+    display: grid; place-items: center; width: 24px; height: 24px;
+    font: 700 13px/1 var(--f-disp); color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); background: var(--ground);
+  }
+  .gpw-dp.gpw-part-key { color: var(--red); background: var(--red-wash); }
+  .gpw-dim-lead { display: block; width: 100%; height: 56px; margin-top: -2px; }
+  .gpw-dim-lead path { fill: none; stroke: var(--signal); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .gpw-dim-legend { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--rule-strong); }
+  .gpw-dim-legend > div { min-width: 0; padding: 12px 18px 0 0; }
+  .gpw-dim-legend dt { display: flex; align-items: center; gap: 10px; font: 400 15px/1.2 var(--f-code); }
+  .gpw-dim-legend dt i {
+    flex: none; display: grid; place-items: center; width: 24px; height: 24px;
+    font: 700 13px/1 var(--f-disp); font-style: normal; color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal);
+  }
+  .gpw-dim-legend dd { margin-top: 8px; font: 400 15px/1.45 var(--f-read); color: var(--ink-2); }
+  /* The drawing's title block: what it means, and the 3 promises. */
+  .gpw-dim-tb { display: grid; grid-template-columns: 6fr 2fr 2fr 2fr; margin-top: 40px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule-strong); }
+  .gpw-dim-tb > div { min-width: 0; padding: 14px 18px 16px; border-left: 1px solid var(--rule-strong); }
+  .gpw-dim-tb > div:first-child { padding-left: 0; border-left: 0; }
+  .gpw-dim-tb dd { margin-top: 6px; font-size: 16px; line-height: 1.45; }
+  .gpw-dim-tb-means .gpw-lbl { color: var(--signal); }
+  .gpw-dim-tb-means dd { font-size: 18px; }
+
+  /* The timing strip (6.29): a 2 px track cut by 5 gates. The track
+     carries the state: ink for done, amber for live, a hairline for next. */
+  .gpw-ts-board { border-top: 2px solid var(--ink); }
+  .gpw-ts-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: end; padding: 22px 0 0; }
+  .gpw-ts-head .gpw-h2 { grid-column: 1 / span 5; }
+  .gpw-ts-head > p:not(.gpw-lbl) { grid-column: 6 / span 4; font-size: 16.5px; color: var(--ink-2); }
+  .gpw-ts-key { grid-column: 10 / span 3; justify-self: end; text-align: right; }
+  .gpw-ts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 64px; padding: 0; list-style: none; }
+  .gpw-ts > li { position: relative; display: grid; grid-template-rows: auto auto auto auto 1fr; min-width: 0; }
+  .gpw-ts-n { display: flex; align-items: flex-end; gap: 14px; padding: 0 12px 12px 14px; font: 250 48px/.8 var(--f-disp); font-stretch: 125%; color: var(--ink); }
+  .gpw-ts-next .gpw-ts-n { color: var(--ink-2); }
+  .gpw-ts-live .gpw-ts-n { color: var(--signal); }
+  .gpw-ts-tag { margin-bottom: 2px; padding: 5px 8px; font: 700 12px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; color: var(--on-signal); background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); }
+  .gpw-ts-track { position: relative; display: block; height: 2px; background: var(--ink); }
+  .gpw-ts-track::before { content: ""; position: absolute; left: 0; top: -11px; width: 2px; height: 24px; background: var(--ink); }
+  .gpw-ts > li:last-child .gpw-ts-track::after { content: ""; position: absolute; right: 0; top: -11px; width: 2px; height: 24px; background: var(--rule-strong); }
+  .gpw-ts-live .gpw-ts-track { height: 6px; margin-top: -2px; background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); }
+  .gpw-ts-live .gpw-ts-track::before { top: -9px; }
+  .gpw-ts-next .gpw-ts-track { height: 1px; margin-bottom: 1px; background: var(--rule-strong); }
+  .gpw-ts-next .gpw-ts-track::before { top: -11.5px; background: var(--rule-strong); }
+  .gpw-ts-split { padding: 18px 12px 0 14px; font: 500 22px/1 var(--f-disp); font-stretch: 112%; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .gpw-ts-live .gpw-ts-split { padding-top: 20px; font-size: 18px; font-weight: 650; font-stretch: 88%; text-transform: uppercase; letter-spacing: .08em; color: var(--signal); }
+  .gpw-ts-next .gpw-ts-split { color: var(--ink-2); }
+  .gpw-ts h3 { padding: 30px 20px 8px 14px; font: 720 20px/1.08 var(--f-disp); font-stretch: 72%; text-transform: uppercase; letter-spacing: .01em; }
+  .gpw-ts h3 code { font-family: inherit; font-size: 1em; text-transform: none; }
+  .gpw-ts-next h3 { color: var(--ink-2); }
+  .gpw-ts-cap { max-width: 30ch; padding: 0 24px 0 14px; font-size: 15.5px; color: var(--ink-2); }
+
+  /* The lobby directory board (6.25): HUSH's row is the only coloured row. */
+  .gpw-dir { background: var(--surface); border-top: 2px solid var(--ink); }
+  .gpw-dir-top { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: end; padding: 28px 32px 26px; }
+  .gpw-dir-top .gpw-h2 { grid-column: 1 / span 5; }
+  .gpw-dir-top > p:not(.gpw-lbl) { grid-column: 6 / span 4; font-size: 16.5px; color: var(--ink-2); }
+  .gpw-dir-sort { grid-column: 10 / span 3; justify-self: end; text-align: right; line-height: 1.6; }
+  .gpw-dir-list { padding: 0; list-style: none; }
+  .gpw-dir-cols, .gpw-dir-row { display: grid; grid-template-columns: 168px minmax(0, 4fr) minmax(0, 5fr) minmax(0, 2.4fr); column-gap: var(--gut); align-items: center; padding-left: 32px; padding-right: 32px; }
+  .gpw-dir-cols { padding-top: 10px; padding-bottom: 10px; border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong); background: var(--surface-2); }
+  .gpw-dir-row { padding-top: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .gpw-dir-row:last-child { border-bottom: 0; }
+  .gpw-dir-fl { font: 200 64px/.8 var(--f-disp); font-stretch: 125%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .gpw-dir-who b { display: block; font: 650 23px/1.15 var(--f-disp); }
+  .gpw-dir-who span { font-size: 15px; color: var(--ink-2); }
+  .gpw-dir-line { font-size: 16.5px; }
+  .gpw-dir-desk { font: 600 13px/1.4 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+  .gpw-dir-hush { color: var(--hush); background: var(--hush-wash); }
+  .gpw-dir-hush .gpw-dir-who span, .gpw-dir-hush .gpw-dir-desk { color: var(--hush); }
+  .gpw-dir-hush .gpw-dir-line { font-style: italic; }
+
+  /* The course as a skyline (6.15): the copy over its left half. */
+  .gpw-sky-band { position: relative; }
+  .gpw-sky-copy { position: absolute; left: 0; top: 0; z-index: 1; width: 48%; }
+  .gpw-sky-copy .gpw-sec-lede { margin-top: 18px; }
+  .gpw-sky-note { display: flex; justify-content: space-between; gap: 24px; margin-top: 18px; font-size: 15px; color: var(--ink-2); }
+
+  /* The departures board (6.35): Year 1 and Year 2, split-flap cells. */
+  .gpw-dep { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gut); margin-top: 72px; }
+  .gpw-dep-year { min-width: 0; }
+  .gpw-dep-yh { display: flex; flex-direction: column; gap: 6px; padding-bottom: 14px; }
+  .gpw-dep-yh h3 { font: 780 52px/.9 var(--f-disp); font-stretch: 66%; text-transform: uppercase; }
+  .gpw-dep-tier { padding: 16px 0 14px; border-top: 2px solid var(--ink); }
+  .gpw-dep-th { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+  .gpw-dep-th h4 { margin-left: auto; }
+  .gpw-dep-line { margin: 10px 0 8px; font-size: 15.5px; font-style: italic; color: var(--ink-2); }
+  .gpw-dep-list { padding: 0; list-style: none; }
+  .gpw-dep-list li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 5px 0; border-top: 1px solid var(--rule); }
+  .gpw-dep-n { position: relative; display: grid; place-items: center; height: 30px; font: 300 19px/1 var(--f-disp); font-stretch: 125%; font-variant-numeric: tabular-nums; background: var(--surface-2); }
+  /* The flap's hinge. */
+  .gpw-dep-n::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--ground); }
+  .gpw-dep-t { font-size: 16px; line-height: 1.35; }
+  .gpw-dep-h { font: 500 15px/1 var(--f-disp); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+  .gpw-dep-start .gpw-dep-n { background: var(--signal-fill); color: var(--on-signal); box-shadow: inset 0 0 0 1px var(--signal-key); font-weight: 400; }
+  .gpw-dep-start .gpw-dep-n::after { border-top-color: var(--on-signal); opacity: .35; }
+  .gpw-dep-start .gpw-dep-t { font-weight: 700; }
+
+  /* The 11 slab (6.34): an amber slab chamfered at 2 corners, black ink. */
+  .gpw-eleven { position: relative; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 36px; align-items: center; margin-top: 80px; padding: 30px 40px 34px 36px; color: var(--on-signal); }
+  .gpw-eleven::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--signal-key); clip-path: polygon(var(--cut-l) 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%, 0 var(--cut-l)); }
+  .gpw-eleven::after { content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--signal-fill); clip-path: polygon(calc(var(--cut-l) - .4px) 0, 100% 0, 100% calc(100% - var(--cut-l) + .4px), calc(100% - var(--cut-l) + .4px) 100%, 0 100%, 0 calc(var(--cut-l) - .4px)); }
+  .gpw-eleven-n { margin: 0 0 -6px -8px; font: 200 230px/.78 var(--f-disp); font-stretch: 125%; letter-spacing: -.04em; }
+  .gpw-eleven-body { min-width: 0; }
+  .gpw-eleven-tags { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)) 2.2fr; gap: 8px; align-items: center; margin-bottom: 24px; }
+  .gpw-el-tag {
+    position: relative; display: grid; justify-items: center; align-content: end; gap: 4px; min-width: 0; height: 52px; padding: 0 2px 7px;
+    font: 760 20px/1 var(--f-disp); font-stretch: 72%; letter-spacing: .04em;
+    box-shadow: inset 0 0 0 2px var(--on-signal); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  }
+  .gpw-el-tag i { width: 7px; height: 7px; margin-top: 6px; margin-bottom: auto; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--on-signal); }
+  .gpw-el-key { display: flex; justify-content: center; }
+  .gpw-el-key .gpw-keybig { width: 100%; max-width: 148px; height: 52px; color: var(--on-signal); }
+  .gpw-eleven p { max-width: 52ch; font-size: 20px; line-height: 1.45; }
+  .gpw-eleven p b { font: 760 22px/1 var(--f-disp); font-stretch: 80%; text-transform: uppercase; letter-spacing: .03em; }
+
+  /* The placard (6.36): the rules, printed and screwed to the wall. */
+  .gpw-placard { position: relative; padding: 40px 48px 36px; border: 2px solid var(--ink); background: var(--ground); }
+  .gpw-screw { position: absolute; width: 12px; height: 12px; fill: none; stroke: var(--rule-strong); stroke-width: 1.5; }
+  .gpw-screw:nth-child(1) { left: 12px; top: 12px; }
+  .gpw-screw:nth-child(2) { right: 12px; top: 12px; }
+  .gpw-screw:nth-child(3) { left: 12px; bottom: 12px; }
+  .gpw-screw:nth-child(4) { right: 12px; bottom: 12px; }
+  .gpw-placard-h { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: end; padding-bottom: 24px; border-bottom: 2px solid var(--ink); }
+  .gpw-placard-h .gpw-h2 { grid-column: 1 / span 5; font-size: clamp(44px, 5vw, 68px); font-weight: 780; font-stretch: 66%; line-height: .9; text-transform: uppercase; }
+  .gpw-placard-h p { grid-column: 7 / span 6; font-size: 16.5px; color: var(--ink-2); }
+  .gpw-pl-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; padding: 0; list-style: none; }
+  .gpw-pl-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; align-items: start; padding: 22px 0; border-bottom: 1px solid var(--rule); font-size: 17px; }
+  .gpw-pl-n { font: 250 52px/.82 var(--f-disp); font-stretch: 125%; color: var(--ink-2); }
+  .gpw-pl-list .gpw-pl-1 { grid-column: 1 / -1; position: relative; grid-template-columns: 120px minmax(0, 1fr); padding: 40px 0 30px; border-bottom: 2px solid var(--ink); }
+  .gpw-pl-1 .gpw-hazard { position: absolute; left: 0; right: 0; top: 0; height: 12px; }
+  .gpw-pl-1 .gpw-pl-n { font-size: 112px; font-weight: 220; color: var(--signal); }
+  .gpw-pl-1 p { align-self: center; max-width: 40ch; font: 600 clamp(22px, 2.4vw, 30px)/1.25 var(--f-read); }
+
+  /* The 404's roll call (6.27): a printout on tractor-feed paper,
+     sprocket holes and a perforation in both margins. */
+  .gpw-nf-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: start; margin-top: 64px; }
+  .gpw-po {
+    grid-column: 1 / span 8; position: relative; min-width: 0; padding: 0 60px; border-top: 2px solid var(--ink); background-color: var(--surface);
+    background-image:
+      radial-gradient(circle at 21px 13px, var(--ground) 0 5px, transparent 5.6px),
+      radial-gradient(circle at calc(100% - 21px) 13px, var(--ground) 0 5px, transparent 5.6px),
+      repeating-linear-gradient(180deg, var(--rule-strong) 0 4px, transparent 4px 9px),
+      repeating-linear-gradient(180deg, var(--rule-strong) 0 4px, transparent 4px 9px);
+    background-size: 100% 26px, 100% 26px, 1px 100%, 1px 100%;
+    background-position: 0 0, 0 0, 42px 0, calc(100% - 42px) 0;
+    background-repeat: repeat-y, repeat-y, no-repeat, no-repeat;
+  }
+  .gpw-po-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 14px 0 11px; border-bottom: 1px solid var(--rule); }
+  /* text-wrap: wrap, not the site's pretty: pretty breaks a command at "--". */
+  .gpw-po-cmd { padding: 16px 0 4px; font: 400 15px/1.5 var(--f-code); color: var(--ink-2); text-wrap: wrap; }
+  .gpw-po-cmd code, .gpw-po-sum code { font-size: 1em; }
+  .gpw-po-scroll { overflow-x: auto; scroll-padding: 10px; }
+  .gpw-po-scroll:focus-visible { outline-offset: -3px; }
+  .gpw-po-tbl { width: 100%; border-collapse: collapse; font: 400 15px/1.45 var(--f-code); }
+  .gpw-po-tbl th { padding: 12px 18px 8px 0; border-bottom: 1px solid var(--rule-strong); text-align: left; white-space: nowrap; font: 600 12px/1.3 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+  .gpw-po-tbl td { padding: 9px 18px 9px 0; border-bottom: 1px dashed var(--rule); vertical-align: top; }
+  .gpw-po-tbl td:first-child { width: 12ch; }
+  .gpw-po-miss td { font-weight: 700; }
+  .gpw-po-miss td:first-child { color: var(--red); }
+  /* The asked-for path is user text: escaped, cut at 60 runes, and never
+     drawn like a link. */
+  .gpw-po-miss td:nth-child(2) { color: var(--ink); overflow-wrap: anywhere; }
+  .gpw-po-tbl .gpw-po-hush { color: var(--hush); }
+  .gpw-po-sum { padding: 14px 0 18px; font: 400 15px/1.5 var(--f-code); color: var(--ink-2); text-wrap: wrap; }
+  .gpw-nf-scale { grid-column: 10 / span 3; }
+  .gpw-nf-svg { display: block; width: 250px; height: 562px; max-width: 100%; }
+  .gpw-nf-scale figcaption { max-width: 32ch; margin-top: 14px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+
+  /* The guide's cast (8.2): a small lobby board; HUSH's row is cyan. */
+  .gpw-cast { max-width: 66ch; margin-top: 4px; padding: 0; list-style: none; border-top: 2px solid var(--ink); background: var(--surface); }
+  .gpw-cast li { display: grid; grid-template-columns: 56px minmax(0, 210px) minmax(0, 1fr); column-gap: 18px; align-items: baseline; padding: 10px 18px; border-bottom: 1px solid var(--rule); }
+  .gpw-cast-fl { font: 300 24px/1 var(--f-disp); font-stretch: 125%; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .gpw-cast b { font: 650 17px/1.3 var(--f-disp); }
+  .gpw-cast-r { font-size: 15.5px; color: var(--ink-2); }
+  .gpw-cast-hush, .gpw-cast-hush .gpw-cast-fl, .gpw-cast-hush .gpw-cast-r { color: var(--hush); background: var(--hush-wash); }
+  .gpw-cast-hush .gpw-cast-r { font-style: italic; }
+
+  @media (min-width: 1101px) {
+    .gpw-spire .gpw-spire-full { width: 93%; margin-left: auto; }
+  }
+  @media (max-width: 1180px) {
+    .gpw-spire { grid-column: 7 / span 6; }
+    /* Below 1180 px 3 columns are narrower than the 250 px drawing, which
+       would shrink its labels under 12 px (VESPER.md 15). */
+    .gpw-po, .gpw-nf-scale { grid-column: 1 / -1; }
+    .gpw-nf-scale { display: grid; grid-template-columns: 250px minmax(0, 1fr); column-gap: 28px; align-items: end; margin-top: 48px; }
+    .gpw-sky-copy { position: static; width: auto; margin-bottom: 40px; }
+    .gpw-sky-copy .gpw-sec-lede { max-width: 60ch; }
+  }
+  @media (max-width: 1080px) {
+    .gpw-ts-n { gap: 8px; padding-right: 6px; font-size: 40px; }
+    .gpw-ts h3 { padding-right: 12px; font-size: 18px; }
+    .gpw-ts-cap { padding-right: 14px; font-size: 15px; }
+    .gpw-dir-cols, .gpw-dir-row { grid-template-columns: 120px minmax(0, 4fr) minmax(0, 5fr); }
+    .gpw-dir-row .gpw-dir-desk { grid-column: 2 / -1; margin-top: 4px; }
+    .gpw-dir-cols span:last-child { display: none; }
+    .gpw-dir-fl { font-size: 52px; }
+    .gpw-eleven-tags { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .gpw-el-key { grid-column: 1 / -1; justify-content: flex-start; }
+    .gpw-el-key .gpw-keybig { width: 148px; }
+    .gpw-figcap { display: block; }
+    .gpw-facts { justify-self: start; margin-top: 16px; }
+    .gpw-facts > div:first-child { padding-left: 0; border-left: 0; }
+  }
+  @media (max-width: 900px) {
+    .gpw-lobby { order: 2; margin-top: 44px; }
+    .gpw-spire { order: 3; align-self: center; width: 100%; max-width: 520px; margin-top: 48px; }
+    .gpw-dim-tb { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gpw-dim-tb-means { grid-column: 1 / -1; padding-left: 0 !important; border-bottom: 1px solid var(--rule-strong); }
+    .gpw-dim-tb > div:nth-child(2) { padding-left: 0; border-left: 0; }
+    .gpw-fig1-grid .gpw-wall { grid-column: 1 / span 5; }
+    .gpw-fig1-grid .gpw-log { grid-column: 6 / span 7; }
+    .gpw-notes { grid-template-columns: 1fr; }
+    .gpw-dep { grid-template-columns: 1fr; row-gap: 56px; }
+    .gpw-ts-head .gpw-h2, .gpw-ts-head > p:not(.gpw-lbl), .gpw-ts-key { grid-column: 1 / -1; justify-self: start; margin-top: 12px; text-align: left; }
+    .gpw-dir-top .gpw-h2, .gpw-dir-top > p:not(.gpw-lbl), .gpw-dir-sort { grid-column: 1 / -1; justify-self: start; margin-top: 10px; text-align: left; }
+    .gpw-placard-h .gpw-h2, .gpw-placard-h p { grid-column: 1 / -1; }
+    .gpw-placard-h p { margin-top: 16px; }
+  }
+  @media (max-width: 720px) {
+    /* The phone cut of the Spire: floors 54 to 64, then the facts as text. */
+    .gpw-spire-full { display: none !important; }
+    .gpw-spire-win { display: block !important; }
+    .gpw-spire-list { display: block !important; margin-top: 18px; }
+    .gpw-spire-list dl { border-top: 1px solid var(--rule-strong); }
+    .gpw-spire-list dl > div { display: grid; grid-template-columns: 116px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+    .gpw-spire-list dt { font: 650 14px/1.35 var(--f-disp); color: var(--signal); }
+    .gpw-spire-list dl > div:nth-child(n+2) dt { color: var(--ink); }
+    .gpw-lobby { padding-bottom: 20px; }
+    .gpw-rulebar .gpw-hazard { width: 40px; }
+    .gpw-rule1 { padding: 10px 14px 9px 12px; font-size: 26px; }
+    .gpw-rulebar .gpw-lbl { display: none; }
+    .gpw-poster { padding-top: 18px; }
+    .gpw-poster-3 { display: none; }
+    .gpw-poster-5 { display: block; font-size: calc(90cqi / 6.92); }
+    .gpw-poster span { padding-left: 5cqi; }
+    .gpw-lobby-foot { display: block; margin-top: 22px; padding: 0 5cqi; }
+    .gpw-lobby-cap { font-size: 15.5px; }
+    .gpw-lobby-foot .gpw-calm-lobby { margin-top: 22px; }
+    .gpw-fig1-grid { display: block; }
+    .gpw-wall-num { font-size: 150px; }
+    .gpw-log { margin-top: 20px; padding: 14px 14px 16px; }
+    .gpw-log-lines { font-size: 13px; }
+    .gpw-facts { display: grid; grid-template-columns: 1fr 1fr; row-gap: 12px; }
+    .gpw-facts > div:first-child { grid-column: 1 / -1; }
+    .gpw-facts > div:first-child, .gpw-facts > div:nth-child(2) { padding-left: 0; border-left: 0; }
+    .gpw-prob-title { font-size: 21px; }
+    /* The drawing on a phone: the line keeps 1 line and scrolls in its
+       frame; the legend is a list. */
+    .gpw-dim { font-size: 24px; }
+    .gpw-dim-frame { margin-top: 24px; padding-bottom: 6px; }
+    .gpw-dim-raw { padding-bottom: 50px; }
+    .gpw-dim-lead { display: none; }
+    .gpw-dim-legend { width: auto; grid-template-columns: 1fr; font-size: 16px; }
+    .gpw-dim-legend > div { display: grid; grid-template-columns: minmax(0, 13ch) minmax(0, 1fr); column-gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+    .gpw-dim-legend dd { margin-top: 0; }
+    .gpw-dim-tb { grid-template-columns: 1fr; margin-top: 28px; }
+    .gpw-dim-tb > div, .gpw-dim-tb > div:nth-child(2) { padding: 12px 0; border-left: 0; border-top: 1px solid var(--rule); }
+    .gpw-dim-tb > div:first-child { border-top: 0; }
+    /* The shift on a phone: a tram line of 5 stations. */
+    .gpw-ts { grid-template-columns: 1fr; margin-top: 36px; }
+    .gpw-ts > li { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 14px; padding: 0 0 26px 34px; }
+    .gpw-ts > li:last-child { padding-bottom: 4px; }
+    .gpw-ts-n { grid-column: 1; grid-row: 1; padding: 0; font-size: 36px; font-weight: 300; }
+    .gpw-ts-split { grid-column: 2; grid-row: 1; align-self: end; padding: 0; font-size: 19px; }
+    .gpw-ts-live .gpw-ts-split { padding: 0; font-size: 16px; }
+    .gpw-ts h3 { grid-column: 1 / -1; padding: 12px 0 4px; }
+    .gpw-ts-cap { grid-column: 1 / -1; max-width: none; padding: 0; }
+    .gpw-ts-track, .gpw-ts-live .gpw-ts-track, .gpw-ts-next .gpw-ts-track { position: absolute; left: 9px; top: 0; bottom: 0; width: 2px; height: auto; margin: 0; box-shadow: none; }
+    .gpw-ts-live .gpw-ts-track { left: 8px; width: 4px; }
+    .gpw-ts-next .gpw-ts-track { width: 0; border-left: 1px dashed var(--rule-strong); background: none; }
+    .gpw-ts-track::before, .gpw-ts-live .gpw-ts-track::before, .gpw-ts-next .gpw-ts-track::before { left: -6px; top: 4px; width: 14px; height: 14px; }
+    .gpw-ts-live .gpw-ts-track::before { left: -5px; background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); }
+    .gpw-ts-next .gpw-ts-track::before { left: -7px; background: var(--ground); box-shadow: inset 0 0 0 1.5px var(--rule-strong); }
+    .gpw-ts > li:last-child .gpw-ts-track::after { display: none; }
+    .gpw-ts-head .gpw-ts-key { display: none; }
+    .gpw-dir-top { padding: 22px 16px 20px; }
+    .gpw-dir-cols { display: none; }
+    .gpw-dir-row { grid-template-columns: 72px minmax(0, 1fr); row-gap: 6px; padding: 16px; }
+    .gpw-dir-row > :nth-child(n+3) { grid-column: 2; }
+    .gpw-dir-fl { font-size: 40px; font-weight: 300; }
+    .gpw-sky-note { flex-direction: column; gap: 4px; }
+    .gpw-dep { margin-top: 48px; }
+    .gpw-dep-yh h3 { font-size: 40px; }
+    .gpw-dep-th h4 { flex-basis: 100%; margin-left: 0; }
+    .gpw-dep-list li { grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; }
+    .gpw-dep-t { font-size: 15.5px; }
+    .gpw-eleven { grid-template-columns: 1fr; gap: 6px; margin-top: 56px; padding: 22px 20px 24px; }
+    .gpw-eleven-n { font-size: 132px; }
+    .gpw-eleven p { font-size: 17px; }
+    .gpw-placard { padding: 30px 18px 24px; }
+    .gpw-pl-list { grid-template-columns: 1fr; }
+    .gpw-pl-list li { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; font-size: 16px; }
+    .gpw-pl-n { font-size: 38px; font-weight: 300; }
+    .gpw-pl-list .gpw-pl-1 { grid-template-columns: 64px minmax(0, 1fr); padding-top: 30px; }
+    .gpw-pl-1 .gpw-pl-n { font-size: 72px; }
+    .gpw-pl-1 p { font-size: 19px; }
+    .gpw-nf-grid { margin-top: 40px; }
+    .gpw-po {
+      padding: 0 38px;
+      background-image: radial-gradient(circle at 14px 12px, var(--ground) 0 4px, transparent 4.6px), radial-gradient(circle at calc(100% - 14px) 12px, var(--ground) 0 4px, transparent 4.6px), repeating-linear-gradient(180deg, var(--rule-strong) 0 4px, transparent 4px 9px), repeating-linear-gradient(180deg, var(--rule-strong) 0 4px, transparent 4px 9px);
+      background-size: 100% 24px, 100% 24px, 1px 100%, 1px 100%;
+      background-position: 0 0, 0 0, 28px 0, calc(100% - 28px) 0;
+    }
+    .gpw-po-cmd, .gpw-po-sum { font-size: 13.5px; overflow-wrap: anywhere; }
+    /* The table becomes a list: the state in a column, the rest stacked. */
+    .gpw-po-scroll { overflow: visible; }
+    .gpw-po-tbl thead { display: none; }
+    .gpw-po-tbl, .gpw-po-tbl tbody, .gpw-po-tbl tr, .gpw-po-tbl td { display: block; }
+    .gpw-po-tbl tr { display: grid; grid-template-columns: 9ch minmax(0, 1fr); column-gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--rule); font-size: 14px; }
+    .gpw-po-tbl td { padding: 0; border: 0; overflow-wrap: anywhere; }
+    .gpw-po-tbl td:first-child { width: auto; }
+    .gpw-po-tbl td:nth-child(n+3) { grid-column: 2; font-size: 13.5px; font-weight: 400; color: var(--ink-2); }
+    .gpw-po-tbl td:nth-child(n+3)::before { content: attr(data-label) ": "; }
+    .gpw-po-tbl td.gpw-po-hush { color: var(--hush); }
+    .gpw-nf-scale { display: block; }
+    .gpw-cast li { grid-template-columns: 44px minmax(0, 1fr); row-gap: 2px; padding: 10px 14px; }
+    .gpw-cast-fl { grid-row: span 2; font-size: 20px; }
+    .gpw-cast-r { grid-column: 2; }
+  }
+
+  /* Reduced transparency and more contrast: no texture, no translucency. */
+  @media (prefers-reduced-transparency: reduce) {
+    .gpw-sv-rain { opacity: 1; stroke: var(--rule); }
+    .gpw-dep-start .gpw-dep-n::after { display: none; }
+  }
+  @media (prefers-contrast: more) {
+    .gpw-sv-rain { display: none; }
+    .gpw-dep-start .gpw-dep-n::after { display: none; }
+  }
+  /* Forced colours: author backgrounds go, so every plate and panel gets
+     a border, and the drawings take system colours. */
+  @media (forced-colors: active) {
+    .gpw-lobby, .gpw-log, .gpw-dir, .gpw-eleven, .gpw-el-tag, .gpw-dep-n, .gpw-po { border: 1px solid CanvasText; }
+    .gpw-lobby::before, .gpw-eleven::before, .gpw-eleven::after { display: none; }
+    .gpw-wall-num, .gpw-eleven-n, .gpw-dir-fl, .gpw-ts-n, .gpw-pl-n { forced-color-adjust: none; color: CanvasText; }
+    .gpw-el-tag i { position: relative; z-index: 1; border: 1.5px solid CanvasText; box-shadow: none; }
+    .gpw-el-key .gpw-keybig { color: CanvasText; }
+    .gpw-ts-track, .gpw-ts-track::before, .gpw-ts > li:last-child .gpw-ts-track::after { forced-color-adjust: none; background: CanvasText; }
+    .gpw-ts-live .gpw-ts-track, .gpw-ts-live .gpw-ts-track::before { background: Highlight; box-shadow: none; }
+    .gpw-ts-next .gpw-ts-track { background: none; border-top: 1px dashed CanvasText; }
+    .gpw-ts-tag { forced-color-adjust: none; background: Highlight; color: HighlightText; box-shadow: none; }
+    .gpw-dep-start .gpw-dep-n { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+    .gpw-sv-amf { fill: CanvasText; }
+    .gpw-sv-am { stroke: CanvasText; }
+    .gpw-dp::before, .gpw-dim-legend dt i { border: 1px solid CanvasText; }
+  }
+  @media print {
+    .gpw-spire, .gpw-lobby .gpw-calm { display: none; }
+  }
+}

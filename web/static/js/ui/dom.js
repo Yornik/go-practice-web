@@ -81,3 +81,21 @@ export function save(key, value) {
 export function reducedMotion() {
   return matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+
+/**
+ * The text of the nearest heading before el in document order: the one a
+ * reader saw last. It names a control or a region that has no heading of
+ * its own. Returns "" when no heading comes before el.
+ * @param {Element} el
+ */
+export function nearestHeading(el) {
+  const sel = "h1, h2, h3, h4";
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    for (let s = n.previousElementSibling; s; s = s.previousElementSibling) {
+      if (s.matches(sel)) return s.textContent.trim();
+      const inner = s.querySelectorAll(sel);
+      if (inner.length) return inner[inner.length - 1].textContent.trim();
+    }
+  }
+  return "";
+}

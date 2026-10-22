@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +35,10 @@ type config struct {
 	SMTP           mail.Config
 	TrustedProxies []netip.Prefix
 	Dev            bool
+	// MovedFrom is the host the site moved away from, such as
+	// "go-learn.party"; "" when it never moved. A passkey belongs to the
+	// host that made it, so the sign-in page tells its users to recover.
+	MovedFrom string
 }
 
 // knownVars are the variables loadConfig reads. Any other GPW_ variable is
@@ -41,7 +46,7 @@ type config struct {
 var knownVars = []string{
 	"GPW_ADDR", "GPW_METRICS_ADDR", "GPW_PUBLIC_URL", "GPW_DB_PATH", "GPW_COURSE_DIR",
 	"GPW_RUNNER_URL", "GPW_RUNNER_TOKEN", "GPW_SMTP_HOST", "GPW_SMTP_PORT", "GPW_SMTP_USER",
-	"GPW_SMTP_PASSWORD", "GPW_MAIL_FROM", "GPW_TRUSTED_PROXIES", "GPW_DEV",
+	"GPW_SMTP_PASSWORD", "GPW_MAIL_FROM", "GPW_TRUSTED_PROXIES", "GPW_DEV", "GPW_MOVED_FROM",
 }
 
 // loadConfig reads the configuration from environ (os.Environ format). It
@@ -77,7 +82,7 @@ func loadConfig(environ []string) (config, error) {
 			Host:     get("GPW_SMTP_HOST", ""),
 			Username: get("GPW_SMTP_USER", ""),
 			Password: get("GPW_SMTP_PASSWORD", ""),
-			From:     get("GPW_MAIL_FROM", "Go Practice <go-practice@yornik.eu>"),
+			From:     get("GPW_MAIL_FROM", mail.DefaultFrom),
 		},
 	}
 	var err error
@@ -88,6 +93,8 @@ func loadConfig(environ []string) (config, error) {
 	c.PublicURL, err = parsePublicURL(get("GPW_PUBLIC_URL", ""), c.Dev)
 	errs = append(errs, err)
 	c.RunnerURL, err = parseRunnerURL(get("GPW_RUNNER_URL", ""))
+	errs = append(errs, err)
+	c.MovedFrom, err = parseMovedFrom(get("GPW_MOVED_FROM", ""), c.PublicURL)
 	errs = append(errs, err)
 	errs = append(errs,
 		checkAddr("GPW_ADDR", c.Addr),
@@ -137,6 +144,40 @@ func parsePublicURL(s string, dev bool) (string, error) {
 	}
 	return u.Scheme + "://" + u.Host, nil
 }
+
+// parseMovedFrom accepts the bare host name of the old site: the page
+// prints it in sentences, so a scheme, a port or a path would read wrong.
+// It must differ from the host of GPW_PUBLIC_URL.
+func parseMovedFrom(s, publicURL string) (string, error) {
+	if s == "" {
+		return "", nil
+	}
+	// A passkey's relying party is a domain, never an address. A browser
+	// reads a host whose last label is a number as an IPv4 address in any
+	// of its forms (127.1, 0x7f.0.0.1), so such a value cannot be the host
+	// a passkey came from.
+	if len(s) > 253 || !hostName.MatchString(s) || endsInNumber(s) {
+		return "", fmt.Errorf("GPW_MOVED_FROM: %q is not a host name such as go-learn.party", s)
+	}
+	if u, err := url.Parse(publicURL); err == nil && strings.EqualFold(u.Hostname(), s) {
+		return "", fmt.Errorf("GPW_MOVED_FROM: %q is the host of GPW_PUBLIC_URL", s)
+	}
+	return strings.ToLower(s), nil
+}
+
+// endsInNumber is the WHATWG URL standard's "ends in a number" check: the
+// last label is all digits, or 0x and hex digits.
+func endsInNumber(host string) bool {
+	last := host[strings.LastIndexByte(host, '.')+1:]
+	if l := strings.ToLower(last); strings.HasPrefix(l, "0x") {
+		return strings.Trim(l[2:], "0123456789abcdef") == ""
+	}
+	return last != "" && strings.Trim(last, "0123456789") == ""
+}
+
+// hostName is a DNS name of at least 2 labels: letters, digits and
+// hyphens, no hyphen at either end of a label.
+var hostName = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))+$`)
 
 func parseRunnerURL(s string) (string, error) {
 	if s == "" {

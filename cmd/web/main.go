@@ -121,6 +121,8 @@ func serve(log *slog.Logger) error {
 	site, err := web.New(web.Config{
 		PublicURL: cfg.PublicURL,
 		Dev:       cfg.Dev,
+		MovedFrom: cfg.MovedFrom,
+		MailFrom:  cfg.SMTP.From,
 		Store:     st,
 		Course:    crs,
 		Auth:      accounts,

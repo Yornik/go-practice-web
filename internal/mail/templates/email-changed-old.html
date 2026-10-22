@@ -1,9 +1,7 @@
-{{define "heading"}}Your email address is changing{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}">On {{when .E.When}}, someone changed the email address of your Go Practice account from <strong>{{.E.Old}}</strong> to <strong>{{.E.New}}</strong>.</p>
-{{if .E.Pending}}<p style="{{template "p"}}">The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.</p>
-{{else}}<p style="{{template "p"}}">From now on, security notices and recovery links go to {{.E.New}}.</p>
-{{end}}<p style="{{template "p"}}">If you did not do this, sign in and check your account page.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Open my account</a></p>
+<p style="{{template "p"}}"><b>What happened:</b> on {{when .E.When}}, someone changed the email address of your Go Practice account from <b>{{.E.Old}}</b> to <b>{{.E.New}}</b>.{{if .E.Pending}} The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.{{else}} From now on, security notices and recovery links go to {{.E.New}}.{{end}}</p>
+<p style="{{template "p"}}"><b>If you did this:</b> you need to do nothing.</p>
+{{template "warning" "If you did not do this, someone else is signed in to your account. Sign in and check your account page."}}
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+<p style="{{template "p-last"}}"><b>What the link does:</b> it opens your account page. You sign in there with your passkey, as always.</p>
 {{end}}

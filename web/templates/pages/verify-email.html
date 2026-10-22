@@ -1,15 +1,35 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page">
-  <section class="auth narrow" aria-labelledby="verify-title">
-    <header class="page-head">
-      <h1 id="verify-title">Verify your email address</h1>
-      <p class="lede">Confirm that this address is yours. Recovery links can then go to it.</p>
-    </header>
-    <form id="verify-email-form" class="auth-form" data-token="{{.Data.Token}}">
-      <button type="submit" class="btn btn-primary btn-lg">Confirm my address</button>
-      <p class="form-status mt-4" role="status" aria-live="polite"></p>
-    </form>
-    <p class="mt-4" hidden data-verified-next><a class="btn" href="/learn">Open your course</a></p>
+<div class="wrap gpw-gate">
+  <section class="gpw-gate-panel gpw-ghost" aria-labelledby="verify-title">
+    <dl class="gpw-gate-strip" data-before><div><dt class="gpw-lbl">Site</dt><dd>{{zero .Data.Host}}</dd></div><div><dt class="gpw-lbl">Link works</dt><dd>Once</dd></div><div><dt class="gpw-lbl">Works for</dt><dd>{{zero .Data.ValidFor}}</dd></div></dl>
+    {{- /* verify-email.js fills these in from the answer of the API. */}}
+    <dl class="gpw-gate-strip" hidden data-after><div><dt class="gpw-lbl">Address</dt><dd><span class="gpw-addr" data-address></span></dd></div><div><dt class="gpw-lbl">Verified</dt><dd data-verified-at></dd></div></dl>
+    <div class="gpw-gate-in">
+      <div data-before>
+        <h1 id="verify-title" class="gpw-h1-app">Verify your email address</h1>
+        <p class="gpw-sum">Confirm that this address is yours. Recovery links can then go to it.</p>
+        <form id="verify-email-form" class="gpw-gate-form" data-token="{{.Data.Token}}">
+          <button type="submit" class="btn btn-primary gpw-btn-wide">Confirm my address</button>
+        </form>
+      </div>
+      <div hidden data-after>
+        <h1 class="gpw-h1-app">Your email address is verified.</h1>
+        <p class="gpw-sum"><b class="gpw-addr-t" data-address></b> is the address of your account.</p>
+        <p class="gpw-gate-ok"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg><span data-confirmed-at></span></p>
+        <p class="gpw-gate-p">Recovery links and security notices now go to this address.</p>
+        <p class="btn-row gpw-gate-btns" data-verified-next><a class="btn btn-primary" href="/learn">Open your course</a></p>
+      </div>
+      <p class="form-status gpw-gate-stat" role="status" aria-live="polite"></p>
+    </div>
   </section>
+  <aside class="gpw-gate-aside" aria-labelledby="addr-h">
+    <h2 id="addr-h" class="gpw-gate-ah">What the address is for</h2>
+    <p>If you lose your passkey, a recovery link goes to this address.</p>
+    <p>Security notices go there too: when a passkey is added or removed, and when the address changes.</p>
+    <p>Change it on the account page. The new address gets its own link.</p>
+  </aside>
 </div>
 {{end}}

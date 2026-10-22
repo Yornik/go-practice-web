@@ -1,7 +1,6 @@
 // The typography rule of the explanations, checked in a real browser: the
 // title of a problem sets every captured value, and every word with "()"
-// or "[]", in <code>. B612 draws "(" like "[", so "Validate()" in prose
-// would read as "Validate[]" (".design/FINAL.md", section 7.6).
+// or "[]", in <code>, so code reads as code (".design/VESPER.md", 3.3).
 import { test, expect } from "@playwright/test";
 
 test("titles put calls and indexes in code", async ({ page }) => {
@@ -35,11 +34,14 @@ test("titles put calls and indexes in code", async ({ page }) => {
   expect(out.parts).toEqual(["a:position:policy_test.go:50", "b:case:zero Policy", "c:call:Validate()", "d:got:<nil>", "e:want:an error that wraps ErrInvalidPolicy"]);
 });
 
-test("no prose outside code shows parentheses in B612", async ({ page }) => {
-  // The 2 parentheses come from a cut of Inter: B612's look like brackets.
+test("prose is set in Atkinson Hyperlegible Next and code in its mono", async ({ page }) => {
   await page.goto("/guide");
-  const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
-  expect(family.startsWith('"Manual Parens"')).toBe(true);
+  const fonts = await page.evaluate(() => ({
+    body: getComputedStyle(document.body).fontFamily,
+    code: getComputedStyle(document.querySelector("code")).fontFamily,
+  }));
+  expect(fonts.body.startsWith('"Atkinson Hyperlegible Next"')).toBe(true);
+  expect(fonts.code.startsWith('"Atkinson Hyperlegible Mono"')).toBe(true);
 });
 
 test("a staticcheck finding links its related place", async ({ page }) => {

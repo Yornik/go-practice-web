@@ -3,6 +3,7 @@ package web_test
 import (
 	"bytes"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -78,8 +79,24 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 	if page := w.Body.String(); !strings.Contains(page, "Revoked") || !strings.Contains(page, second["id"]) {
 		t.Fatalf("revoked page lacks the replacement:\n%s", page)
 	}
-	if page := h.do(req{method: "GET", path: second["url"]}).Body.String(); strings.Contains(page, "Activity") {
+	if page := h.do(req{method: "GET", path: second["url"]}).Body.String(); !strings.Contains(page, "The owner chose not to show it.") || strings.Contains(page, "Show each exercise") {
 		t.Fatal("stats shown although not chosen")
+	}
+	if page := h.do(req{method: "GET", path: second["url"]}).Body.String(); strings.Contains(page, "gpw-tb-namerow") {
+		t.Error("a short name takes the title block's first row")
+	}
+
+	// A name that does not fit its half cell of the PDF's title block takes
+	// the first row on the page too, and Issued joins the second row.
+	long := "Maximiliana Theodora Wilhelmina von Hohenberg-Ostrowska de las Fuentes"
+	code, third := claim(map[string]any{"kind": "tier1", "name": long})
+	if code != http.StatusCreated {
+		t.Fatalf("claim with a long name = %d %v", code, third)
+	}
+	page = h.do(req{method: "GET", path: third["url"]}).Body.String()
+	row := regexp.MustCompile(`(?s)<dl class="gpw-tb gpw-pp-tb gpw-tb-namerow">\s*<div class="gpw-tb-wide"><dt class="gpw-lbl">Name</dt><dd>` + long + `</dd></div>.*?Checked by.*?Exercises.*?Issued`)
+	if !row.MatchString(page) {
+		t.Error("the long name does not take the title block's first row with Issued in the second")
 	}
 
 	list := decodeJSON[struct {
@@ -91,7 +108,7 @@ func TestCertificateClaimAndVerify(t *testing.T) {
 			} `json:"certificate"`
 		} `json:"kinds"`
 	}](t, h.do(req{method: "GET", path: "/api/certificates", as: admin}))
-	if len(list.Kinds) != 11 || list.Kinds[0].Certificate == nil || list.Kinds[0].Certificate.ID != second["id"] || list.Kinds[1].Eligible {
+	if len(list.Kinds) != 11 || list.Kinds[0].Certificate == nil || list.Kinds[0].Certificate.ID != third["id"] || list.Kinds[1].Eligible {
 		t.Fatalf("certificates = %+v", list)
 	}
 }

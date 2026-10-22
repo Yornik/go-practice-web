@@ -1,10 +1,8 @@
-{{define "heading"}}You are invited to Go Practice{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello,</p>
-<p style="{{template "p"}}">{{.E.InvitedBy}} invited you to Go Practice: {{with .E.Exercises}}{{.}} {{end}}Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.</p>
-{{if .E.Note}}<p style="margin:0 0 16px 0;padding:12px 16px;border-left:3px solid #2346A0;background-color:#E1E8F6;font-size:15px;line-height:24px;color:#1E2821;">{{.E.Note}}</p>{{end}}
-<p style="{{template "p"}}">Create your account with a passkey. You need no password.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.E.Link}}" style="{{template "button"}}">Create my account</a></p>
-<p style="{{template "p"}}">The invite works once and expires on {{date .E.Expires}}.</p>
-<p style="{{template "small"}}">If the button does not work, copy this link into your browser:<br><a href="{{.E.Link}}" style="{{template "link"}}">{{.E.Link}}</a></p>
+<p style="{{template "p"}}"><b>What this email is for:</b> {{.E.InvitedBy}} invited you to Go Practice: {{with .E.Exercises}}{{.}} {{end}}Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.</p>
+{{if .E.Note}}{{template "note" .}}
+{{end}}<p style="{{template "p"}}">Open the link to create your account. You sign in with a passkey, so you need no password.</p>
+{{template "action" (action "Create your account" .E.Link)}}
+<p style="{{template "p"}}"><b>How long the link works:</b> {{with .E.ValidFor}}{{lifetime .}}, {{end}}until {{date .E.Expires}}. It works once.</p>
+<p style="{{template "p-last"}}"><b>If you did not expect it:</b> ignore this email. Nothing happens without the link.</p>
 {{end}}

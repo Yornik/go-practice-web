@@ -6,9 +6,8 @@
 // escaped); every other value goes in as text.
 //
 // Typography rule: every value the machine printed (a capture, a call, a
-// name) is set in mono. B612 draws "(" and ")" almost like "[" and "]",
-// and in a Go course "Validate()" must not read as "Validate[]".
-import { balloon, h, icon, load, save } from "../ui/dom.js";
+// name) is set in mono, so "Validate()" reads as code, not as prose.
+import { balloon, h, load, save } from "../ui/dom.js";
 import { clock } from "../ui/format.js";
 
 // A plain label per capture group of the catalog (internal/explain/catalog).
@@ -171,11 +170,22 @@ function distinctTests(p) {
   return [...new Set((p.occ || []).map((o) => o.test).filter(Boolean))];
 }
 
+/** A test's name as a chip shows it: without the "Test" that every name starts with. */
+function chipTest(name) {
+  const top = topTest(name);
+  return /^Test[A-Z0-9_]/.test(top) ? top.slice(4) : top;
+}
+
 /**
  * The chip: the source and the place, as nodes. "Compiler, line 120",
  * "Panic, line 54", "Panic in TestPolicyBackoff", "Failing test in TestDo".
+ * With short, as the chip shows it, so 2 chips fit on 1 row: a failing
+ * test is only its name without "Test" ("Do"), and "in" names a test the
+ * same way ("Panic in PolicyBackoff"). The chip's name and title keep the
+ * long form (chipText).
  */
-export function chipLabel(p) {
+export function chipLabel(p, { short = false } = {}) {
+  const name = (test) => h("code", {}, short ? chipTest(test) : topTest(test));
   const line = p.line && p.file ? `, line ${p.line}` : "";
   if (p.kind === "check") {
     const tool = { compile: "Compiler", vet: "go vet", staticcheck: "staticcheck", gofmt: "gofmt" }[p.diag?.source] || "Check";
@@ -184,12 +194,13 @@ export function chipLabel(p) {
   if (p.stub && p.stubs?.all.length) return [p.stubs.all.length === 1 ? "1 stub left" : `${p.stubs.all.length} stubs left`];
   const src = p.explain?.raw?.source || p.explain?.source;
   const id = p.explain?.id || "";
-  const where = (word) => (line ? [`${word}${line}`] : p.test ? [`${word} in `, h("code", {}, topTest(p.test))] : [word]);
+  const where = (word) => (line ? [`${word}${line}`] : p.test ? [`${word} in `, name(p.test)] : [word]);
   if (id === "test-timeout") return where("Timeout");
   if (src === "race") return where("Data race");
   if (src === "runtime" || id.startsWith("test-panicked")) return where("Panic");
   if (src === "build" || src === "compile" || src === "vet") return [`Build${line}`];
-  return p.test ? ["Failing test in ", h("code", {}, topTest(p.test))] : ["Failing test"];
+  if (!p.test) return ["Failing test"];
+  return short ? [name(p.test)] : ["Failing test in ", name(p.test)];
 }
 
 /** The chip as plain text, for titles and announcements. */
@@ -246,12 +257,60 @@ export function titleNodes(title, captures) {
   return splitCaptures(String(title || ""), captures).flatMap((s) => (s.group ? [h("code", {}, s.text)] : codeNodes(s.text)));
 }
 
+// A captured value in the problem's title is cut to about this many
+// characters: the title says what happened in plain words, and the
+// anatomy and the got/want form under it show every value whole.
+const TITLE_VALUE = 24;
+
+/**
+ * A long value as the title shows it: a call keeps its name, a composite
+ * value its brackets, anything else its start: ParseHeartbeat(…),
+ * {"canary-h3-01" 2026-1…}, "a long string…".
+ */
+export function shortValue(v) {
+  // A cut that saves a few characters only hides them.
+  if (v.length <= TITLE_VALUE + 6) return v;
+  const call = /^([\w.]+)\(.*\)$/s.exec(v);
+  if (call) return `${call[1]}(…)`;
+  const close = { "{": "}", "[": "]", "(": ")", '"': '"' }[v[0]];
+  if (close && v.endsWith(close)) return `${v.slice(0, TITLE_VALUE - 4)}…${close}`;
+  return `${v.slice(0, TITLE_VALUE - 1)}…`;
+}
+
+/** A value as the server writes it into a title: 1 line, at most 60 characters (titleValue in internal/explain). */
+function asTitleValue(v) {
+  const one = String(v).split(/\s+/).filter(Boolean).join(" ");
+  const r = [...one];
+  return r.length > 60 ? `${r.slice(0, 59).join("")}…` : one;
+}
+
+/** The problem's title: as titleNodes, with long captured values cut (shortValue). */
+function shortTitleNodes(title, captures) {
+  const full = {};
+  const inTitle = {};
+  for (const [k, v] of Object.entries(captures || {})) {
+    full[k] = String(v);
+    inTitle[k] = asTitleValue(v);
+  }
+  return splitCaptures(String(title || ""), inTitle).flatMap((s) => {
+    if (!s.group) return codeNodes(s.text);
+    const short = shortValue(s.text);
+    // A cut value keeps its whole text for a screen reader and a tooltip.
+    if (short === s.text) return [h("code", {}, s.text)];
+    return [h("code", { title: full[s.group] }, h("span", { "aria-hidden": "true" }, short), h("span", { class: "visually-hidden" }, full[s.group]))];
+  });
+}
+
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
 /**
- * The parts of a 1-line message: [{text, letter?, meaning?, key?, group?, repeat?}].
- * The place (file:line:column) is 1 part; then at most 4 captures, the key
- * part first. A value that appears twice keeps its letter.
+ * The parts of a 1-line message: [{text, name?, letter?, meaning?, key?, group?, repeat?}].
+ * As the frame of VESPER.md 7.7: the file, the line and the column are a
+ * part each, with the colon that ends them; then "what is wrong", the
+ * message's first words; then the captures, the key part first. A test's
+ * assertion keeps its place as 1 part, the reference, and has no "what is
+ * wrong": its got and want say it. A value that appears twice keeps its
+ * letter. name is the part as the list shows it, without its colon.
  */
 export function messageParts(e) {
   const raw = e.raw || {};
@@ -260,24 +319,33 @@ export function messageParts(e) {
   const out = [];
   let used = 0;
   const assertion = raw.file && /_test\.go$/.test(raw.file) && raw.line && raw.source === "test";
-  if (raw.file) {
-    const pos = `${raw.file}${raw.line ? `:${raw.line}` : ""}${raw.column && !assertion ? `:${raw.column}` : ""}`;
-    let meaning;
-    if (assertion) meaning = "Where the test checks: the test file and the line. Open it to read the case.";
-    else if (!raw.openable) meaning = "A file of the Go runtime or the testing package, and the line. It is not in the editor.";
-    else if (raw.column) meaning = "The file, the line and the column. The column counts bytes from 1, and a tab counts as 1.";
-    else meaning = raw.line ? "The file and the line. The file opens in the editor." : "The file. It opens in the editor.";
-    out.push({ text: pos, letter: LETTERS[used++], meaning, group: "position" }, { text: ": " });
+  if (assertion) {
+    out.push({ text: `${raw.file}:${raw.line}`, letter: LETTERS[used++], meaning: "Where the test checks: the test file and the line. Open it to read the case.", group: "position" }, { text: ": " });
+  } else if (raw.file) {
+    const file = raw.openable ? "The file. It opens in the editor." : "A file of the Go runtime or the testing package. It is not in the editor.";
+    out.push({ text: `${raw.file}:`, name: raw.file, letter: LETTERS[used++], meaning: file, group: "file" });
+    if (raw.line) out.push({ text: `${raw.line}:`, name: String(raw.line), letter: LETTERS[used++], meaning: "The line.", group: "line" });
+    if (raw.line && raw.column) out.push({ text: `${raw.column}:`, name: String(raw.column), letter: LETTERS[used++], meaning: "The column, in bytes from 1. A tab counts as 1.", group: "column" });
+    out.push({ text: " " });
   }
   const code = raw.source === "staticcheck" && raw.code ? raw.code : "";
   const segs = splitCaptures(raw.message || "", captures);
   const present = [...new Set(segs.filter((s) => s.group).map((s) => s.group))];
   const keys = ENTRY_KEYS[e.id] || [KEY_ORDER.find((k) => captures[k] && present.includes(k)) || present[0]].filter(Boolean);
   const order = ENTRY_PARTS[e.id] ? ENTRY_PARTS[e.id].filter((g) => present.includes(g)) : [...keys.filter((k) => present.includes(k)), ...present.filter((g) => !keys.includes(g))];
-  const room = MAX_PARTS - used - (code ? 1 : 0);
+  // "What is wrong": the first words of the message that are no capture.
+  const what = assertion ? -1 : segs.findIndex((s) => !s.group && s.text.trim());
+  const room = (assertion ? MAX_PARTS : MAX_PARTS + 1) - used - (what >= 0 ? 1 : 0) - (code ? 1 : 0);
   const chosen = new Set(order.slice(0, Math.max(0, room)));
   const letterOf = new Map();
-  for (const s of segs) {
+  for (const [i, s] of segs.entries()) {
+    if (i === what) {
+      const [, lead, body, tail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(s.text);
+      if (lead) out.push({ text: lead });
+      out.push({ text: body, letter: LETTERS[used++], meaning: "What is wrong. The title above says it in plain words.", group: "message" });
+      if (tail) out.push({ text: tail });
+      continue;
+    }
     if (!s.group || !chosen.has(s.group)) {
       out.push({ text: s.text });
       continue;
@@ -351,25 +419,37 @@ export function anatomy(e, files) {
     return box;
   }
   const parts = messageParts(e);
-  const rawEl = h("div", { class: "raw" });
+  // The letters are ::after content drawn from data-part, and the spaces
+  // between the parts are text nodes, so copying the line gives exactly
+  // what the tool printed. The frame names the whole message, because the
+  // line itself is hidden from screen readers: they read the parts list.
+  const rawEl = h("p", { class: "raw", "aria-hidden": "true" });
   const list = h("dl", { class: "parts" });
   for (const p of parts) {
     if (!p.letter) {
       rawEl.append(p.text);
       continue;
     }
-    rawEl.append(h("span", { class: `part${p.key ? " is-key" : ""}${p.text.length <= 2 ? " is-short" : ""}`, "data-part": p.letter }, p.text));
+    rawEl.append(h("span", { class: `part${p.key ? " is-key" : ""}${p.text.length <= 3 ? " is-short" : ""}`, "data-part": p.letter }, p.text));
     if (p.repeat) continue;
     const dd = h("dd", {}, p.meaning);
     if (p.group === "case" && raw.openable) {
       const line = caseLine(files, raw.file, p.text);
       if (line) dd.append(" ", h("a", { href: "#", onclick: (ev) => { ev.preventDefault(); files.reveal(raw.file, line, 1); } }, `Line ${line} in ${raw.file}`), ".");
     }
-    const row = h("div", { class: p.text.length > 14 ? "is-long" : null },
-      h("dt", {}, balloon(p.letter, { label: `Part ${p.letter}` }), h("code", { title: p.text }, p.text)), dd);
+    const name = p.name ?? p.text;
+    const row = h("div", { class: name.length > 14 ? "is-long" : null },
+      h("dt", {}, balloon(p.letter, { label: `Part ${p.letter}` }), h("code", { title: name }, name)), dd);
     list.append(row);
   }
-  return h("div", { class: "anatomy" }, rawEl, list);
+  const whole = parts.map((p) => p.text).join("");
+  const frame = h("div", { class: "gpw-raw-frame", tabindex: "0", role: "group", "aria-label": `The raw message: ${whole}` }, rawEl);
+  // A message wider than its frame opens at its end, where the key part is.
+  // Measured after the web fonts load: the fallback font is narrower.
+  document.fonts.ready.then(() => requestAnimationFrame(() => {
+    if (frame.isConnected && frame.scrollWidth > frame.clientWidth + 1) frame.scrollLeft = frame.scrollWidth;
+  }));
+  return h("div", { class: "anatomy" }, frame, list);
 }
 
 /** The got/want line under a failing test: balloons only, 1 word each. */
@@ -393,7 +473,7 @@ const DEFAULT_OPEN = new Set(["What it means", "How to find it"]);
 /** A disclosure that remembers whether it is open. */
 function disclosure(title, body, { key = `gpw-xsec:${title}`, open = DEFAULT_OPEN.has(title), cls = "" } = {}) {
   const stored = load(key);
-  const d = h("details", { class: `xsec ${cls}`.trim(), open: stored === null ? open : stored === "1" }, h("summary", {}, icon("chevron"), title), body);
+  const d = h("details", { class: `xsec ${cls}`.trim(), open: stored === null ? open : stored === "1" }, h("summary", {}, title), body);
   d.addEventListener("toggle", () => save(key, d.open ? "1" : "0"));
   return d;
 }
@@ -424,7 +504,7 @@ function sections(html, e) {
         `staticcheck: ${code}`, h("span", { class: "visually-hidden" }, " (opens in a new tab)"))));
     }
     const n = s.body.querySelectorAll("a").length;
-    if (n) s.details.querySelector("summary").append(" ", h("span", { class: "count" }, n === 1 ? "1 link" : `${n} links`));
+    if (n) s.details.querySelector("summary").append(n === 1 ? ", 1 link" : `, ${n} links`);
   }
   return out.map((s) => s.details);
 }
@@ -544,9 +624,10 @@ export function problemView(p, { files, titles, tests, runStep }) {
   const raw = e.raw || {};
   const stub = p.stub && p.stubs?.all.length;
   const article = h("article", { class: "problem", "aria-labelledby": `problem-${p.n}-title`, "data-problem": p.n });
-  article.append(balloon(String(p.n), { label: `Problem ${p.n}`, cls: "is-filled" }));
+  // The pressed chip shows the number; the article names it for a screen reader.
+  article.append(h("span", { class: "visually-hidden" }, `Problem ${p.n}`));
   article.append(h("p", { class: "problem-source" }, sourceLine(p)));
-  const title = stub ? [p.stubs.all.length === 1 ? "1 function is still the course stub" : `${p.stubs.all.length} functions are still the course stub`] : titleNodes(e.title, raw.captures);
+  const title = stub ? [p.stubs.all.length === 1 ? "1 function is still the course stub" : `${p.stubs.all.length} functions are still the course stub`] : shortTitleNodes(e.title, raw.captures);
   article.append(h("h3", { class: "problem-title", id: `problem-${p.n}-title` }, title));
   if (stub) {
     article.append(...stubBody(p, { files, runStep }));

@@ -2,8 +2,12 @@
 // confirm(), prompt() and alert(). showModal() traps the focus and
 // Escape closes; the focus goes back to the control that opened it.
 import { h } from "./dom.js";
+import { zero } from "./zero.js";
 
 let counter = 0;
+
+// The heading and the buttons are set in Saira, whose 0 needs its slash.
+const saira = (text) => (typeof text === "string" && text.includes("0") ? zero(text) : text);
 
 /**
  * Opens a dialog and resolves with the value of the button that closed it
@@ -21,7 +25,7 @@ export function openDialog({ title, body, buttons, check, onOpen }) {
   return new Promise((resolve) => {
     const form = h("form", { method: "dialog", novalidate: true });
     const dialog = h("dialog", { class: "dialog", "aria-labelledby": `${id}-title` }, form);
-    form.append(h("h2", { id: `${id}-title` }, title), ...body.filter(Boolean));
+    form.append(h("h2", { id: `${id}-title` }, saira(title)), ...body.filter(Boolean));
     const row = h("div", { class: "btn-row" });
     for (const b of buttons) {
       row.append(
@@ -31,7 +35,7 @@ export function openDialog({ title, body, buttons, check, onOpen }) {
           value: b.value,
           "data-safe": b.safe ? "true" : null,
           onclick: b.value ? null : () => dialog.close(""),
-        }, b.label),
+        }, saira(b.label)),
       );
     }
     form.append(row);

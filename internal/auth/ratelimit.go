@@ -2,6 +2,7 @@ package auth
 
 import (
 	"math"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -34,6 +35,30 @@ func NewLimiter(n int, per time.Duration, now func() time.Time) *Limiter {
 		now = time.Now
 	}
 	return &Limiter{n: float64(n), per: per, now: now, buckets: map[string]*bucket{}}
+}
+
+// Rate returns the limit: n events per period.
+func (l *Limiter) Rate() (n int, per time.Duration) { return int(l.n), l.per }
+
+// WaitText says a wait as a person reads it, rounded up as Retry-After
+// rounds it: whole seconds under a minute ("1 second", "20 seconds"),
+// else whole minutes ("1 minute", "6 minutes").
+func WaitText(d time.Duration) string {
+	secs := int((d + time.Second - 1) / time.Second)
+	if secs < 1 {
+		secs = 1
+	}
+	if secs < 60 {
+		return plural(secs, "second")
+	}
+	return plural((secs+59)/60, "minute")
+}
+
+func plural(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return strconv.Itoa(n) + " " + unit + "s"
 }
 
 // Allow takes 1 token for key. When the bucket is empty it returns false

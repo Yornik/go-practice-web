@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"regexp"
 	"strings"
@@ -159,7 +160,7 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Fatalf("%d kinds, want 11", len(st))
 	}
 	// The old tier1 covers exactly tier 6 of the course of 50: held.
-	if k := st["tier6"]; k.Certificate == nil || k.Certificate.ID != tier1.ID || k.Earlier != nil || k.Title != "Tier 6 · Forensics" {
+	if k := st["tier6"]; k.Certificate == nil || k.Certificate.ID != tier1.ID || k.Earlier != nil || k.Title != "Tier 6, Forensics" {
 		t.Errorf("tier6 = %+v", k)
 	}
 	// The old course certificate covers 25 of 50: an earlier one.
@@ -167,33 +168,36 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Errorf("course = %+v", k)
 	}
 
-	page := h.do(req{method: "GET", path: "/certificates", as: admin}).Body.String()
-	for _, want := range []string{"Tier 6 · Forensics", "The complete course", "50 exercises in 10 tiers",
-		"an earlier certificate", courseCert.ID, "Tier 2 · The Key"} {
+	page := visibleText(h.do(req{method: "GET", path: "/certificates", as: admin}).Body.String())
+	for _, want := range []string{"Tier 6, Forensics", "The Key covers all 50 exercises.", "You hold an earlier course certificate",
+		"The complete course, 25 exercises in 5 tiers", courseCert.ID, "Tier 2, The Key",
+		"Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25.", "When all 50 pass, claim the Key here."} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the certificates page lacks %q", want)
 		}
 	}
-	if strings.Contains(page, `data-claim="again">Claim`) {
+	if strings.Contains(page, "Claim the course certificate") {
 		t.Error("the course can be claimed before every exercise passes")
 	}
 
 	// The verify page reads the old payloads through the renames.
-	v := h.do(req{method: "GET", path: "/verify/" + courseCert.ID}).Body.String()
+	raw := h.do(req{method: "GET", path: "/verify/" + courseCert.ID}).Body.String()
+	v := visibleText(raw)
 	// It also says what the certificate was issued as: its PDF of then
 	// shows the first course's numbers.
-	for _, want := range []string{"Valid.", "The complete course", "25 exercises in 5 tiers", "Forensics", "26 to 50", "--tier-max: 25",
+	for _, want := range []string{"Valid.", "Course certificate", "held the Key through 25 exercises", "26 to 50",
 		"Issued for the first course: 25 exercises in 5 tiers, numbered 01 to 25. The current course numbers them 26 to 50, in tiers 6 to 10."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old course certificate lacks %q", want)
 		}
 	}
-	if n := len(regexp.MustCompile(`data-state="passed"`).FindAllString(v, -1)); n != 25 {
-		t.Errorf("the strip of the old course certificate has %d bars, want 25", n)
+	// The course to scale holds the 25 exercises it covers, all passed.
+	if n := len(regexp.MustCompile(`class="gpw-tw [^"]*gpw-tw-on`).FindAllString(raw, -1)); n != 25 {
+		t.Errorf("the skyline of the old course certificate has %d towers, want 25", n)
 	}
-	v = h.do(req{method: "GET", path: "/verify/" + tier1.ID}).Body.String()
-	for _, want := range []string{"Tier 6 · Forensics", "Warm-up: Go idioms on real data", "Parse logfmt log lines", "26 to 28",
-		"Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6 · Forensics."} {
+	v = visibleText(h.do(req{method: "GET", path: "/verify/" + tier1.ID}).Body.String())
+	for _, want := range []string{"completed Tier 6, Forensics, of the go-practice course", "Parse logfmt log lines", "26 to 28",
+		"Issued as Tier 1 of the first course, exercises 01 to 03. The current course numbers them 26 to 28, in Tier 6, Forensics."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the old tier1 lacks %q", want)
 		}
@@ -212,8 +216,16 @@ func TestEarlierCertificates(t *testing.T) {
 		t.Fatalf("course after all passes = %+v", k)
 	}
 	page = h.do(req{method: "GET", path: "/certificates", as: admin}).Body.String()
-	if !strings.Contains(page, `data-claim="again">Claim the course certificate`) {
+	if !strings.Contains(page, `data-claim="again" aria-haspopup="dialog">Claim the course certificate`) {
 		t.Error("the certificates page offers no claim over the earlier certificate")
+	}
+	if v := visibleText(page); !strings.Contains(v, "Claim the Key above. The new certificate replaces the earlier one") || strings.Contains(v, "When all 50 pass") {
+		t.Error("the earlier certificate's note still waits for a pass that happened")
+	}
+	// The Key's own line stops asking for the passes too.
+	if v := visibleText(page); !strings.Contains(v, "Every tool is in the Ledger with you as its author. Claim the Key.") ||
+		strings.Contains(v, "When every tool is in the Ledger with you as its author, you can claim it.") {
+		t.Error("the Key's line still waits for every tool once all 50 pass")
 	}
 	w = h.do(req{method: "POST", path: "/api/certificates", body: map[string]any{"kind": "course", "name": "Ada Admin"}, as: admin})
 	wantStatus(t, w, http.StatusCreated)
@@ -228,8 +240,8 @@ func TestEarlierCertificates(t *testing.T) {
 	if !strings.Contains(v, "Revoked.") || !strings.Contains(v, claimed["id"]) {
 		t.Error("the earlier certificate is not revoked in favour of the new one")
 	}
-	v = h.do(req{method: "GET", path: claimed["url"]}).Body.String()
-	for _, want := range []string{"50 exercises in 10 tiers", "The Key Turns", "01 to 50"} {
+	v = visibleText(h.do(req{method: "GET", path: claimed["url"]}).Body.String())
+	for _, want := range []string{"held the Key through 50 exercises", "Each of the 50 exercises of the go-practice course", "01 to 50"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the verify page of the new course certificate lacks %q", want)
 		}
@@ -252,8 +264,9 @@ func TestFiftyPages(t *testing.T) {
 
 	landing := h.do(req{method: "GET", path: "/"}).Body.String()
 	for _, want := range []string{
-		"50 exercises in 10 tiers", "The blue bar is exercise 32.", "scenario of exercise 32", "A compile error in exercise 32",
-		"<dt>Exercise</dt><dd>32</dd>", "<dt>Tier</dt><dd>7</dd>", "Tier 2 · The Key", "--tier-max: ",
+		"50 exercises in 10 tiers, about 108.5\u00a0h of work.", "Tower 01 is lit: you start there.",
+		"Year 1 holds tiers 1 to 5, about 35.5\u00a0h; year 2 holds tiers 6 to 10, about 73\u00a0h.",
+		"In exercise 01 you write the counter", "Tier 2, The Key: ", `class="gpw-sky gpw-sky-refl"`, `class="gpw-dep-start"`,
 		`<meta name="description" content="Practice Go on real operations tasks, without an LLM. 50 exercises in 10 tiers,`,
 	} {
 		if !strings.Contains(landing, want) {
@@ -262,15 +275,16 @@ func TestFiftyPages(t *testing.T) {
 	}
 
 	dash := h.do(req{method: "GET", path: "/learn", as: admin}).Body.String()
-	for _, want := range []string{"of 50 exercises pass", "Tier 10 · The Key Turns", `id="tier-10"`} {
-		if !strings.Contains(dash, want) {
+	for _, want := range []string{"0 of 50 tools are in the Ledger.", "T10 · THE KEY TURNS", `id="tier-10-log"`} {
+		if !strings.Contains(visibleText(dash), want) && !strings.Contains(dash, want) {
 			t.Errorf("the dashboard lacks %q", want)
 		}
 	}
-	// Tier 1 and the started tier 7 are open; the others are folded.
+	// The tier of the on-call exercise, 32 in tier 7, is open; the others
+	// are folded (VESPER.md 8.6).
 	for n := 1; n <= 10; n++ {
-		open := strings.Contains(dash, `aria-controls="tier-`+itoa(int64(n))+`-log" data-fold>Hide`)
-		if want := n == 1 || n == 7; open != want {
+		open := strings.Contains(dash, `id="tier-`+itoa(int64(n))+`-log">`)
+		if want := n == 7; open != want {
 			t.Errorf("tier %d open = %v, want %v", n, open, want)
 		}
 	}
@@ -279,4 +293,12 @@ func TestFiftyPages(t *testing.T) {
 	if !strings.Contains(adminPage, "0 of 50") {
 		t.Error("the admin page does not count 50 exercises")
 	}
+}
+
+var anyTagRE = regexp.MustCompile(`(?s)<[^>]*>`)
+
+// visibleText is a page without its tags: the slashed zeros of Saira
+// (gpw-z) split numbers in the markup, not on the screen.
+func visibleText(page string) string {
+	return html.UnescapeString(anyTagRE.ReplaceAllString(page, ""))
 }

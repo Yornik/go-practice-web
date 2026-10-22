@@ -1,126 +1,162 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/app.css"}}">
+{{- end}}
 {{define "content"}}
 {{- with .Data}}
-<div class="wrap page verify">
+<div class="gpw-wrap gpw-verify">
   {{- if or (eq .Status "lookup") (eq .Status "unknown")}}
-  <section class="narrow" aria-labelledby="verify-title">
-    <header class="page-head">
-      {{- if eq .Status "unknown"}}
-      <h1 id="verify-title">No certificate has this ID.</h1>
-      <p class="lede">Check the ID on the PDF. It has 12 characters after GP-.</p>
-      {{- else}}
-      <h1 id="verify-title">Verify a certificate</h1>
-      <p class="lede">Enter the ID printed on the certificate.</p>
-      {{- end}}
-    </header>
-    <form method="get" action="/verify" class="auth-form">
-      <div class="lookup">
-        <div class="field">
-          <label for="verify-id">Certificate ID</label>
+  {{- /* No story here: a verifier can be someone who never saw the course (VESPER.md 8.8). */}}
+  <section class="gpw-vlook" aria-labelledby="verify-title">
+    {{- if eq .Status "unknown"}}
+    <h1 class="gpw-h1-app" id="verify-title">No certificate has this ID.</h1>
+    <p class="gpw-sum">Check the ID on the PDF. It has 12 characters after GP-.</p>
+    {{- else}}
+    <h1 class="gpw-h1-app" id="verify-title">Verify a certificate</h1>
+    <p class="gpw-sum">Enter the ID printed on the certificate.</p>
+    {{- end}}
+    <form method="get" action="/verify" class="gpw-vlook-form">
+      <div class="field">
+        <label for="verify-id">Certificate ID</label>
+        <div class="gpw-vlook-row">
           <input class="text-input mono" id="verify-id" name="id" required autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="GP-XXXX-XXXX-XXXX" value="{{.ID}}"
             aria-describedby="{{if .Error}}verify-error {{end}}verify-help"{{if .Error}} aria-invalid="true"{{end}}>
+          <button type="submit" class="btn btn-primary">Verify</button>
         </div>
-        <button type="submit" class="btn btn-primary">Verify</button>
+        {{- with .Error}}<p class="field-error" id="verify-error">{{.}}</p>{{end}}
+        <p class="help" id="verify-help">The ID is under the QR code, in the title block.</p>
       </div>
-      {{- with .Error}}<p class="field-error mt-2" id="verify-error">{{.}}</p>{{end}}
-      <p class="help mt-2" id="verify-help">The ID is under the QR code, in the title block.</p>
     </form>
   </section>
   {{- else if eq .Status "invalid"}}
-  <header class="page-head">
-    <h1 class="verdict verdict-bad" id="verify-title"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>Not valid.</h1>
-    <p class="lede">The signature of certificate <span class="mono">{{.ID}}</span> does not match. Do not trust it.</p>
-  </header>
+  <div class="gpw-vd gpw-vd-bad">
+    <span class="gpw-vd-mark" aria-hidden="true"><svg class="icon gpw-vd-ico" aria-hidden="true"><use href="#i-cross"/></svg></span>
+    <div><h1 class="gpw-vd-h" id="verify-title">Not valid.</h1>
+      <p class="gpw-sum">The signature of certificate <span class="gpw-mono">{{.ID}}</span> does not match. Do not trust it.</p></div>
+  </div>
   {{- else}}
-  <header class="page-head">
-    {{- if eq .Status "valid"}}
-    <h1 class="verdict verdict-ok" id="verify-title"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Valid.</h1>
-    <p class="lede">Go Practice issued this certificate to {{.Name}} on {{date .IssuedAt}}.</p>
-    {{- else}}
-    <h1 class="verdict verdict-bad" id="verify-title"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>Revoked.</h1>
-    <p class="lede">This certificate was replaced{{with .ReplacedBy}} by <a class="mono" href="/verify/{{.}}">{{.}}</a>{{end}} on {{date .RevokedAt}}. Go Practice issued it to {{.Name}} on {{date .IssuedAt}}.</p>
-    {{- end}}
-    {{- with .IssuedAs}}
-    <p class="callout mt-3" data-issued-as><b>NOTE:</b> {{.}} A PDF printed then shows the first course's numbers.</p>
-    {{- end}}
-  </header>
+  {{- /* A signature check is neither a test result nor an error, so no verdict is red or green (VESPER.md 8.9). */}}
+  {{- if eq .Status "valid"}}
+  <div class="gpw-vd gpw-vd-ok">
+    <span class="gpw-vd-mark" aria-hidden="true"><svg class="icon gpw-vd-ico" aria-hidden="true"><use href="#i-tick"/></svg></span>
+    <div><h1 class="gpw-vd-h" id="verify-title">Valid.</h1>
+      <p class="gpw-sum">The go-practice course issued this certificate to {{.Name}} on {{date .IssuedAt}}.</p></div>
+    {{- template "issued-as" .}}
+  </div>
+  {{- else}}
+  <div class="gpw-vd gpw-vd-bad">
+    <span class="gpw-vd-mark gpw-vd-stamp" aria-hidden="true">Revoked</span>
+    <div><h1 class="gpw-vd-h" id="verify-title">Revoked.</h1>
+      <p class="gpw-sum">{{if .ReplacedBy}}This certificate was replaced by <a class="gpw-link gpw-mono gpw-nobr" href="/verify/{{.ReplacedBy}}">{{.ReplacedBy}}</a> on {{date .RevokedAt}}.{{else}}This certificate was revoked on {{date .RevokedAt}}.{{end}} The go-practice course issued it to {{.Name}} on {{date .IssuedAt}}.</p></div>
+    {{- template "issued-as" .}}
+  </div>
+  {{- end}}
 
-  <section class="drawing grid-bg" aria-label="The certificate">
-    <h2>{{.Title}}</h2>
-    {{- with .Subtitle}}
-    <p class="theme">{{.}}</p>
-    {{- end}}
-    {{- if .IsCourse}}
-    <ol class="drawing-tiers drawing-list">
-      {{- range .Tiers}}
-      <li><span class="no">{{.N}}</span><span>{{if .Name}}{{.Name}}{{else}}{{.Theme}}{{end}}</span></li>
+  {{- /* The light table: the paper is a view of the PDF, daylight in both themes. */}}
+  <div class="gpw-lighttable">
+  <article class="gpw-paper" aria-label="The certificate, as its PDF prints it">
+    <div class="gpw-pp-frame">
+      <div class="gpw-pp-zones" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span><span>K</span><span>L</span></div>
+      {{- if eq .Status "revoked"}}
+      <p class="gpw-pp-band"><b>Revoked</b><span>{{if .ReplacedBy}}This certificate was replaced by <span class="gpw-nobr">{{.ReplacedBy}}</span>.{{else}}This certificate was revoked.{{end}}</span></p>
       {{- end}}
-    </ol>
-    {{template "strip" .Strip}}
-    {{- else}}
-    <ol class="drawing-list">
-      {{- range .Exercises}}
-      <li><span class="no">{{pad2 .Number}}</span><span>{{.Title}}</span></li>
-      {{- end}}
-    </ol>
-    {{- end}}
-    <dl class="titleblock">
-      <div><dt>Name</dt><dd>{{.Name}}</dd></div>
-      <div><dt>Issued</dt><dd>{{date .IssuedAt}}</dd></div>
-      <div><dt>Checked by</dt><dd class="mono">go test -race</dd></div>
-      <div><dt>Exercises</dt><dd>{{.Range}}</dd></div>
-      <div><dt>Certificate ID</dt><dd class="mono">{{.ID}}</dd></div>
-    </dl>
-  </section>
-
-  <div class="verify-facts">
-    {{- with .Stats}}
-    <section aria-labelledby="activity-title">
-      <h2 id="activity-title">Activity</h2>
-      <p class="help">The owner chose to show it. It counts the time with the editor in use, the test runs and the help they revealed.</p>
-      <dl class="facts mt-3">
-        <dt>Active time</dt><dd>{{duration .ActiveSeconds}}</dd>
-        <dt>Test runs</dt><dd>{{.Runs}}</dd>
-        <dt>Hints revealed</dt><dd>{{.Hints}}</dd>
-        <dt>Explanations</dt><dd>{{.Explanations}}</dd>
-        <dt>Walkthroughs</dt><dd>{{.Walkthroughs}}</dd>
-        <dt>Solutions</dt><dd>{{.Solutions}}</dd>
-      </dl>
-      <details class="xsec mt-3">
-        <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>Show each exercise</summary>
-        <div class="table-scroll mt-2">
-          <table class="table table-dense table-stack">
-            <thead><tr><th scope="col">Exercise</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col" class="num">Hints</th><th scope="col">Also revealed</th></tr></thead>
-            <tbody>
-              {{- range $.Data.Exercises}}
-              {{- $ex := .}}
-              {{- with index $.Data.StatsBySlug .Slug}}
-              <tr>
-                <th scope="row">{{$ex.Slug}}</th>
-                <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
-                <td class="num" data-label="Runs">{{.Runs}}</td>
-                <td class="num" data-label="Hints">{{.Hints}}</td>
-                <td data-label="Also revealed">{{if or .Explanation .Walkthrough .Solution}}{{if .Explanation}}explanation {{end}}{{if .Walkthrough}}walkthrough {{end}}{{if .Solution}}solution{{end}}{{else}}<span class="muted">nothing</span>{{end}}</td>
-              </tr>
-              {{- end}}
-              {{- end}}
-            </tbody>
-          </table>
+      <header class="gpw-pp-top">
+        <div class="gpw-pp-iss"><svg class="gpw-pp-mark{{if eq .Status "revoked"}} gpw-pp-mark-void{{end}}" viewBox="0 0 32 32" aria-hidden="true"><path class="gpw-mk-plate" fill-rule="evenodd" d="M0 0H32V25L25 32H0ZM4.5 12H10.75L16 22.5L21.25 12H27.5L19.4 28H12.6ZM16 2.6L19.4 6L16 9.4L12.6 6Z"/><path class="gpw-mk-star" d="M16 4.1L17.9 6L16 7.9L14.1 6Z"/></svg><p><b>Go Practice</b><span>The go-practice course</span></p></div>
+        <p class="gpw-pp-kind">{{if .IsCourse}}Course certificate{{else}}Tier certificate{{end}}</p>
+      </header>
+      <div class="gpw-pp-body">
+        {{.Art}}
+        <div class="gpw-pp-main">
+          <p class="gpw-pp-name{{if .NameOther}} gpw-pp-name-x{{end}}">{{.Name}}</p>
+          <p class="gpw-pp-what">{{.What}}</p>
+          <p class="gpw-pp-how">{{.Each}} passed its full test suite with <code class="gpw-nobr">go test -race</code>.</p>
+          {{- if .IsCourse}}
+          <div class="gpw-pp-sky">{{template "skyline" .Sky}}</div>
+          {{- else}}
+          <ol class="gpw-pp-ex{{if le (len .Exercises) 3}} gpw-pp-ex-1{{end}}" aria-label="Exercises">{{range .Exercises}}<li><span>{{zero (pad2 .Number)}}</span>{{.Title}}</li>{{end}}</ol>
+          {{- end}}
+          {{- with .Stats}}
+          <dl class="gpw-pp-stats">
+            <div><dt class="gpw-lbl">Active</dt><dd>{{zero (duration .ActiveSeconds)}}</dd></div>
+            <div><dt class="gpw-lbl">Runs</dt><dd>{{zero .Runs}}</dd></div>
+            <div><dt class="gpw-lbl">Hints</dt><dd>{{zero .Hints}}</dd></div>
+            <div><dt class="gpw-lbl">Explanations</dt><dd>{{zero .Explanations}}</dd></div>
+            <div><dt class="gpw-lbl">Walkthroughs</dt><dd>{{zero .Walkthroughs}}</dd></div>
+            <div><dt class="gpw-lbl">Solutions</dt><dd>{{zero .Solutions}}</dd></div>
+          </dl>
+          {{- end}}
         </div>
-      </details>
-    </section>
-    {{- end}}
-    <section aria-labelledby="signature-title">
-      <h2 id="signature-title">Signature</h2>
-      <dl class="facts">
-        <dt>Status</dt><dd>The Ed25519 signature is valid.</dd>
-        <dt>Key fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
-        <dt>Public key</dt><dd><a href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a></dd>
-        <dt>Link</dt><dd><a href="{{.URL}}">{{.URL}}</a></dd>
+      </div>
+      <footer class="gpw-pp-foot">
+        <p class="gpw-pp-by">Issued by the go-practice course, through Go Practice, the training portal at <span class="gpw-nobr">{{.Host}}</span>.</p>
+        <div class="gpw-pp-qr">{{.QR}}<span>{{.Host}}/verify/<wbr><span class="gpw-nobr">{{.ID}}</span></span><span class="gpw-lbl">Scan to verify</span></div>
+        {{- /* As on the PDF: a name too long for its half cell takes the
+             first row, and Issued joins the second (VESPER.md 13.1.1). */}}
+        {{- if .NameRow}}
+        <dl class="gpw-tb gpw-pp-tb gpw-tb-namerow">
+          <div class="gpw-tb-wide"><dt class="gpw-lbl">Name</dt><dd>{{.Name}}</dd></div>
+          <div><dt class="gpw-lbl">Checked by</dt><dd class="gpw-mono"><span class="gpw-nobr">go test -race</span></dd></div>
+          <div><dt class="gpw-lbl">Exercises</dt><dd>{{zero .Range}}</dd></div>
+          <div><dt class="gpw-lbl">Issued</dt><dd>{{zero (date .IssuedAt)}}</dd></div>
+        {{- else}}
+        <dl class="gpw-tb gpw-pp-tb">
+          <div><dt class="gpw-lbl">Name</dt><dd>{{.Name}}</dd></div>
+          <div><dt class="gpw-lbl">Issued</dt><dd>{{zero (date .IssuedAt)}}</dd></div>
+          <div><dt class="gpw-lbl">Checked by</dt><dd class="gpw-mono"><span class="gpw-nobr">go test -race</span></dd></div>
+          <div><dt class="gpw-lbl">Exercises</dt><dd>{{zero .Range}}</dd></div>
+        {{- end}}
+          <div class="gpw-tb-wide"><dt class="gpw-lbl">Certificate ID</dt><dd class="gpw-mono">{{.ID}}</dd></div>
+          <div class="gpw-tb-wide"><dt class="gpw-lbl">Signing key fingerprint</dt><dd class="gpw-mono">{{.Fingerprint}}</dd></div>
+        </dl>
+      </footer>
+    </div>
+  </article>
+  </div>
+
+  <div class="gpw-vf">
+    <section aria-labelledby="sig-h"><h2 id="sig-h" class="gpw-vf-h">Signature</h2>
+      <dl class="gpw-fl">
+        <dt>Status</dt><dd>{{if eq .Status "revoked"}}Revoked on {{date .RevokedAt}}. {{end}}The Ed25519 signature is valid.</dd>
+        <dt>Key fingerprint</dt><dd class="gpw-mono">{{.Fingerprint}}</dd>
+        <dt>Public key</dt><dd><a class="gpw-link gpw-mono" href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a></dd>
+        <dt>Link</dt><dd><a class="gpw-link gpw-mono" href="{{.URL}}">{{.URL}}</a></dd>
       </dl>
+      <p class="gpw-vf-dl"><a class="btn" href="{{.PDF}}">Download the PDF</a></p>
     </section>
-    <p><a class="btn" href="{{.PDF}}">Download the PDF</a></p>
+    <section aria-labelledby="act-h"><h2 id="act-h" class="gpw-vf-h">Activity</h2>
+      {{- if .Stats}}
+      <p class="help">The owner chose to show it. It counts the time with the editor in use, the test runs and the help they revealed.</p>
+      <details class="gpw-disc2"><summary>Show each exercise</summary>
+        <table class="gpw-act"><caption class="gpw-vh">Activity per exercise</caption>
+          <thead><tr><th scope="col" class="gpw-lbl">No.</th><th scope="col" class="gpw-lbl">Exercise</th><th scope="col" class="gpw-lbl gpw-r">Active</th><th scope="col" class="gpw-lbl gpw-r">Runs</th><th scope="col" class="gpw-lbl gpw-r">Hints</th><th scope="col" class="gpw-lbl">Also revealed</th></tr></thead>
+          <tbody>
+            {{- range $.Data.Exercises}}
+            {{- $ex := .}}
+            {{- with index $.Data.StatsBySlug .Slug}}
+            <tr>
+              <td class="gpw-id" data-label="No.">{{zero (pad2 $ex.Number)}}</td>
+              <th scope="row" data-label="Exercise">{{$ex.Title}}</th>
+              <td class="gpw-r" data-label="Active">{{zero (duration .ActiveSeconds)}}</td>
+              <td class="gpw-r" data-label="Runs">{{zero .Runs}}</td>
+              <td class="gpw-r" data-label="Hints">{{zero .Hints}}</td>
+              <td data-label="Also revealed">{{$.Data.AlsoRevealed $ex.Slug}}</td>
+            </tr>
+            {{- end}}
+            {{- end}}
+          </tbody>
+        </table>
+      </details>
+      {{- else}}
+      <p class="help">The owner chose not to show it.</p>
+      {{- end}}
+    </section>
   </div>
   {{- end}}
 </div>
 {{- end}}
 {{end}}
+
+{{/* A certificate of the first course says what it was issued as: its
+     PDF of then shows the first course's numbers. */}}
+{{define "issued-as"}}{{with .IssuedAs}}
+    <p class="callout" data-issued-as><b>NOTE:</b> {{.}} A PDF printed then shows the first course's numbers.</p>
+{{- end}}{{end}}

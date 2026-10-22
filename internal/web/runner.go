@@ -41,6 +41,10 @@ func NewRunnerClient(baseURL, token string, hc *http.Client) *RunnerClient {
 
 func (c *RunnerClient) setMetrics(m *metrics) { c.metrics = m }
 
+// runnerNoAnswer is the text of runner_unavailable, the same whether the
+// runner did not answer or answered 503 (VESPER.md 10.5).
+const runnerNoAnswer = "The test runner does not answer. It can be restarting. Try again in a minute."
+
 // maxRunnerJSON bounds a check or format answer: diagnostics from at most
 // 1 MiB of tool output, or 1 formatted file, with JSON escaping.
 const maxRunnerJSON = 16 << 20
@@ -178,7 +182,7 @@ func (c *RunnerClient) do(ctx context.Context, method, path string, body any) (*
 			return nil, err
 		}
 		return nil, &RunnerError{Status: http.StatusServiceUnavailable, Code: "runner_unavailable",
-			Message: "The test runner is not reachable right now. Your code is saved; try again in a minute.", Err: err}
+			Message: runnerNoAnswer, Err: err}
 	}
 	if resp.StatusCode == http.StatusOK {
 		return resp, nil
@@ -203,7 +207,7 @@ func runnerStatusError(resp *http.Response) error {
 		e.Code, e.Message = "runner_busy", "The test runner is busy. Try again in a few seconds."
 		e.RetryAfter = resp.Header.Get("Retry-After")
 	case resp.StatusCode == http.StatusServiceUnavailable:
-		e.Code, e.Message = "runner_unavailable", "The test runner is restarting. Try again in a minute."
+		e.Code, e.Message = "runner_unavailable", runnerNoAnswer
 	case resp.StatusCode == http.StatusBadRequest && body.Code == "unknown_exercise":
 		// The site only asks for exercises of its own course, so this
 		// runner serves another version of it. Web and runner roll out

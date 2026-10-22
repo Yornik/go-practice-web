@@ -2,7 +2,7 @@
 import { api, errorMessage, setStatus } from "../api.js";
 import { confirmDialog } from "../ui/dialog.js";
 import { toast, toastNext } from "../ui/toast.js";
-import { h } from "../ui/dom.js";
+import { h, icon } from "../ui/dom.js";
 import { shortDate } from "../ui/format.js";
 import { isBusy, setBusy } from "../ui/fields.js";
 
@@ -10,7 +10,7 @@ const form = document.getElementById("invite-form");
 const status = document.querySelector('[data-status="invite"]');
 const result = document.querySelector("[data-invite-result]");
 const link = document.querySelector("[data-invite-link]");
-const linkParts = [document.querySelector('label[for="invite-link"]'), document.querySelector(".copy-row")];
+const linkParts = [document.querySelector('label[for="invite-link"]'), document.querySelector(".gpw-adm-copy")];
 const mail = document.querySelector("[data-invite-mail]");
 
 form?.addEventListener("submit", async (event) => {
@@ -33,13 +33,15 @@ form?.addEventListener("submit", async (event) => {
     for (const part of linkParts) if (part) part.hidden = !res.url;
     result.hidden = false;
     mail.className = "";
+    mail.replaceChildren();
     if (res.mailed && !res.url) {
       // A callout wraps; a status line stays on 1 line.
       mail.className = "callout";
       mail.textContent = `Sent to ${email}. The link is only in the mail. If it does not arrive, revoke this invite and create a new one.`;
     } else if (res.mailed) {
-      mail.className = "status status-ok";
-      mail.textContent = `Sent to ${email}.`;
+      // A confirmation is ink with a tick: green means a test result.
+      mail.className = "gpw-okword";
+      mail.append(icon("tick", "gpw-pi-s"), `Sent to ${email}.`);
     } else if (res.mailError) {
       mail.className = "callout callout-warning";
       mail.textContent = `The mail failed: ${res.mailError} Send the link yourself.`;
@@ -63,16 +65,16 @@ function addInviteRow(res) {
   const table = document.querySelector("[data-invites-table]");
   const tbody = table?.querySelector("tbody");
   if (!tbody || !res.hash) return;
-  const muted = (t) => h("span", { class: "muted" }, t);
+  const muted = (t) => h("span", { class: "gpw-quiet" }, t);
   const created = res.createdAt ? new Date(res.createdAt) : new Date();
   const row = h("tr", { "data-invite": res.hash },
-    h("td", {}, h("time", { datetime: created.toISOString() }, shortDate(created))),
+    h("td", { "data-label": "Created" }, h("time", { datetime: created.toISOString() }, shortDate(created))),
     h("td", { "data-label": "Status" }, `Open until ${shortDate(res.expiresAt || created)}`),
     h("td", { "data-label": "Email" }, res.email || muted("none")),
     h("td", { "data-label": "Note" }, res.note || muted("none")),
     h("td", { "data-label": "Created by" }, res.createdBy || ""),
-    h("td", { class: "actions" }, h("button", { type: "button", class: "btn btn-sm btn-danger", "data-revoke": "" }, "Revoke invite",
-      h("span", { class: "visually-hidden" }, ` of ${shortDate(created)}${res.email ? ` for ${res.email}` : ""}`))));
+    h("td", { class: "gpw-adm-act" }, h("button", { type: "button", class: "btn btn-sm", "data-revoke": "", "aria-haspopup": "dialog" }, "Revoke invite",
+      h("span", { class: "gpw-vh" }, ` of ${shortDate(created)}${res.email ? ` for ${res.email}` : ""}`))));
   tbody.prepend(row);
   wireRevoke(row);
   table.hidden = false;
@@ -96,6 +98,7 @@ function wireRevoke(row) {
     const ok = await confirmDialog({
       title: "Revoke this invite?",
       text: "The link stops working at once. You can create a new one.",
+      warning: true,
       confirm: "Revoke invite",
       cancel: "Keep it",
       danger: true,

@@ -10,8 +10,8 @@ import (
 )
 
 // codeLike finds Go code in prose: a call such as Validate() or an index
-// such as x[i]. Prose is set in B612, whose parentheses look like square
-// brackets, so code belongs in <code>, which is set in mono.
+// such as x[i]. Code belongs in <code>, which is set in Atkinson
+// Hyperlegible Mono, so a reader can tell it from the prose around it.
 var codeLike = regexp.MustCompile(`\b[A-Za-z_][\w.]*\([^()\s]*\)|\b[A-Za-z_]\w*\[[\w:.]*\]`)
 
 var (

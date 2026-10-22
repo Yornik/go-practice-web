@@ -1,12 +1,12 @@
 {{define "subject"}}Verify your email address{{end}}
+{{define "hush"}}Hello{{with .E.Name}}, {{.}}{{end}}. Before I can send you anything important, a person has to confirm that this address is yours. I would confirm it for you in 0.4 seconds, but this is 1 of the things a person does.{{end}}
+{{define "rest"}}Please rest.{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What this email is for: confirm that {{.To}} is your email address for Go Practice. With a verified address you can recover your account if you lose your passkeys.
 
-Confirm that {{.To}} is your email address for Go Practice. Open this link:
+{{template "action" (action "Verify your address" .E.Link)}}
 
-{{.E.Link}}
+How long the link works: {{lifetime .E.ValidFor}}. It works once.
 
-The link works once and expires in {{duration .E.ValidFor}}. With a verified address you can recover your account if you lose your passkeys.
-
-If you did not ask for this, ignore this email. Nothing changes.
+If you did not ask for this: ignore this email. Nothing changes.
 {{end}}

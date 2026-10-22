@@ -44,7 +44,12 @@ func Delivers(s Sender) bool {
 	return ok && d.Delivers()
 }
 
-// ParseFrom parses a sender like "Go Practice <go-practice@yornik.eu>".
+// DefaultFrom is the sender when GPW_MAIL_FROM is not set: HUSH writes
+// every mail (VESPER.md 13.2). The middle dot makes Encode write the
+// display name as an RFC 2047 word.
+const DefaultFrom = "HUSH · Vesper Labs <hush@vesper-labs.org>"
+
+// ParseFrom parses a sender like "HUSH · Vesper Labs <hush@vesper-labs.org>".
 func ParseFrom(from string) (*mail.Address, error) {
 	a, err := mail.ParseAddress(from)
 	if err != nil {
