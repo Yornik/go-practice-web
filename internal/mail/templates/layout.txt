@@ -1,6 +1,29 @@
-{{define "layout"}}{{template "content" .}}
+{{define "layout"}}{{.Subject}}
+
+  HUSH, Vesper Labs:
+  {{.Hush}}
+{{- if .Rest}}
+  Please rest.
+{{- end}}
+
+{{template "content" .}}
 
 --
-Go Practice sent this email automatically. Nobody reads replies.
+Replies to this address are not read.
+Go Practice sent this email automatically{{with .From}} from {{.}}{{end}}.
 {{.SiteURL}}/
 {{end}}
+
+{{/* "Please rest." ends HUSH's paragraph only where a mail defines it:
+     never in a security notice or a recovery link. */}}
+{{define "rest"}}{{end}}
+
+{{/* HUSH's paragraph in a security notice: no fact, no link and no
+     "Please rest.", so it cannot be read as a reason to relax. */}}
+{{define "security"}}This is a security notice, so I keep out of it. Everything after this paragraph is plain fact, written by the site, not by me.{{end}}
+
+{{define "note"}}A note from {{.E.InvitedBy}}:
+“{{.E.Note}}”{{end}}
+
+{{define "action"}}{{.Label}}:
+{{.URL}}{{end}}

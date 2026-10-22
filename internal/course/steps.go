@@ -52,6 +52,18 @@ func (s Step) Title() string {
 // IsAll reports whether s is the "All tests" step.
 func (s Step) IsAll() bool { return s.Kind == StepKindAll }
 
+// ReadmeSteps is the number of steps the README lists: the "All tests"
+// step is the site's own, so the Steps tab does not count it.
+func (e *Exercise) ReadmeSteps() int {
+	n := 0
+	for _, s := range e.Steps {
+		if !s.IsAll() {
+			n++
+		}
+	}
+	return n
+}
+
 var stepComment = regexp.MustCompile(`^(?i:(step|part))\s+(\d+)\b\s*(.*)$`)
 
 // parseSteps reads the step lines of a "Run the tests" section. A step line

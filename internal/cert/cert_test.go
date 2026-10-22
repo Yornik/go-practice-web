@@ -90,10 +90,10 @@ func TestKinds(t *testing.T) {
 		count int
 		title string
 	}{
-		{"tier1", true, 1, 5, "Tier 1 · Badge In"},
-		{"tier2", true, 2, 5, "Tier 2 · The Key"},
-		{"tier6", true, 6, 3, "Tier 6 · Forensics"},
-		{"tier10", true, 10, 6, "Tier 10 · The Key Turns"},
+		{"tier1", true, 1, 5, "Tier 1, Badge In"},
+		{"tier2", true, 2, 5, "Tier 2, The Key"},
+		{"tier6", true, 6, 3, "Tier 6, Forensics"},
+		{"tier10", true, 10, 6, "Tier 10, The Key Turns"},
 		{"course", true, 0, 50, "The complete course"},
 		{"tier11", false, 0, 0, ""},
 		{"tier0", false, 0, 0, ""},
@@ -476,18 +476,22 @@ func TestNewDocument(t *testing.T) {
 			if d.VerifyURL != "https://go-practice.dev/verify/"+crt.Payload.ID || d.Count != len(slugs) || d.Fingerprint != s.Fingerprint() {
 				t.Errorf("%s: document = %+v", k, d)
 			}
-			wantItems := len(slugs)
+			if d.Host != "go-practice.dev" {
+				t.Errorf("%s: host %q", k, d.Host)
+			}
+			// A tier lists its exercises; the course draws its skyline.
+			wantItems, wantBars := len(slugs), 0
 			if k == KindCourse {
-				wantItems = len(c.Tiers)
+				wantItems, wantBars = 0, len(slugs)
 			}
-			if len(d.Items) != wantItems {
-				t.Errorf("%s: %d items, want %d", k, len(d.Items), wantItems)
+			if len(d.Items) != wantItems || len(d.Bars) != wantBars {
+				t.Errorf("%s: %d items and %d bars, want %d and %d", k, len(d.Items), len(d.Bars), wantItems, wantBars)
 			}
-			if withStats != (d.Items[0].Detail != "") {
-				t.Errorf("%s stats=%v: first item detail %q", k, withStats, d.Items[0].Detail)
+			if k != KindCourse && (d.Tier == 0 || d.TierName == "" || d.TierLine == "") {
+				t.Errorf("%s: tier %d %q %q", k, d.Tier, d.TierName, d.TierLine)
 			}
-			if withStats && !strings.HasPrefix(d.Items[0].Detail, "2 h") {
-				t.Errorf("%s: detail %q", k, d.Items[0].Detail)
+			if withStats != (d.Stats != nil) {
+				t.Errorf("%s stats=%v: document stats %v", k, withStats, d.Stats)
 			}
 		}
 	}
@@ -516,6 +520,10 @@ func TestRender(t *testing.T) {
 		{KindCourse, "Grace Brewster Murray Hopper", true, false, ""},
 		{"tier5", strings.Repeat("Wilhelmina ", 6), false, true, ""},
 		{"tier2", "Łukasz Żółć", false, true, "GP-7Q2M-K9XD-3HFA"},
+		{"tier1", "Łukasz Dvořák", true, false, ""},
+		{KindCourse, "Анна", true, false, ""},
+		{KindCourse, longHyphen, true, true, "GP-7Q2M-K9XD-3HFA"},
+		{"tier6", longCyrillic, true, false, ""},
 	}
 	for _, tt := range tests {
 		exs, _ := Exercises(c, tt.kind)
@@ -551,6 +559,12 @@ func TestRender(t *testing.T) {
 		// Subset fonts keep the file small enough to email.
 		if len(pdf) > 400<<10 {
 			t.Errorf("%s: PDF is %d KiB", tt.kind, len(pdf)>>10)
+		}
+		// 1 certificate always gives the same bytes: the fonts load in a
+		// fixed order, and the date is the issue date.
+		var again bytes.Buffer
+		if err := Render(&again, d); err != nil || !bytes.Equal(again.Bytes(), pdf) {
+			t.Errorf("%s: a second rendering differs (%v)", tt.kind, err)
 		}
 	}
 }
@@ -601,22 +615,26 @@ func TestActivityText(t *testing.T) {
 			t.Errorf("duration(%d) = %q, want %q", sec, got, want)
 		}
 	}
-	if got := activityLine(ExerciseStats{ActiveSeconds: 3600, Runs: 1, Hints: 2}); got != "1 h, 1 test run, 2 hints" {
-		t.Errorf("activityLine = %q", got)
-	}
 }
 
+// TestNameFont is the font rule of VESPER.md 13.1.1: Saira Name when it
+// has every rune of the name, else Inter for the whole name.
 func TestNameFont(t *testing.T) {
-	pdf, err := newPDF()
+	pdf, _, err := newPDF()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]string{
-		"Ada Lovelace":        fontManualBold,
-		"Zoë Ångström-Çelik":  fontManualBold,
-		"Łukasz Dvořák":       fontNameWide,
-		"Анна":                fontNameWide,
-		"Ada (Countess) King": fontNameWide,
+		"Ada Lovelace":             fontName,
+		"Zoë Ångström-Çelik":       fontName,
+		"Łukasz Dvořák":            fontName,
+		"Łukasz Dvořák-Wiśniewska": fontName,
+		"Zoë Ngũgĩ":                fontName,
+		"Ada (Countess) King":      fontName,
+		"O'Brien & Sons":           fontName,
+		"Анна":                     fontInter,
+		"Ελένη Παπαδοπούλου":       fontInter,
+		"Anna Анна":                fontInter, // 1 Cyrillic rune sends the whole name to Inter
 	} {
 		if got := nameFont(pdf, name); got != want {
 			t.Errorf("nameFont(%q) = %s, want %s", name, got, want)

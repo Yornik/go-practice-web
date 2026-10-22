@@ -1,7 +1,7 @@
-{{define "heading"}}Your new email address{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}"><strong>{{.E.New}}</strong> is now the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.</p>
-<p style="{{template "p"}}">If you did not do this, sign in and check your account page.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Open my account</a></p>
+<p style="{{template "p"}}"><b>What happened:</b> on {{when .E.When}}, <b>{{.E.New}}</b> became the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.</p>
+<p style="{{template "p"}}"><b>If you did this:</b> you need to do nothing.</p>
+{{template "warning" "If you did not do this, someone else is signed in to your account. Sign in and check your account page."}}
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+<p style="{{template "p-last"}}"><b>What the link does:</b> it opens your account page. You sign in there with your passkey, as always.</p>
 {{end}}

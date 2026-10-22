@@ -261,8 +261,12 @@ func TestRevealOrderAndGates(t *testing.T) {
 		return w.Code, decodeJSON[map[string]any](t, w)
 	}
 
-	if code, body := reveal(2, true); code != http.StatusConflict || body["code"] != "reveal_order" {
+	// The level reads as in a sentence (VESPER.md 10.5).
+	if code, body := reveal(2, true); code != http.StatusConflict || body["code"] != "reveal_order" || body["error"] != "Reveal hint 1 first." {
 		t.Fatalf("level 2 first = %d %v", code, body)
+	}
+	if code, body := reveal(6, true); code != http.StatusConflict || body["error"] != "Reveal the walkthrough first." {
+		t.Fatalf("level 6 first = %d %v", code, body)
 	}
 	if code, body := reveal(7, true); code != http.StatusBadRequest {
 		t.Fatalf("level 7 = %d %v", code, body)
@@ -417,14 +421,43 @@ func TestRunnerDown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withRunner := h.handler
 	h.handler = srv
 	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
 	wantStatus(t, w, http.StatusServiceUnavailable)
-	if code := decodeJSON[map[string]string](t, w)["code"]; code != "runner_unavailable" {
-		t.Fatalf("code = %s", code)
+	// 1 text for no answer and for a 503 (VESPER.md 10.5).
+	const noAnswer = "The test runner does not answer. It can be restarting. Try again in a minute."
+	if body := decodeJSON[map[string]string](t, w); body["code"] != "runner_unavailable" || body["error"] != noAnswer {
+		t.Fatalf("no answer: %v", body)
 	}
+	h.handler = withRunner
+	h.runner.mu.Lock()
+	h.runner.failWith, h.runner.failCode = http.StatusServiceUnavailable, "restarting"
+	h.runner.mu.Unlock()
+	w = h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
+	if body := decodeJSON[map[string]string](t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "runner_unavailable" || body["error"] != noAnswer {
+		t.Errorf("a 503 from the runner = %d %v", w.Code, body)
+	}
+	h.handler = srv
 	// The site stays ready without the runner.
 	wantStatus(t, h.do(req{method: "GET", path: "/readyz"}), http.StatusOK)
+}
+
+// TestRunLimitText: the 11th run in a minute says the limit and the wait
+// from Retry-After, in plain words (VESPER.md 10.5).
+func TestRunLimitText(t *testing.T) {
+	h := newHarness(t)
+	admin := h.admin()
+	for range 10 {
+		h.runTest(admin, map[string]any{})
+	}
+	w := h.do(req{method: "POST", path: "/api/exercises/" + logfmt + "/test", body: map[string]any{}, as: admin})
+	body := decodeJSON[map[string]string](t, w)
+	// 10 runs a minute: 1 more every 6 s.
+	if w.Code != http.StatusTooManyRequests || body["code"] != "rate_limited" || w.Header().Get("Retry-After") != "6" ||
+		body["error"] != "You ran the tests 10 times this minute. Wait 6 seconds, then run them again." {
+		t.Errorf("the 11th run = %d %v, Retry-After %q", w.Code, body, w.Header().Get("Retry-After"))
+	}
 }
 
 func TestTestStream(t *testing.T) {

@@ -11,13 +11,15 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -47,15 +49,7 @@ type markdown struct {
 
 func newMarkdown(slugs map[string]bool) *markdown {
 	md := goldmark.New(
-		goldmark.WithExtensions(
-			extension.GFM,
-			highlighting.NewHighlighting(
-				// Classes instead of inline styles: the site switches between a
-				// light and a dark theme with CSS (see HighlightCSS), and the CSP
-				// stays free of per-element style attributes.
-				highlighting.WithFormatOptions(chromahtml.WithClasses(true)),
-			),
-		),
+		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
 			parser.WithASTTransformers(util.Prioritized(&linkRewriter{slugs: slugs}, 100)),
@@ -63,7 +57,8 @@ func newMarkdown(slugs map[string]bool) *markdown {
 		// Raw HTML stays disabled (no html.WithUnsafe). Instead of dropping it
 		// as goldmark does, literalHTML shows it as text: in the course a
 		// "<Field>" outside backticks is a placeholder, not markup.
-		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(literalHTML{}, 100))),
+		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(literalHTML{}, 100), util.Prioritized(scrollTable{}, 100),
+			util.Prioritized(codeBlock{}, 100))),
 	)
 	return &markdown{md: md}
 }
@@ -213,6 +208,31 @@ func plainText(n ast.Node, src []byte) string {
 	return strings.TrimSpace(b.String())
 }
 
+// inlineHTML is plainText that keeps the code spans as <code>: a cell that
+// starts with `context` must not read as a sentence in lower case.
+func inlineHTML(n ast.Node, src []byte) template.HTML {
+	var b strings.Builder
+	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch t := c.(type) {
+		case *ast.CodeSpan:
+			b.WriteString("<code>" + template.HTMLEscapeString(plainText(t, src)) + "</code>")
+			return ast.WalkSkipChildren, nil
+		case *ast.Text:
+			b.WriteString(template.HTMLEscapeString(string(t.Value(src))))
+			if t.SoftLineBreak() || t.HardLineBreak() {
+				b.WriteByte(' ')
+			}
+		case *ast.String:
+			b.WriteString(template.HTMLEscapeString(string(t.Value)))
+		}
+		return ast.WalkContinue, nil
+	})
+	return template.HTML(strings.TrimSpace(b.String())) //nolint:gosec // every piece is escaped above
+}
+
 // linkRewriter points relative links in the course at the site: a link to
 // an exercise opens its page, any other file opens on GitHub, because the
 // site only serves exercises.
@@ -270,9 +290,12 @@ func (r *linkRewriter) rewrite(base, dest string, image bool) string {
 }
 
 // Default highlighting themes for HighlightCSS: the site's own, so that
-// the code blocks of a spec match the editor (".design/FINAL.md",
-// section 12). 4 colours keep away from the blue, red and green of the
-// site's status colours; everything else is the text colour.
+// the code blocks of a spec match the editor (".design/VESPER.md",
+// sections 3.2 and 12). 4 muted colours keep away from amber (the current
+// state), cyan (HUSH), red and green (test results), so a keyword never
+// looks like an action, HUSH, an error or a pass. Everything else, numbers
+// and builtins included, is the text colour; a diff's lines stay ink too,
+// because red and green mean test results.
 const (
 	DefaultLightStyle = "gpw-light"
 	DefaultDarkStyle  = "gpw-dark"
@@ -280,35 +303,40 @@ const (
 
 func init() {
 	styles.Register(siteStyle(DefaultLightStyle, styleColours{
-		text: "#1E2821", kw: "#6E2C7E", num: "#0E6670", str: "#7A4E05", com: "#56685B", red: "#B3251A", ok: "#1C6A3A",
+		text: "#070707", kw: "#1F4E79", typ: "#3D5F1C", str: "#7A4500", com: "#595D61", err: "#BD2A1E", sel: "#FFE2A6",
 	}))
 	styles.Register(siteStyle(DefaultDarkStyle, styleColours{
-		text: "#DDE6D7", kw: "#DDA9EE", num: "#7ED3D9", str: "#E3C27C", com: "#91A396", red: "#FF9086", ok: "#8AD6A0",
+		text: "#EDEEEF", kw: "#A9C4DD", typ: "#B5CF9C", str: "#DDBE8E", com: "#8E9398", err: "#FF6150", sel: "#3D3112",
 	}))
 }
 
-type styleColours struct{ text, kw, num, str, com, red, ok string }
+type styleColours struct{ text, kw, typ, str, com, err, sel string }
 
 func siteStyle(name string, c styleColours) *chroma.Style {
 	return chroma.MustNewStyle(name, chroma.StyleEntries{
-		// No background: the code block sets it from the page's tokens.
+		// No background: the code block sets its plane from the page's
+		// tokens (--surface, or --editor on a --surface plane).
 		chroma.Background:         c.text,
-		chroma.Keyword:            c.kw,
-		chroma.KeywordDeclaration: c.kw,
-		chroma.KeywordNamespace:   c.kw,
-		chroma.KeywordReserved:    c.kw,
-		chroma.KeywordType:        c.num,
-		chroma.KeywordConstant:    c.num,
-		chroma.NameBuiltin:        c.num,
-		chroma.LiteralNumber:      c.num,
-		chroma.LiteralString:      c.str,
+		chroma.Keyword:            "bold " + c.kw,
+		chroma.KeywordDeclaration: "bold " + c.kw,
+		chroma.KeywordNamespace:   "bold " + c.kw,
+		chroma.KeywordReserved:    "bold " + c.kw,
+		chroma.KeywordType:        "nobold " + c.typ, // the predeclared types
+		chroma.KeywordConstant:    "nobold " + c.typ, // true, false, nil, iota
+		chroma.LiteralString:      c.str,             // every LiteralString token inherits it
 		chroma.Comment:            "noitalic " + c.com,
+		chroma.CommentSingle:      "noitalic " + c.com,
+		chroma.CommentMultiline:   "noitalic " + c.com,
 		chroma.CommentPreproc:     "noitalic " + c.com,
-		chroma.Error:              c.red,
-		chroma.GenericDeleted:     c.red,
-		chroma.GenericInserted:    c.ok,
+		chroma.Error:              c.err, // what the lexer could not read
 		chroma.GenericEmph:        "italic",
 		chroma.GenericStrong:      "bold",
+		// A fence can ask for line numbers or highlighted lines; without
+		// these chroma derives a grey and a light band that ignore the
+		// theme.
+		chroma.LineNumbers:      c.com,
+		chroma.LineNumbersTable: c.com,
+		chroma.LineHighlight:    "bg:" + c.sel,
 	})
 }
 
@@ -413,5 +441,76 @@ func (literalHTML) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 		}
 		_, _ = w.WriteString("</code></pre>\n")
 		return ast.WalkSkipChildren, nil
+	})
+}
+
+// codeBlock renders every code block with chroma, 1 span per line. A block
+// without a language (indented, or a fence without a name, such as the
+// commands of "Run the tests") gets the plain-text lexer instead of a bare
+// <pre>, so its wrapped lines take the spec's hanging indent too and do
+// not read as new commands.
+type codeBlock struct{}
+
+// RegisterFuncs implements renderer.NodeRenderer.
+func (codeBlock) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(ast.KindFencedCodeBlock, renderCodeBlock)
+	reg.Register(ast.KindCodeBlock, renderCodeBlock)
+}
+
+// codeFormatter writes classes instead of inline styles: the site switches
+// between a light and a dark theme with CSS (see HighlightCSS), and the CSP
+// stays free of per-element style attributes.
+var codeFormatter = chromahtml.New(chromahtml.WithClasses(true))
+
+func renderCodeBlock(w util.BufWriter, src []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	var lexer chroma.Lexer
+	if f, ok := n.(*ast.FencedCodeBlock); ok {
+		if lang := f.Language(src); lang != nil {
+			lexer = lexers.Get(string(lang))
+		}
+	}
+	if lexer == nil {
+		lexer = lexers.Get("plaintext")
+	}
+	var code strings.Builder
+	for i := range n.Lines().Len() {
+		line := n.Lines().At(i)
+		code.Write(line.Value(src))
+	}
+	it, err := chroma.Coalesce(lexer).Tokenise(nil, code.String())
+	if err != nil {
+		return ast.WalkStop, err
+	}
+	// The style only decides which token types get a class; HighlightCSS
+	// colours them.
+	if err := codeFormatter.Format(w, styles.Get("github"), it); err != nil {
+		return ast.WalkStop, err
+	}
+	return ast.WalkSkipChildren, nil
+}
+
+// scrollTable puts each table in a scroll box (gpw-tscroll). A wide table
+// scrolls inside it, and site.js makes the box, not the table, the
+// focusable region: a table with role="region" would lose its table role
+// and its column headers (WCAG 1.3.1).
+type scrollTable struct{}
+
+// RegisterFuncs implements renderer.NodeRenderer. It takes the place of
+// the GFM table renderer for the table element only.
+func (scrollTable) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(east.KindTable, func(w util.BufWriter, _ []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			_, _ = w.WriteString(`<div class="gpw-tscroll"><table`)
+			if n.Attributes() != nil {
+				html.RenderAttributes(w, n, extension.TableAttributeFilter)
+			}
+			_, _ = w.WriteString(">\n")
+		} else {
+			_, _ = w.WriteString("</table>\n</div>\n")
+		}
+		return ast.WalkContinue, nil
 	})
 }

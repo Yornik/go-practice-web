@@ -3,12 +3,17 @@
 // They drive the test tree (the README's steps, their tests and
 // subtests), the raw output and the run's problems.
 //
-// The tree holds only tree items. The output of the selected failing test
-// and its actions ("Show problem 2", "Open policy_test.go:50") are in a
-// detail pane under the tree, so the keys of the tree never swallow them.
+// The output of the selected failing test and its actions ("Show problem
+// 2", "Open policy_test.go:50") hang in its tree item, under its row, so
+// the failing test and its output are on screen together (VESPER.md 7.5).
+// The tree's keys act only on the tree items, so they never swallow the
+// actions' keys. Failing tests with the same problem fold into "17 more
+// tests fail the same way". The counts are of the leaf tests: a run of
+// 2 tests with 18 subtests that fail says "18 fail".
 import { apiStream, errorMessage } from "../api.js";
 import { balloon, h, icon } from "../ui/dom.js";
 import { clock, seconds } from "../ui/format.js";
+import { zero } from "../ui/zero.js";
 import { gotWant, shortTest } from "./explain.js";
 
 // file.go:12 or file_test.go:12:5, with an optional directory in front.
@@ -37,6 +42,8 @@ export class TestRunner {
    * @param {(panel: string) => void} o.showPanel
    * @param {(n: number) => void} o.showProblem
    * @param {() => void} [o.onStart]
+   * @param {(result: {finished: boolean, failing: boolean}) => void} [o.onFinish] after every run, for HUSH's card
+   * @param {string} [o.firstPassLine] the story line of this exercise's first pass (VESPER.md 16.8)
    * @param {() => void} [o.onRaceUnavailable]
    * @param {{slug: string, title: string}|null} o.next
    */
@@ -47,6 +54,8 @@ export class TestRunner {
     this.steps = o.steps.filter((s) => s.kind !== "all").map((s) => ({ ...s, re: compile(s.run) }));
     this.expanded = new Set();
     this.showPassed = new Set();
+    this.showSame = new Set(); // "parent|problem" whose same failures the learner unfolded
+    this.pinSig = "";
     this.frame = 0;
     this.stale = new Set();
     this.lastRun = null;
@@ -63,6 +72,20 @@ export class TestRunner {
     this.focusKey = null;
     this.expanded.clear();
     this.showPassed.clear();
+    this.showSame.clear();
+    this.pinSig = "";
+  }
+
+  /**
+   * Called when the problems change. The check renumbers them as you
+   * type, so the pins in the tree, their names and "Show problem N" are
+   * drawn again when a failing test's number moved.
+   */
+  problemsChanged() {
+    const sig = [...this.nodes.values()].filter((n) => n.state === "fail").map((n) => `${n.name}=${this.problems.forTest(n.name)?.n || 0}`).join("|");
+    if (sig === this.pinSig) return;
+    this.pinSig = sig;
+    this.render();
   }
 
   get running() {
@@ -158,7 +181,22 @@ export class TestRunner {
       this.renderSummary();
       this.render();
       this.problems.finishRun();
+      this.onFinish?.(this.result());
     }
+  }
+
+  /**
+   * How the last run ended: finished is false for a run that broke, was
+   * stopped or never reached the runner (runner_busy, runner_unavailable,
+   * rate_limited); failing is true for a failing test, a build failure, a
+   * panic or a timeout.
+   */
+  result() {
+    const c = this.current;
+    if (!c || c.state !== "done") return { finished: false, failing: false };
+    const d = c.done || {};
+    const k = this.nodes.size ? counts([...this.topNodes()]) : { fail: c.counts?.fail || 0 };
+    return { finished: true, failing: Boolean(k.fail || d.buildFailed || d.timedOut || d.exitCode > 0) };
   }
 
   /** A run that could not start or broke: a NOTE line with "Try again". */
@@ -269,7 +307,7 @@ export class TestRunner {
     this.render();
     this.renderOutput();
     this.renderSummary();
-    const c = counts([...this.topNodes()]);
+    const c = leafCounts([...this.topNodes()]);
     this.announce(ev.buildFailed
       ? `Run ${this.current.no} finished: the build failed.`
       : `Run ${this.current.no} finished: ${c.pass} pass, ${c.fail} ${c.fail === 1 ? "fails" : "fail"}.`);
@@ -280,10 +318,16 @@ export class TestRunner {
     this.current.no = this.runs;
     if (p.raceUnavailable) this.raceNote();
     if (p.firstPass) {
-      const how = p.raceUnavailable ? "passes. This server has no race detector, so it ran without -race" : "passes with -race";
+      // The first pass (VESPER.md 7.5, 16.8): the story line, or "All tests
+      // pass." with story effects off. CSS shows 1 of each pair, so the
+      // toggle swaps them in place. It is on screen only, never announced.
+      const how = p.raceUnavailable ? "passes. This server has no race detector, so it ran without -race." : "passes with -race.";
+      const pair = (story, plain) => [h("span", { class: "gpw-story-line" }, story), h("span", { class: "gpw-plain-line" }, plain)];
       const line = h("div", { class: "pass-line" },
-        h("p", { class: "status-line status-ok" }, icon("tick"), h("span", {}, `Exercise ${this.number} ${how}. Rule 5: read the explanation and the walkthrough now. They show the trade-offs.`)));
-      if (this.next) line.append(h("p", {}, "Next: ", h("a", { href: `/learn/${this.next.slug}` }, this.next.title)));
+        h("p", { class: "pass-ok" }, icon("tick"), ...pair(this.firstPassLine || "All tests pass.", "All tests pass.")),
+        h("p", {}, ...pair(`Exercise ${this.number} ${how} It is in the Ledger with you as the author.`, `Exercise ${this.number} ${how}`)),
+        h("p", {}, "Rule 5: read the explanation and the walkthrough now. They show the trade-offs."));
+      if (this.next) line.append(h("p", {}, h("a", { href: `/learn/${this.next.slug}` }, `Next: ${this.next.title}`)));
       this.notes.append(line);
     }
     this.renderSummary();
@@ -310,22 +354,28 @@ export class TestRunner {
     s.replaceChildren();
     delete s.dataset.kind;
     if (!c) {
-      s.textContent = "Run the tests to see each step here.";
+      s.textContent = "No runs yet. Pick a step and run it when you are ready.";
       return;
     }
     const head = `Run ${c.no}`;
+    // A run in progress turns the arc; the story line has a plain twin
+    // that CSS shows with story effects off (VESPER.md 16.8).
+    const busy = (...nodes) => {
+      s.dataset.kind = "running";
+      s.append(icon("arc"), h("span", {}, ...nodes));
+    };
+    const cmd = () => h("code", {}, c.race ? "go test -race" : "go test");
     switch (c.state) {
       case "saving":
-        s.textContent = `${head}: saving your files.`;
+        busy(`${head}: saving your files.`);
         return;
       case "starting":
-        s.textContent = `${head}: starting.`;
+      case "running":
+        busy(h("span", { class: "gpw-story-line" }, "Running ", cmd(), ". Nobody is marking this green for you."),
+          h("span", { class: "gpw-plain-line" }, "Running ", cmd(), "."));
         return;
       case "queued":
-        s.textContent = `${head}: waiting for the runner, ${c.queue} ${c.queue === 1 ? "run" : "runs"} ahead.`;
-        return;
-      case "running":
-        s.textContent = `${head}: running.`;
+        busy(`${head}: waiting for the runner, ${c.queue} ${c.queue === 1 ? "run" : "runs"} ahead.`);
         return;
       case "stopped":
         s.textContent = `${head} stopped. The results below are not complete.`;
@@ -335,31 +385,30 @@ export class TestRunner {
         return;
     }
     const d = c.done || {};
-    const at = `${head} at ${clock(c.at)}`;
-    const k = this.nodes.size ? counts([...this.topNodes()]) : { pass: c.counts?.pass || 0, fail: c.counts?.fail || 0, skip: c.counts?.skip || 0 };
-    const parts = [`${k.pass} pass`, `${k.fail} ${k.fail === 1 ? "fails" : "fail"}`];
-    if (k.skip) parts.push(`${k.skip} skipped`);
+    const step = c.step && c.step !== "all" ? this.steps.find((x) => x.id === c.step) : null;
+    const at = `${head} at ${clock(c.at)}${step ? `, ${step.kind || "step"} ${step.n}` : ""}`;
+    const k = this.nodes.size ? leafCounts([...this.topNodes()]) : { pass: c.counts?.pass || 0, fail: c.counts?.fail || 0, skip: c.counts?.skip || 0 };
+    // The failing count is bold and red: it is what the learner looks for.
+    const failText = `${k.fail} ${k.fail === 1 ? "fails" : "fail"}`;
+    const parts = [`${k.pass} pass, `, k.fail ? h("b", {}, failText) : failText];
+    if (k.skip) parts.push(`, ${k.skip} skipped`);
+    s.dataset.kind = k.fail || d.exitCode || d.buildFailed ? "fail" : "pass";
     if (d.buildFailed) {
-      s.textContent = `${at}: the build failed. The tests did not run. ${c.restored ? "Run the tests again to see why." : "The problems explain why."}`;
-      s.dataset.kind = "fail";
+      s.append(`${at}: the build failed. The tests did not run. ${c.restored ? "Run the tests again to see why." : "The problems column explains why."}`);
     } else if (d.timedOut) {
       // A dump from go test's own timeout names where the test waits; a run
       // the runner killed at its deadline has none, so name the test.
       const where = c.restored ? ""
-        : this.problems.list.some((p) => p.kind === "run" && p.explain?.id === "test-timeout") ? "The problems show where a test waits."
-        : c.hung?.length ? `${c.hung.join(" and ")} ${c.hung.length === 1 ? "was" : "were"} still running: look for a channel, a lock or a loop that never ends.`
+        : this.problems.list.some((p) => p.kind === "run" && p.explain?.id === "test-timeout") ? " The problems show where a test waits."
+        : c.hung?.length ? ` ${c.hung.join(" and ")} ${c.hung.length === 1 ? "was" : "were"} still running: look for a channel, a lock or a loop that never ends.`
         : "";
-      s.textContent = `${at}: the run took too long and stopped. ${parts.join(", ")}. ${where}`.trim();
-      s.dataset.kind = "fail";
+      s.append(`${at}: the run took too long and stopped. `, ...parts, `.${where}`);
     } else if (d.truncated) {
-      s.textContent = `${at}: the run printed more than 1 MiB and stopped. ${parts.join(", ")}.`;
-      s.dataset.kind = "fail";
+      s.append(`${at}: the run printed more than 1 MiB and stopped. `, ...parts, ".");
     } else if (d.exitCode < 0) {
-      s.textContent = `${at}: the runner stopped the run before it ended. ${parts.join(", ")}. Run the tests again.`;
-      s.dataset.kind = "fail";
+      s.append(`${at}: the runner stopped the run before it ended. `, ...parts, ". Run the tests again.");
     } else {
-      s.textContent = `${at}: ${parts.join(", ")}, ${seconds(d.durationMs)}.`;
-      s.dataset.kind = k.fail || d.exitCode ? "fail" : "pass";
+      s.append(`${at}: `, ...parts, `, ${seconds(d.durationMs)}.`);
     }
     // The stopped-run text already asks for a new run.
     const stopped = d.exitCode < 0 && !d.timedOut && !d.truncated;
@@ -452,7 +501,11 @@ export class TestRunner {
   }
 
   render() {
-    const hadFocus = this.tree.contains(document.activeElement);
+    // The output pane sits in a tree item, which the render replaces:
+    // remember which of its actions had the focus, to give it back.
+    const active = document.activeElement;
+    const detailFocus = this.detail.contains(active) ? [...this.detail.querySelectorAll("button, a")].indexOf(active) : -1;
+    const hadFocus = this.tree.contains(active) && detailFocus < 0;
     const items = [];
     if (!this.current) {
       this.tree.replaceChildren();
@@ -473,8 +526,9 @@ export class TestRunner {
       // The first failing step opens, the rest fold, unless the learner chose.
       if (state === "fail" && !firstFail) firstFail = g.key;
       const open = this.expanded.has(g.key) || (state === "fail" && firstFail === g.key && !this.expanded.has(`-${g.key}`));
-      const count = state === "fail" ? `${k.fail} of ${k.total} ${k.fail === 1 ? "fails" : "fail"}`
-        : state === "pass" ? `${k.pass} of ${k.total} pass`
+      const leaves = leafCounts(g.tests);
+      const count = state === "fail" ? `${leaves.fail} of ${leaves.total} ${leaves.fail === 1 ? "fails" : "fail"}`
+        : state === "pass" ? `${leaves.pass} of ${leaves.total} pass`
         : state === "skip" ? (k.total ? "skipped" : "no tests ran")
         : state === "run" ? "running" : "queued";
       this.updateStepStatus(g.step, state, count);
@@ -483,32 +537,59 @@ export class TestRunner {
       else label.textContent = g.step.label || g.step.title || `Step ${g.step.n}`;
       const li = this.item({ key: g.key, level: 1, state, open, cls: "is-step", expandable: g.tests.length > 0,
         name: `${g.step.n === "" ? "" : `${capital(g.step.kind || "step")} ${g.step.n}: `}${label.textContent}, ${STATE_NAME[state]}: ${count}` },
-      icon(ICON[state]), h("span", { class: "tree-no" }, g.step.n === "" ? "" : String(g.step.n)),
+      icon(ICON[state]), h("span", { class: "tree-no" }, g.step.n === "" ? "" : saira(String(g.step.n))),
       label,
       h("span", { class: "tree-filter" }, g.step.run ? `-run ${g.step.run}` : ""),
-      h("span", { class: "tree-count" }, count));
+      h("span", { class: "tree-count" }, saira(count)));
       if (open && g.tests.length) li.append(this.children(g.tests, 2, g.key));
       items.push(li);
     }
+    this.pinSig = [...this.nodes.values()].filter((n) => n.state === "fail").map((n) => `${n.name}=${this.problems.forTest(n.name)?.n || 0}`).join("|");
     this.tree.replaceChildren(...items);
     this.rovingTabindex();
     if (hadFocus) this.tree.querySelector('[role="treeitem"][tabindex="0"]')?.focus();
-    this.renderDetail();
+    this.renderDetail(detailFocus);
   }
 
-  /** The tests of a step or the subtests of a test: failures first, passes folded. */
+  /**
+   * The tests of a step or the subtests of a test: failures first, passes
+   * folded. Failing tests with the same problem show 1 of them (the
+   * selected one, else the first) and fold the rest into 1 row.
+   */
   children(nodes, level, key) {
     const group = h("ul", { role: "group" });
     const sorted = [...nodes].sort((a, b) => rank(a) - rank(b));
     const passed = sorted.filter((n) => n.state === "pass" || n.state === "skip");
     const rest = sorted.filter((n) => !(n.state === "pass" || n.state === "skip"));
     const showAll = this.showPassed.has(key) || rest.length === 0;
-    for (const n of showAll ? sorted : rest) group.append(this.testItem(n, level));
+    const byProblem = new Map();
+    for (const n of rest) {
+      const p = n.state === "fail" && !n.children.some((c) => c.state === "fail") ? this.problems.forTest(n.name) : null;
+      if (p) byProblem.set(p.n, [...(byProblem.get(p.n) || []), n]);
+    }
+    const folded = new Set();
+    const foldAfter = new Map(); // the test that stands for its problem -> {problem, more}
+    for (const [pn, list] of byProblem) {
+      const sameKey = `${key}|${pn}`;
+      if (list.length < 2 || this.showSame.has(sameKey)) continue;
+      const shown = list.find((n) => n.name === this.selectedKey) || list[0];
+      for (const n of list) if (n !== shown) folded.add(n.name);
+      foldAfter.set(shown.name, { sameKey, more: list.length - 1 });
+    }
+    for (const n of showAll ? sorted : rest) {
+      if (folded.has(n.name)) continue;
+      group.append(this.testItem(n, level));
+      const f = foldAfter.get(n.name);
+      if (!f) continue;
+      const text = `${f.more} more ${f.more === 1 ? "test fails" : "tests fail"} the same way`;
+      group.append(this.item({ key: `same:${f.sameKey}`, level, state: "fail", cls: "tree-more", name: `${text}. Show them.`, action: () => { this.showSame.add(f.sameKey); this.render(); } },
+        icon("cross"), h("span", { class: "tree-label" }, saira(text)), h("span", { class: "tree-count" }, "Show")));
+    }
     if (!showAll && passed.length) {
       const word = passed.every((n) => n.state === "skip") ? "skipped" : "pass";
       const text = `${passed.length} more ${passed.length === 1 ? "test" : "tests"} ${word}`;
       const li = this.item({ key: `more:${key}`, level, state: "pass", cls: "tree-more", name: `${text}. Show them.`, action: () => { this.showPassed.add(key); this.render(); } },
-        icon("tick"), h("span", { class: "tree-label" }, text), h("span", { class: "tree-count" }, "show"));
+        icon("tick"), h("span", { class: "tree-label" }, text), h("span", { class: "tree-count" }, "Show"));
       group.append(li);
     }
     return group;
@@ -520,7 +601,7 @@ export class TestRunner {
     const problem = n.state === "fail" ? this.problems.forTest(n.name) : null;
     const leaf = n.state === "fail" && !failingChild;
     const end = problem && leaf
-      ? h("span", { class: "tree-end" }, h("span", { class: "tree-count" }, WORD.fail), balloon(String(problem.n)))
+      ? h("span", { class: "tree-end" }, h("span", { class: "tree-count" }, WORD.fail), balloon(saira(String(problem.n))))
       : h("span", { class: "tree-count" }, n.state === "run" ? "running" : WORD[n.state]);
     const shown = level > 2 ? shortTest(n.name) : n.name;
     const name = `${shown}, ${STATE_NAME[n.state]}${problem && leaf ? `, problem ${problem.n}` : ""}`;
@@ -532,43 +613,62 @@ export class TestRunner {
     return li;
   }
 
-  /** The output of the selected failing test, with its actions, under the tree. */
-  renderDetail() {
+  /**
+   * The output of the selected failing test, with its actions, in its tree
+   * item under its row. focusAt is the action that had the focus before a
+   * render, or -1.
+   */
+  renderDetail(focusAt = -1) {
+    this.detailHome ??= { parent: this.detail.parentElement, next: this.detail.nextSibling };
     const n = this.selectedKey ? this.nodes.get(this.selectedKey) : null;
-    if (!n || n.state !== "fail" || (!n.output && !this.current?.restored)) {
+    const li = n ? this.tree.querySelector(`[data-key="${CSS.escape(n.name)}"]`) : null;
+    if (!n || !li || n.state !== "fail" || (!n.output && !this.current?.restored)) {
       this.detail.hidden = true;
       this.detail.replaceChildren();
       this.detailKey = null;
+      // Back to its place outside the tree, where it waits hidden.
+      if (!this.detailHome.parent.contains(this.detail) || this.tree.contains(this.detail)) this.detailHome.parent.insertBefore(this.detail, this.detailHome.next);
       return;
     }
+    // A render replaced the tree items, so the pane moves into the new one.
+    const hadFocus = focusAt >= 0 || this.detail.contains(document.activeElement);
+    if (this.detail.parentElement !== li) li.append(this.detail);
     const problem = this.problems.forTest(n.name);
     const sig = `${n.name}|${n.output.length}|${problem?.n || 0}`;
-    if (sig === this.detailKey) return;
-    const hadFocus = this.detail.contains(document.activeElement);
+    const refocus = () => {
+      const actions = [...this.detail.querySelectorAll("button, a")];
+      if (hadFocus && !this.detail.contains(document.activeElement)) (actions[focusAt] || actions[0])?.focus();
+    };
+    if (sig === this.detailKey) {
+      refocus();
+      return;
+    }
     this.detailKey = sig;
     const head = h("p", { class: "detail-head" }, h("span", { class: "visually-hidden" }, "Output of "), h("code", {}, n.name));
     const body = [];
-    if (n.output) {
+    const text = trimOutput(n.output);
+    if (text) {
       const pre = h("pre", {});
-      linkRefs(pre, trimOutput(n.output), this.files);
+      linkRefs(pre, text, this.files);
       body.push(pre);
-    } else {
+    } else if (!n.output) {
       body.push(h("p", { class: "help" }, "The output of this run is not kept after a reload. Run the tests again to see it."));
     }
     const e = problem?.occ?.find((o) => o.test === n.name)?.explain || problem?.explain;
     const gw = e && e.id === "test-got-want" ? gotWant(e) : null;
     if (gw) body.push(gw);
     const actions = h("div", { class: "btn-row" });
-    if (problem) actions.append(h("button", { type: "button", class: "btn btn-sm", onclick: () => this.showProblem(problem.n, n.name) }, `Show problem ${problem.n}`));
+    if (problem) actions.append(h("button", { type: "button", class: "btn btn-sm", onclick: () => this.showProblem(problem.n, n.name) }, saira(`Show problem ${problem.n}`)));
     const raw = e?.raw;
     if (raw?.openable && raw.file && raw.line && this.files.has(raw.file)) {
-      actions.append(h("button", { type: "button", class: "btn btn-sm", onclick: () => this.files.reveal(raw.file, raw.line, raw.column || 1) }, `Open ${raw.file}:${raw.line}`));
+      // The place is code: it keeps its form inside the button's capitals.
+      actions.append(h("button", { type: "button", class: "btn btn-sm", onclick: () => this.files.reveal(raw.file, raw.line, raw.column || 1) }, "Open ", h("code", {}, `${raw.file}:${raw.line}`)));
     }
     if (actions.childElementCount) body.push(actions);
     this.detail.replaceChildren(head, ...body);
     this.detail.setAttribute("aria-label", `Output of ${n.name}`);
     this.detail.hidden = false;
-    if (hadFocus) this.detail.querySelector("button, a")?.focus();
+    refocus();
   }
 
   item({ key, level, state, open = false, cls = "", expandable = false, test, action, name }, ...row) {
@@ -597,7 +697,7 @@ export class TestRunner {
       const p = this.problems.forTest(key);
       if (p) this.problems.select(p.n, { reveal: false, test: key });
     }
-    this.tree.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus();
+    focusItem(this.tree.querySelector(`[data-key="${CSS.escape(key)}"]`));
   }
 
   /** Shows a test in the tree: opens its step and parents, selects and scrolls to it. */
@@ -618,9 +718,7 @@ export class TestRunner {
     this.focusKey = name;
     this.showPanel("tests");
     this.render();
-    const li = this.tree.querySelector(`[data-key="${CSS.escape(name)}"]`);
-    li?.querySelector(".tree-row")?.scrollIntoView({ block: "nearest" });
-    li?.focus({ preventScroll: true });
+    focusItem(this.tree.querySelector(`[data-key="${CSS.escape(name)}"]`));
     const p = this.problems.forTest(name);
     if (p) this.problems.select(p.n, { reveal: false, test: name });
   }
@@ -652,7 +750,7 @@ export class TestRunner {
       event.preventDefault();
       cur.tabIndex = -1;
       el.tabIndex = 0;
-      el.focus();
+      focusItem(el);
       this.focusKey = el.dataset.key;
     };
     switch (event.key) {
@@ -703,7 +801,23 @@ export class TestRunner {
   }
 }
 
+/** Text in a Saira cell: every 0 slashed (VESPER.md 3.3). */
+function saira(text) {
+  return /0/.test(text) ? zero(text) : text;
+}
+
 /** Hides a row's visible parts from the accessibility tree: the hidden name says it all. */
+/**
+ * Focuses a tree item and shows its own row. The item holds its whole
+ * subtree, so it always overlaps the scroller and focus() alone would not
+ * scroll: the focused row could sit outside the view (WCAG 2.4.7).
+ */
+function focusItem(li) {
+  if (!li) return;
+  li.querySelector(":scope > .tree-row")?.scrollIntoView({ block: "nearest" });
+  li.focus({ preventScroll: true });
+}
+
 function hide(node) {
   if (node instanceof Element) node.setAttribute("aria-hidden", "true");
   return node;
@@ -727,6 +841,28 @@ function counts(nodes) {
     else if (n.state === "skip") c.skip++;
     else c.run++;
   }
+  return c;
+}
+
+/** The leaf tests of nodes by state. A test that failed while its subtests passed counts as 1 more failure. */
+function leafCounts(nodes) {
+  const c = { pass: 0, fail: 0, skip: 0, run: 0, total: 0 };
+  const walk = (n) => {
+    if (n.children.length) {
+      n.children.forEach(walk);
+      if (n.state === "fail" && !n.children.some((x) => x.state === "fail")) {
+        c.fail++;
+        c.total++;
+      }
+      return;
+    }
+    c.total++;
+    if (n.state === "pass") c.pass++;
+    else if (n.state === "fail") c.fail++;
+    else if (n.state === "skip") c.skip++;
+    else c.run++;
+  };
+  nodes.forEach(walk);
   return c;
 }
 

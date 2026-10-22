@@ -4,31 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light only">
-<title>{{template "heading" .}}</title>
+<meta name="supported-color-schemes" content="light only">
+<title>{{.Subject}}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#E4ECD9;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#E4ECD9;">
+<body style="margin:0;padding:0;background-color:#F5F5F4;color-scheme:light only;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5F5F4;">
 <tr><td align="center" style="padding:32px 12px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#F6F9F1;border:1px solid #6B8562;border-radius:4px;">
-<tr><td style="padding:24px 32px 4px 32px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1E2821;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px 0;"><tr>
-<td width="20" height="20" align="center" valign="middle" style="width:20px;height:20px;border:2px solid #2346A0;border-radius:50%;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:9px;line-height:20px;font-weight:700;color:#2346A0;">Go</td>
-<td style="padding-left:10px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;font-weight:700;color:#1E2821;">Go Practice</td>
-</tr></table>
-<h1 style="margin:0 0 18px 0;font-size:22px;line-height:30px;font-weight:700;color:#1E2821;">{{template "heading" .}}</h1>
+{{msoOpen}}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;background-color:#FFFFFF;border:1px solid #D6D7D9;border-top:0;">
+<tr><td height="2" style="height:2px;line-height:2px;font-size:0;background-color:#006B7D;">&nbsp;</td></tr>
+<tr><td style="padding:22px 24px 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="36" height="36" align="center" valign="middle" bgcolor="#070707" style="width:36px;height:36px;background-color:#070707;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:36px;font-weight:bold;">V</td>
+<td valign="middle" style="{{template "font"}}padding-left:12px;">
+<p style="margin:0;font-size:15px;line-height:20px;letter-spacing:2px;text-transform:uppercase;color:#070707;white-space:nowrap;"><b>Vesper</b> Labs</p>
+<p style="margin:0;font-size:12px;line-height:16px;letter-spacing:1.5px;text-transform:uppercase;color:#545659;white-space:nowrap;">Go Practice</p>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:24px 24px 0;"><h1 style="{{template "font"}}margin:0;font-size:24px;line-height:32px;font-weight:bold;color:#070707;">{{.Subject}}</h1></td></tr>
+<tr><td style="padding:18px 24px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="{{template "font"}}border-left:3px solid #006B7D;background-color:#E3F3F6;padding:14px 18px 16px 16px;">
+<p style="margin:0 0 6px;font-size:13px;line-height:20px;font-weight:bold;letter-spacing:0.2px;color:#006B7D;">HUSH, Vesper Labs</p>
+<p style="margin:0;font-size:16px;line-height:24px;color:#070707;">{{.Hush}}</p>
+{{if .Rest}}<p style="margin:10px 0 0;font-size:16px;line-height:24px;font-style:italic;color:#006B7D;">Please rest.</p>
+{{end}}</td></tr></table>
+</td></tr>
+<tr><td style="{{template "font"}}padding:22px 24px 0;">
 {{template "content" .}}
 </td></tr>
-<tr><td style="padding:20px 32px 28px 32px;font-family:B612,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#475A4C;">
-<p style="margin:0;border-top:1px solid #BCCDB0;padding-top:16px;">Go Practice sent this email automatically. Nobody reads replies.<br><a href="{{.SiteURL}}/" style="color:#2346A0;">{{.SiteURL}}</a></p>
+<tr><td style="padding:28px 24px 24px;">
+<p style="{{template "font"}}margin:0;padding-top:14px;border-top:1px solid #D6D7D9;font-size:12px;line-height:18px;color:#545659;"><b style="color:#070707;">Replies to this address are not read.</b> Go Practice sent this email automatically{{with .From}} from {{.}}{{end}}. The site is <a href="{{.SiteURL}}/" style="color:#545659;">{{.Host}}</a>.</p>
 </td></tr>
 </table>
+{{msoClose}}
 </td></tr>
 </table>
 </body>
 </html>
 {{end}}
 
-{{define "p"}}margin:0 0 16px 0;font-size:15px;line-height:24px;color:#1E2821;{{end}}
-{{define "small"}}margin:0 0 16px 0;font-size:13px;line-height:20px;color:#475A4C;{{end}}
-{{define "button"}}display:inline-block;padding:12px 22px;border-radius:4px;background-color:#2346A0;color:#FFFFFF;font-size:15px;line-height:20px;font-weight:700;text-decoration:none;{{end}}
-{{define "link"}}color:#2346A0;word-break:break-all;{{end}}
+{{/* Mail clients ignore external CSS and strip <style> in places, so every
+     style is inline: tables, no classes, no web fonts, no images. */}}
+{{define "font"}}font-family:'Atkinson Hyperlegible Next','Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;{{end}}
+{{define "p"}}margin:0 0 16px;font-size:16px;line-height:24px;color:#070707;{{end}}
+{{define "p-last"}}margin:0;font-size:16px;line-height:24px;color:#070707;{{end}}
+
+{{/* The note an admin wrote into an invite: quoted, on a grey rule. */}}
+{{define "note"}}<p style="margin:0 0 4px;font-size:16px;line-height:24px;color:#070707;"><b>A note from {{.E.InvitedBy}}:</b></p>
+<p style="margin:0 0 16px;padding:2px 0 2px 14px;border-left:2px solid #76797D;font-size:16px;line-height:24px;color:#070707;">“{{.E.Note}}”</p>{{end}}
+
+{{/* WARNING: a 3 px ink rule and the word carry it, not a colour. */}}
+{{define "warning"}}<p style="margin:0 0 20px;padding:2px 0 2px 14px;border-left:3px solid #070707;font-size:16px;line-height:24px;color:#070707;"><b>WARNING:</b> {{.}}</p>{{end}}
+
+{{/* The 1 button: amber as a spot ink under white bold text, its label
+     the action; the full URL under it, so nothing hides behind the button. */}}
+{{define "action"}}<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 0;"><tr>
+<td bgcolor="#AD4F00" style="background-color:#AD4F00;mso-padding-alt:14px 24px;"><a href="{{.URL}}" style="{{template "font"}}display:inline-block;padding:14px 24px;font-size:16px;line-height:20px;font-weight:bold;letter-spacing:0.2px;color:#FFFFFF;text-decoration:none;">{{.Label}}</a></td>
+</tr></table>
+<p style="margin:10px 0 20px;font-size:13px;line-height:20px;color:#545659;word-break:break-all;overflow-wrap:anywhere;"><a href="{{.URL}}" style="color:#545659;text-decoration:underline;">{{.URL}}</a></p>{{end}}

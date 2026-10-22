@@ -1,21 +1,28 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page">
-  <section class="auth narrow" aria-labelledby="recover-title">
-    <header class="page-head">
-      <h1 id="recover-title">Recover your account</h1>
-      <p class="lede">Enter the verified email address of your account. If your account has a verified address, we send a link that adds a new passkey.</p>
-    </header>
-    <form id="recover-form" class="auth-form" novalidate>
-      <div class="field">
-        <label for="recover-email">Email address</label>
-        <input class="text-input" id="recover-email" name="email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false">
+<div class="wrap gpw-gate">
+  <section class="gpw-gate-panel gpw-ghost" aria-labelledby="recover-title">
+    <dl class="gpw-gate-strip"><div><dt class="gpw-lbl">Site</dt><dd>{{zero .Data.Host}}</dd></div><div><dt class="gpw-lbl">Link works</dt><dd>Once</dd></div><div><dt class="gpw-lbl">Works for</dt><dd>{{zero .Data.Lifetime}}</dd></div></dl>
+    <div class="gpw-gate-in">
+      <h1 id="recover-title" class="gpw-h1-app">Recover your account</h1>
+      <p class="gpw-sum">Enter the verified email address of your account. If your account has a verified address, we send a link that adds a new passkey.</p>
+      <form id="recover-form" class="gpw-gate-form" novalidate>
+        <div class="field">
+          <label for="recover-email">Email address</label>
+          <input class="text-input" id="recover-email" name="email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false">
+        </div>
+        <button type="submit" class="btn btn-primary gpw-btn-wide">Send a recovery link</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+      <div class="gpw-gate-more">
+        <p>If you have your passkey, <a href="/login">sign in</a>.</p>
       </div>
-      <button type="submit" class="btn btn-primary btn-lg">Send a recovery link</button>
-      <p class="form-status mt-4" role="status" aria-live="polite"></p>
-    </form>
-    <div class="auth-aside">
-      <p>If you have your passkey, <a href="/login">sign in</a>.</p>
     </div>
   </section>
+  {{- with .Data.MovedFrom}}
+  {{template "gate-moved" (dict "From" . "To" $.Data.Host "Button" false)}}
+  {{- end}}
 </div>
 {{end}}

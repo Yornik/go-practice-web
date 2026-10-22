@@ -1,10 +1,13 @@
 {{define "subject"}}This is now your Go Practice email address{{end}}
+{{define "hush"}}{{template "security"}}{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What happened: on {{when .E.When}}, {{.E.New}} became the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.
 
-{{.E.New}} is now the email address of your Go Practice account. It replaces {{.E.Old}}. Security notices and recovery links go here from now on.
+If you did this: you need to do nothing.
 
-If you did not do this, sign in and check your account page:
+WARNING: If you did not do this, someone else is signed in to your account. Sign in and check your account page.
 
-{{.SiteURL}}/account
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+
+What the link does: it opens your account page. You sign in there with your passkey, as always.
 {{end}}

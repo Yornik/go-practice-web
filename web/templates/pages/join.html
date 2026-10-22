@@ -1,28 +1,34 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page">
-  <section class="auth medium" aria-labelledby="join-title">
-    {{- with .Data}}
-    <header class="page-head">
-      <h1 id="join-title">{{if .Setup}}Set up Go Practice{{else}}Create your account{{end}}</h1>
-      {{- if not .Error}}
-      <p class="lede">You need a passkey. It is a key that your device keeps. Your fingerprint, face or device PIN unlocks it. There is no password.</p>
-      {{- end}}
-    </header>
+<div class="wrap gpw-gate">
+  {{- with .Data}}
+  <section class="gpw-gate-panel gpw-ghost" aria-labelledby="join-title">
     {{- if .Error}}
-    <p class="callout callout-warning" role="alert">{{.Error}}</p>
-    <p class="mt-4">{{if .Setup}}Restart the web server. It logs a new setup link.{{else}}Ask the owner of this site for a new invite link.{{end}}</p>
+    {{template "gate-strip-site" .Host}}
+    {{- else if .Setup}}
+    <dl class="gpw-gate-strip"><div><dt class="gpw-lbl">Account</dt><dd>The first, an admin</dd></div><div><dt class="gpw-lbl">Works</dt><dd>Once</dd></div><div><dt class="gpw-lbl">Site</dt><dd>{{zero .Host}}</dd></div></dl>
     {{- else}}
-    {{- if .Setup}}
-    <p class="callout"><b>NOTE:</b> This is the first account. It is the admin account. It can create invite links.</p>
-    {{- else}}
-    <p>{{if .InvitedBy}}{{.InvitedBy}} invited you.{{else}}You have an invite.{{end}}</p>
-    {{- with .Note}}<blockquote class="invite-note">{{.}}</blockquote>{{end}}
+    <dl class="gpw-gate-strip">{{with .InvitedBy}}<div><dt class="gpw-lbl">Invite from</dt><dd>{{zero .}}</dd></div>{{end}}<div><dt class="gpw-lbl">Works</dt><dd>Once</dd></div>{{if not .Expires.IsZero}}<div><dt class="gpw-lbl">Expires</dt><dd>{{zero (shortdate .Expires)}}</dd></div>{{end}}</dl>
     {{- end}}
-    <form id="join-form" data-mode="{{if .Setup}}setup{{else}}invite{{end}}" data-token="{{.Token}}" novalidate>
-      <ol class="steps-form">
-        <li>
-          <div>
-            <h2>Your details</h2>
+    <div class="gpw-gate-in">
+      <h1 id="join-title" class="gpw-h1-app">{{if .Setup}}Set up Go Practice{{else}}Create your account{{end}}</h1>
+      {{- if .Error}}
+      <p class="gpw-err gpw-gate-p" role="alert">{{.Error}}</p>
+      <p class="gpw-gate-p">{{if .Setup}}Restart the web server. It logs a new setup link.{{else}}Ask the owner of this site for a new invite link.{{end}}</p>
+      {{- else}}
+      <p class="gpw-sum">You need a passkey. It is a key that your device keeps. Your fingerprint, face or device PIN unlocks it. There is no password.</p>
+      {{- if .Setup}}
+      <p class="callout gpw-gate-p"><b>NOTE:</b> This is the first account. It is the admin account. It can create invite links.</p>
+      {{- else}}
+      <p class="gpw-gate-from">{{if .InvitedBy}}{{.InvitedBy}} invited you.{{else}}You have an invite.{{end}}</p>
+      {{- with .Note}}<blockquote class="gpw-quote">{{.}}</blockquote>{{end}}
+      {{- end}}
+      <form id="join-form" class="gpw-gate-form" data-mode="{{if .Setup}}setup{{else}}invite{{end}}" data-token="{{.Token}}" novalidate>
+        <ol class="gpw-steps">
+          <li><span class="gpw-step-n" aria-hidden="true">1</span><div>
+            <h2 class="gpw-step-h">Your details</h2>
             <div class="field">
               <label for="join-username">Username</label>
               <input class="text-input" id="join-username" name="username" required minlength="3" maxlength="32" pattern="[a-z0-9_\-]{3,32}"
@@ -38,29 +44,42 @@
               <label for="join-email">Email address</label>
               <input class="text-input" id="join-email" name="email" type="email" required maxlength="254" autocomplete="email" value="{{.Email}}" aria-describedby="join-email-help">
               {{- if .Mailed}}
-              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. The invite came to this address, so it counts as verified. Another address gets a link to verify first.</p>
+              <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. The invite came to <span class="gpw-addr-t">{{template "gate-addr" .Addr}}</span>, so that address counts as verified. Another address gets a link to verify first.</p>
               {{- else}}
               <p class="help" id="join-email-help">Your way back in if you lose your passkey, and where security notices go. You get a link to verify it. The course starts when you open the link.</p>
               {{- end}}
             </div>
-          </div>
-        </li>
-        <li>
-          <div>
-            <h2>Your passkey</h2>
-            <button type="submit" class="btn btn-primary btn-lg">Create my account and passkey</button>
-            <p class="form-status mt-4" role="status" aria-live="polite"></p>
+          </div></li>
+          <li><span class="gpw-step-n" aria-hidden="true">2</span><div>
+            <h2 class="gpw-step-h">Your passkey</h2>
+            <button type="submit" class="btn btn-primary">Create my account and passkey</button>
+            <p class="form-status" role="status" aria-live="polite"></p>
             {{- if not .Expires.IsZero}}
-            <p class="help mt-3">The {{if .Setup}}setup link{{else}}invite{{end}} works once. It expires on {{shortdate .Expires}}.</p>
+            <p class="help gpw-step-note">The {{if .Setup}}setup link{{else}}invite{{end}} works once. It expires on {{shortdate .Expires}}.</p>
             {{- else}}
-            <p class="help mt-3">The {{if .Setup}}setup link{{else}}invite{{end}} works once.</p>
+            <p class="help gpw-step-note">The {{if .Setup}}setup link{{else}}invite{{end}} works once.</p>
             {{- end}}
-          </div>
-        </li>
-      </ol>
-    </form>
-    {{- end}}
-    {{- end}}
+          </div></li>
+        </ol>
+      </form>
+      {{- end}}
+    </div>
   </section>
+  {{- if not .Error}}
+  <aside class="gpw-gate-aside" aria-labelledby="next-h">
+    <h2 id="next-h" class="gpw-gate-ah">What happens next</h2>
+    <ol class="gpw-olist">
+      <li><span>Your browser asks to create a passkey for <span class="gpw-nobr">{{.Host}}</span>.</span></li>
+      <li><span>Your fingerprint, face or device PIN confirms it.</span></li>
+      {{- if .Mailed}}
+      <li><span>Your course opens at exercise 01.</span></li>
+      {{- else}}
+      <li><span>Open the link that we email to you. Then your course opens at exercise 01.</span></li>
+      {{- end}}
+    </ol>
+    <p class="help gpw-gate-p">A passkey works only on the site that made it. Create it here, on <span class="gpw-nobr">{{.Host}}</span>.</p>
+  </aside>
+  {{- end}}
+  {{- end}}
 </div>
 {{end}}

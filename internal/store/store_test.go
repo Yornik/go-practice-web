@@ -895,6 +895,14 @@ func TestCode(t *testing.T) {
 	if err != nil || len(files) != 2 || files["retry.go"].Content != "v2" || files["retry.go"].UpdatedAt != at {
 		t.Fatalf("Code = %+v, %v", files, err)
 	}
+	// The newest save of each exercise, whichever file it was.
+	saves, err := s.LastSaves(ctx, u.ID)
+	if err != nil || len(saves) != 2 || !saves["32-retry"].Equal(at) || !saves["26-logfmt"].Equal(at) {
+		t.Fatalf("LastSaves = %v, %v", saves, err)
+	}
+	if other, err := s.LastSaves(ctx, u.ID+1); err != nil || len(other) != 0 {
+		t.Errorf("LastSaves of a user without code = %v, %v", other, err)
+	}
 	if err := s.DeleteCode(ctx, u.ID, "32-retry", "retry.go"); err != nil {
 		t.Fatal(err)
 	}
@@ -1139,6 +1147,26 @@ func TestCertificates(t *testing.T) {
 	counts, _ := s.Counts(ctx)
 	if counts.Certificates != 1 {
 		t.Errorf("Counts.Certificates = %d, want 1", counts.Certificates)
+	}
+
+	// A re-issue keeps the tag's first date through a chain of any
+	// length; a claim after a revoke starts a new chain.
+	c3 := c2
+	c3.ID, c3.IssuedAt, c3.Payload = "GP-KKKK-LLLL-MMMM", t0.Add(48*time.Hour), []byte(`{"id":"GP-KKKK-LLLL-MMMM"}`)
+	if _, err := s.IssueCertificate(ctx, c3); err != nil {
+		t.Fatal(err)
+	}
+	again := course
+	again.ID, again.IssuedAt = "GP-NNNN-PPPP-QQQQ", t0.Add(72*time.Hour)
+	if _, err := s.IssueCertificate(ctx, again); err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.FirstIssued(ctx, u.ID)
+	if err != nil || len(first) != 2 || !first["tier1"].Equal(t0) || !first["course"].Equal(again.IssuedAt) {
+		t.Errorf("FirstIssued = %v, %v", first, err)
+	}
+	if other, err := s.FirstIssued(ctx, register(t, s, "bob").ID); err != nil || len(other) != 0 {
+		t.Errorf("FirstIssued of a user without certificates = %v, %v", other, err)
 	}
 }
 

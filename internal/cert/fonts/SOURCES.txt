@@ -1,0 +1,22 @@
+Fonts of the certificate PDF. Made by scripts/pdf-fonts.py; do not edit by hand.
+
+Sources: google/fonts at commit 45e3d5269e4a17d823f6d84470bc084dc5ae46f6 (raw.githubusercontent.com), checked by sha256:
+  ofl/saira/Saira[wdth,wght].ttf  sha256 9d050fc5a01c85f74c4257c207d50b55d1e40c37308c642f974a2c5003231dde
+  ofl/atkinsonhyperlegiblenext/AtkinsonHyperlegibleNext[wght].ttf  sha256 5a455d1cfa099b601ab70751bb9673e8fe1854dc4500c80e1a220d0d75e31745
+  ofl/atkinsonhyperlegiblemono/AtkinsonHyperlegibleMono[wght].ttf  sha256 5ce8b1698d1ded7dff2178c1a3ad159470085a58ea239e8b2cb88f4fb4a6f646
+  extras/ttf/Inter-Bold.ttf of https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip  sha256 288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f (Version 4.001)
+
+file                        source  instance                 bytes    KB  code points  glyphs  kern pairs
+SairaName.ttf               saira   wdth 66, wght 760         53692  52.4          496     542        3346
+SairaKind.ttf               saira   wdth 125, wght 300        20908  20.4          233     253          55  (slashed 0, stroke 63 units)
+AtkinsonNext-Regular.ttf    next    wght 400                  32312  31.6          328     346        1179
+AtkinsonNext-Bold.ttf       next    wght 700                  32480  31.7          328     346        1201
+AtkinsonMono-Regular.ttf    mono    wght 400                  18848  18.4          218     229           0
+InterBold-Names.ttf         inter   static, subset           162552 158.7         1385    1454        4605
+total                                                        320792 313.3
+
+The name rule: Saira Name when every rune of the name is in its cmap, else Inter Names for the whole name.
+  Łukasz Dvořák-Wiśniewska: Saira Name
+  Анна: Inter Names (Saira Name lacks Аан)
+  Zoë Ngũgĩ: Saira Name
+  Ελένη Παπαδοπούλου: Inter Names (Saira Name lacks ΕΠέαδηλνοπυύ)

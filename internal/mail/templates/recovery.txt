@@ -1,12 +1,13 @@
 {{define "subject"}}Recover your Go Practice account{{end}}
+{{/* No "Please rest.": an unasked recovery link can start an attack, and
+     a mail like that never tells the reader to relax. */}}
+{{define "hush"}}Hello{{with .E.Name}}, {{.}}{{end}}. Someone asked for a new way into this account. It may well have been you, at an hour when keys get lost. I cannot tell, so the facts are below, in plain words.{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What this email is for: someone asked to recover the Go Practice account for {{.To}}. If that was you, open the link and add a new passkey. On the same page you can remove your old passkeys.
 
-Someone asked to recover the Go Practice account for {{.To}}. If that was you, open this link and create a new passkey:
+{{template "action" (action "Add a new passkey" .E.Link)}}
 
-{{.E.Link}}
+How long the link works: {{lifetime .E.ValidFor}}. It works once.
 
-The link works once and expires in {{duration .E.ValidFor}}. On the same page you can remove your old passkeys.
-
-If you did not ask for this, ignore this email. Without this link, nobody can add a passkey to your account.
+If you did not ask for this: ignore this email. Without the link, nobody can add a passkey to your account, so do not forward it.
 {{end}}

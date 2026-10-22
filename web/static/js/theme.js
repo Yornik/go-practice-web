@@ -1,9 +1,12 @@
-// theme.js: the colour theme. "system" follows the operating system;
-// "light" and "dark" are the learner's choice, kept in localStorage under
-// gpw-theme (theme-init.js applies it before the first paint). Any module
-// can import this one: it has no side effects.
+// theme.js: the 2 display settings of a browser. The colour theme:
+// "system" follows the operating system; "light" and "dark" are the
+// learner's choice, kept in localStorage under gpw-theme. Story effects:
+// on by default, "off" kept under gpw-story (VESPER.md 16.5).
+// theme-init.js applies both before the first paint. Any module can
+// import this one: it has no side effects beyond the media listener.
 
-const KEY = "gpw-theme";
+const THEME_KEY = "gpw-theme";
+const STORY_KEY = "gpw-story";
 
 /** "system", "light" or "dark": what the learner chose. */
 export function themeChoice() {
@@ -29,12 +32,40 @@ export function setTheme(choice) {
   if (choice === "light" || choice === "dark") root.dataset.theme = choice;
   else delete root.dataset.theme;
   try {
-    if (choice === "light" || choice === "dark") localStorage.setItem(KEY, choice);
-    else localStorage.removeItem(KEY);
+    if (choice === "light" || choice === "dark") localStorage.setItem(THEME_KEY, choice);
+    else localStorage.removeItem(THEME_KEY);
   } catch {
     // The choice lasts for this page only.
   }
   document.dispatchEvent(new CustomEvent("gpw:theme", { detail: currentTheme() }));
+}
+
+/** Reports whether story effects are on (the default). */
+export function storyOn() {
+  return document.documentElement.dataset.story !== "off";
+}
+
+/**
+ * Turns story effects on or off everywhere at once: the storage,
+ * data-story on <html> (the CSS swaps each toggle's state word from it),
+ * every [data-story-toggle] button's aria-pressed, every
+ * [data-story-item] menu item, every input[data-story-check], and a
+ * gpw:story event, named like gpw:theme.
+ */
+export function setStory(on) {
+  const root = document.documentElement;
+  if (on) delete root.dataset.story;
+  else root.dataset.story = "off";
+  try {
+    if (on) localStorage.removeItem(STORY_KEY);
+    else localStorage.setItem(STORY_KEY, "off");
+  } catch {
+    // The choice lasts for this page only.
+  }
+  for (const b of document.querySelectorAll("[data-story-toggle]")) b.setAttribute("aria-pressed", String(on));
+  for (const item of document.querySelectorAll("[data-story-item]")) item.setAttribute("aria-checked", String(on));
+  for (const c of document.querySelectorAll("input[data-story-check]")) c.checked = on;
+  document.dispatchEvent(new CustomEvent("gpw:story", { detail: on }));
 }
 
 // The system can switch while the page is open.

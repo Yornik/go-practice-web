@@ -75,7 +75,7 @@ func Exercises(c *course.Course, k Kind) ([]*course.Exercise, error) {
 	return nil, fmt.Errorf("%w: %q", ErrKind, k)
 }
 
-// Title is the name of a kind for people: the tier's label, "Tier 2 ·
+// Title is the name of a kind for people: the tier's label, "Tier 2,
 // The Key" ("Tier 2" when the course names no tiers), or "The
 // complete course".
 func Title(c *course.Course, k Kind) (string, error) {

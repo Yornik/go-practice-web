@@ -1,7 +1,7 @@
-{{define "heading"}}A passkey was removed{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}">The passkey <strong>{{.E.Passkey}}</strong> was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.</p>
-<p style="{{template "p"}}"><strong>WARNING:</strong> If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.SiteURL}}/account" style="{{template "button"}}">Check my passkeys</a></p>
+<p style="{{template "p"}}"><b>What happened:</b> the passkey <b>“{{.E.Passkey}}”</b> was removed from your Go Practice account on {{when .E.When}}. It cannot sign in any more.</p>
+<p style="{{template "p"}}"><b>If you removed it:</b> you need to do nothing.</p>
+{{template "warning" "If you did not remove it, someone else is signed in to your account. Open your account page and check your passkeys."}}
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+<p style="{{template "p-last"}}"><b>What the link does:</b> it opens your account page. You sign in there with your passkey, as always.</p>
 {{end}}

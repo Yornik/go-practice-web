@@ -58,22 +58,24 @@ type Course struct {
 // Tier is a group of exercises from the root README's tier table.
 type Tier struct {
 	N           int
-	Name        string // "The Key"; "" when the table has no Name column
-	Theme       string // "Warm-up: Go idioms on real data"
-	First, Last int    // exercise numbers, inclusive
+	Name        string        // "The Key"; "" when the table has no Name column
+	Theme       string        // "Warm-up: Go idioms on real data"
+	ThemeHTML   template.HTML // Theme with its code spans as <code>
+	First, Last int           // exercise numbers, inclusive
 	Exercises   []*Exercise
 }
 
 // Title is "Tier N".
 func (t *Tier) Title() string { return fmt.Sprintf("Tier %d", t.N) }
 
-// Label is the title with the tier's name, "Tier 2 · The Key",
-// or only the title when the tier has no name.
+// Label is the title with the tier's name, "Tier 2, The Key", or only
+// the title when the tier has no name. Sentences and titles use it; only
+// the stamp on a tag keeps a middle dot (Stamp).
 func (t *Tier) Label() string {
 	if t.Name == "" {
 		return t.Title()
 	}
-	return t.Title() + " · " + t.Name
+	return t.Title() + ", " + t.Name
 }
 
 // Range is the exercise range as the course writes it, "01–03".
@@ -333,7 +335,7 @@ func (c *Course) parseTiers(t *east.Table, src []byte) error {
 		if m == nil {
 			return fmt.Errorf("tier table: tier %d: range %q", n, plainText(row[1], src))
 		}
-		tier := &Tier{N: n, Theme: plainText(row[cols-1], src)}
+		tier := &Tier{N: n, Theme: plainText(row[cols-1], src), ThemeHTML: inlineHTML(row[cols-1], src)}
 		if cols == 4 {
 			tier.Name = plainText(row[2], src)
 		}

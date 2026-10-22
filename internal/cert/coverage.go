@@ -87,7 +87,7 @@ func (cv Coverage) Slugs() []string {
 	return out
 }
 
-// Title is the certificate's name for people: "Tier 6 · Forensics"
+// Title is the certificate's name for people: "Tier 6, Forensics"
 // or "The complete course". A tier certificate whose exercises span tiers
 // falls back to the number in its kind.
 func (cv Coverage) Title() string {

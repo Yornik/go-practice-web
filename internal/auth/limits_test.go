@@ -101,3 +101,20 @@ func TestRateKey(t *testing.T) {
 		}
 	}
 }
+
+func TestWaitText(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		0:                       "1 second",
+		400 * time.Millisecond:  "1 second",
+		time.Second:             "1 second",
+		1500 * time.Millisecond: "2 seconds",
+		59 * time.Second:        "59 seconds",
+		time.Minute:             "1 minute",
+		61 * time.Second:        "2 minutes",
+		6 * time.Minute:         "6 minutes",
+	} {
+		if got := auth.WaitText(d); got != want {
+			t.Errorf("WaitText(%v) = %q, want %q", d, got, want)
+		}
+	}
+}

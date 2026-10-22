@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,31 +12,93 @@ import (
 	"github.com/yornik/go-practice-web/internal/course"
 	"github.com/yornik/go-practice-web/internal/explain"
 	"github.com/yornik/go-practice-web/internal/godoc"
+	"github.com/yornik/go-practice-web/internal/mail"
 	"github.com/yornik/go-practice-web/internal/store"
 )
 
-// figureSlug is the exercise of Figure 1 and Figure 2 on the landing
-// page: the retry loop.
-const figureSlug = "32-retry"
+// landingView is the landing page (VESPER.md 8.1). Every count on it
+// comes from the course, so the page cannot disagree with it.
+type landingView struct {
+	First     *course.Exercise // where you start: Figure 1, the lit tower, the board's amber cell
+	FirstTier string           // its tier as a readout value: "1, Badge In"
+	Anatomy   landingAnatomy
+	Sky       skyline
+	Years     []landingYear
+}
+
+// landingYear is 1 year of the departures board.
+type landingYear struct {
+	N     int
+	Label string // "September to 1 January. Tiers 1 to 5, about 35.5"; the template adds the unit
+	Hours string // "35.5"
+	Tiers []landingTier
+}
+
+// landingTier is 1 tier of the departures board.
+type landingTier struct {
+	*course.Tier
+	State string // the tag's state: "cur" for the tier you start in, else "off"
+	Head  string // its months and hours: "September, about 7"; the template adds the unit
+}
+
+// yearSpans are the months of each year of the story (the bible's
+// timeline): the tiers' own months do not say where a year starts.
+var yearSpans = map[int]string{1: "September to 1 January", 2: "2 January to the night the clocks go back"}
+
+// number writes hours without the unit, so a capitals label can set the
+// unit in lower case: "ABOUT 7 h".
+func number(h float64) string { return strconv.FormatFloat(h, 'f', -1, 64) }
+
+func newLandingView(c *course.Course) landingView {
+	v := landingView{Anatomy: newLandingAnatomy()}
+	if len(c.Exercises) > 0 {
+		v.First = c.Exercises[0]
+		v.FirstTier = tierValueOf(c, v.First)
+	}
+	for _, t := range c.Tiers {
+		if n := len(v.Years); n == 0 || v.Years[n-1].N != t.Year() {
+			v.Years = append(v.Years, landingYear{N: t.Year()})
+		}
+		y := &v.Years[len(v.Years)-1]
+		lt := landingTier{Tier: t, State: "off", Head: "about " + number(t.Hours())}
+		if v.First != nil && t.N == v.First.Tier {
+			lt.State = "cur"
+		}
+		if w := t.When(); w != "" {
+			lt.Head = w + ", " + lt.Head
+		}
+		y.Tiers = append(y.Tiers, lt)
+	}
+	var years []string
+	for i := range v.Years {
+		y := &v.Years[i]
+		var h float64
+		for _, t := range y.Tiers {
+			h += t.Hours()
+		}
+		first, last := y.Tiers[0].N, y.Tiers[len(y.Tiers)-1].N
+		y.Hours = number(h)
+		y.Label = fmt.Sprintf("Tiers %d to %d, about %s", first, last, y.Hours)
+		if span := yearSpans[y.N]; span != "" {
+			y.Label = span + ". " + y.Label
+		}
+		years = append(years, fmt.Sprintf("year %d holds tiers %d to %d, about %s", y.N, first, last, formatHours(h)))
+	}
+	label := fmt.Sprintf("Skyline of the course: %d towers, 1 per exercise, as tall as its estimate.", len(c.Exercises))
+	if len(years) > 0 {
+		label += " " + strings.ToUpper(years[0][:1]) + strings.Join(years, "; ")[1:] + "."
+	}
+	states := map[string]string{}
+	if v.First != nil {
+		states[v.First.Slug] = "cur"
+		label += fmt.Sprintf(" Tower %02d is lit: you start there.", v.First.Number)
+	}
+	v.Sky, _ = skylineFunc(c, states, "landing", label)
+	return v
+}
 
 func (s *Server) landingPage(w http.ResponseWriter, r *http.Request) {
-	fig, _ := s.cfg.Course.Exercise(figureSlug)
-	states := map[string]string{}
-	label := fmt.Sprintf("The course to scale: %d exercises in %d tiers, about %s.",
-		len(s.cfg.Course.Exercises), len(s.cfg.Course.Tiers), formatHours(s.cfg.Course.Hours()))
-	if fig != nil {
-		// Figure 1 is the retry loop of this exercise; its bar is the blue one.
-		states[fig.Slug] = "here"
-		label += fmt.Sprintf(" The blue bar is exercise %02d.", fig.Number)
-	}
-	st := courseStrip(s.cfg.Course, states)
-	st.Class = "strip-lg"
-	st.Label = label
-	s.render(w, r, http.StatusOK, "landing", view{Nav: "home", Mono: true, Script: "pages/landing.js", Data: map[string]any{
-		"Strip":    st,
-		"Figure":   figureTwo(s.cfg.Course),
-		"Exercise": fig,
-	}})
+	s.render(w, r, http.StatusOK, "landing", view{Nav: "home", Mono: true, Data: newLandingView(s.cfg.Course)})
 }
 
 func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
@@ -46,8 +109,20 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, r, http.StatusOK, "login", view{
 		Title: "Sign in", Nav: "login", Script: "pages/login.js",
-		Data: map[string]any{"Next": next},
+		Data: map[string]any{"Next": next, "Host": s.host(), "MovedFrom": s.cfg.MovedFrom},
 	})
+}
+
+// emailAddr is an address in 2 halves that never break inside: the page
+// breaks a long address only after its "@" (VESPER.md 8.3).
+type emailAddr struct{ At, Domain string }
+
+func newEmailAddr(email string) emailAddr {
+	i := strings.LastIndexByte(email, '@')
+	if i < 0 {
+		return emailAddr{At: email}
+	}
+	return emailAddr{At: email[:i+1], Domain: email[i+1:]}
 }
 
 // signUpView is the data of the sign-up form, shared by /join and /setup.
@@ -62,11 +137,13 @@ type signUpView struct {
 	// that address is verified at once.
 	Mailed  bool
 	Expires time.Time
+	Host    string    // the site, for the passkey's own words
+	Addr    emailAddr // Email, for the help that names it
 }
 
 func (s *Server) joinPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("invite")
-	v := signUpView{Token: token}
+	v := signUpView{Token: token, Host: s.host()}
 	status := http.StatusOK
 	inv, err := s.cfg.Auth.CheckInvite(r.Context(), token)
 	if err != nil {
@@ -76,6 +153,7 @@ func (s *Server) joinPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		v.Note, v.Email, v.Expires, v.Mailed = inv.Note, inv.Email, inv.ExpiresAt, inv.Mailed()
+		v.Addr = newEmailAddr(inv.Email)
 		if inv.CreatedBy != 0 {
 			if u, err := s.cfg.Store.User(r.Context(), inv.CreatedBy); err == nil {
 				v.InvitedBy = u.DisplayName
@@ -87,7 +165,7 @@ func (s *Server) joinPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
-	v := signUpView{Setup: true, Token: token}
+	v := signUpView{Setup: true, Token: token, Host: s.host()}
 	status := http.StatusOK
 	if err := s.cfg.Auth.CheckSetupToken(r.Context(), token); err != nil {
 		status, v.Error = s.linkError(r, err)
@@ -122,12 +200,14 @@ func (s *Server) linkError(r *http.Request, err error) (int, string) {
 }
 
 func (s *Server) recoverPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "recover", view{Title: "Recover your account", Script: "pages/recover.js"})
+	s.render(w, r, http.StatusOK, "recover", view{Title: "Recover your account", Script: "pages/recover.js", Data: map[string]any{
+		"Host": s.host(), "MovedFrom": s.cfg.MovedFrom, "Lifetime": mail.Lifetime(auth.RecoveryTTL),
+	}})
 }
 
 func (s *Server) recoverConfirmPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
-	data := map[string]any{"Token": token}
+	data := map[string]any{"Token": token, "Host": s.host()}
 	status := http.StatusOK
 	u, err := s.cfg.Auth.RecoveryUser(r.Context(), token)
 	if err != nil {
@@ -153,6 +233,13 @@ type checkEmailView struct {
 	// MailLogged is true when the server has no mail server: the link
 	// is in the server log, and the page tells the operator so.
 	MailLogged bool
+	Addr       emailAddr // Email in its 2 halves
+	// From is the sender's address, FromName its display name: the
+	// learner looks for them in the inbox.
+	From     emailAddr
+	FromAddr string
+	FromName string
+	Origin   string // where the link in the mail starts
 }
 
 // checkEmailPage is where the email gate sends a user whose address is not
@@ -171,42 +258,56 @@ func (s *Server) checkEmailPage(w http.ResponseWriter, r *http.Request) {
 	v := checkEmailView{
 		Email:      id.User.Email,
 		Pending:    pending != "",
-		ValidFor:   lifetime(auth.VerifyTTL),
+		ValidFor:   mail.Lifetime(auth.VerifyTTL),
 		MailLogged: !s.cfg.Auth.MailDelivers(),
 	}
 	if pending != "" {
 		v.Email = pending
 	}
+	v.Addr, v.Origin = newEmailAddr(v.Email), s.origin
+	from := s.cfg.MailFrom
+	if from == "" {
+		from = mail.DefaultFrom
+	}
+	if a, err := mail.ParseFrom(from); err == nil {
+		v.FromName, v.FromAddr, v.From = a.Name, a.Address, newEmailAddr(a.Address)
+	}
 	s.render(w, r, http.StatusOK, "check-email", view{Title: "Check your email", Script: "pages/check-email.js", Data: v})
-}
-
-// lifetime writes how long a link works, for a sentence: "48 hours",
-// "1 hour", "15 minutes".
-func lifetime(d time.Duration) string {
-	n, unit := int(d/time.Minute), "minute"
-	if d >= time.Hour && d%time.Hour == 0 {
-		n, unit = int(d/time.Hour), "hour"
-	}
-	if n == 1 {
-		return "1 " + unit
-	}
-	return itoa(n) + " " + unit + "s"
 }
 
 func (s *Server) verifyEmailPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "verify-email", view{
 		Title: "Verify your email", Script: "pages/verify-email.js",
-		Data: map[string]any{"Token": r.URL.Query().Get("token")},
+		Data: map[string]any{"Token": r.URL.Query().Get("token"), "Host": s.host(), "ValidFor": mail.Lifetime(auth.VerifyTTL)},
 	})
 }
 
 func (s *Server) guidePage(w http.ResponseWriter, r *http.Request) {
 	var v guideView
+	// The story comes first: the manual after it reads in its terms.
+	v.Items = append(v.Items, guideItem{ID: "the-story", Title: "The story", Kind: "story"})
 	for _, sec := range s.cfg.Course.Guide {
-		// "Start here" sets up Go on your own machine; the site needs none of it.
-		if sec.Title != "Start here" {
-			v.Sections = append(v.Sections, sec)
+		it := guideItem{ID: sec.ID, Title: sec.Title, Kind: "section", Section: sec}
+		switch sec.Title {
+		case "Start here":
+			// It sets up Go on your own machine; the site needs none of it.
+			continue
+		case "How to work an exercise":
+			// The course's 10 steps run the tests on your machine; the
+			// page has the site's own version of them.
+			it.Kind = "work"
+		case "A problem-solving checklist":
+			it.Title, it.Kind = "The checklist", "checklist"
+		case "Make it a tool":
+			v.Items = append(v.Items,
+				guideItem{ID: "read-go-messages", Title: "How to read Go messages", Kind: "messages"},
+				guideItem{ID: "editor-keys", Title: "Keys in the editor", Kind: "keys"})
+			it.Kind = "tools"
 		}
+		v.Items = append(v.Items, it)
+	}
+	for i := range v.Items {
+		v.Items[i].N = i + 1
 	}
 	for _, id := range []string{explain.GuideErrorMessage, explain.GuideStackTrace, explain.GuideRaceReport, explain.GuideFailingTest} {
 		if g, ok := explain.Guide(id); ok {
@@ -225,11 +326,45 @@ type exerciseRow struct {
 	Hints         int // hint levels 1 to 3 revealed
 	Levels        int // highest level revealed, 0 to 6
 	PassedAt      time.Time
+	OnCall        bool // the on-call exercise: its row has the amber rule (VESPER.md 8.6)
 }
 
 // Revealed reports whether ladder level l (1 to 6) is revealed. The ladder
 // opens in order, so that is every level up to the highest.
 func (e exerciseRow) Revealed(l int) bool { return l <= e.Levels }
+
+// InLedger is the row's "In the Ledger" cell: "entered 2 Oct", "waiting
+// for a pass" or "not started".
+func (e exerciseRow) InLedger() string {
+	switch e.Status {
+	case "passed":
+		return "entered " + dayMonth(e.PassedAt)
+	case "started":
+		return "waiting for a pass"
+	}
+	return "not started"
+}
+
+// RevealedText names the help revealed, for the Help cells' accessible
+// text: "Nothing revealed", "Revealed: hint 1", "Revealed: hints 1 to 3
+// and the explanation".
+func (e exerciseRow) RevealedText() string {
+	switch e.Levels {
+	case 0:
+		return "Nothing revealed"
+	case 1:
+		return "Revealed: hint 1"
+	case 2:
+		return "Revealed: hints 1 and 2"
+	case 3:
+		return "Revealed: hints 1 to 3"
+	case 4:
+		return "Revealed: hints 1 to 3 and the explanation"
+	case 5:
+		return "Revealed: hints 1 to 3, the explanation and the walkthrough"
+	}
+	return "Revealed: hints 1 to 3, the explanation, the walkthrough and the solution"
+}
 
 type tierRow struct {
 	*course.Tier
@@ -237,6 +372,7 @@ type tierRow struct {
 	Passed    int
 	Started   int
 	Cert      *certStatus // the tier's certificate
+	Tag       *tierTag    // the tier as a tag: stamped, ready, open (story.go)
 }
 
 type dashboard struct {
@@ -248,46 +384,36 @@ type dashboard struct {
 	Runs, Hints   int
 	Next          *course.Exercise // the first exercise not passed
 	NextStarted   bool             // Next is started
-	Strip         strip
 }
 
-// buildDashboard joins the course with the user's progress and reveals.
-func (s *Server) buildDashboard(ctx context.Context, userID int64) (dashboard, error) {
-	progress, err := s.cfg.Store.UserProgress(ctx, userID)
-	if err != nil {
-		return dashboard{}, err
-	}
-	reveals, err := s.cfg.Store.UserReveals(ctx, userID)
-	if err != nil {
-		return dashboard{}, err
-	}
-	bySlug := make(map[string]store.Progress, len(progress))
-	for _, p := range progress {
-		bySlug[p.Exercise] = p
-	}
-	hints, levels := map[string]int{}, map[string]int{}
-	for _, rv := range reveals {
-		if course.Level(rv.Level).IsHint() {
-			hints[rv.Exercise]++
-		}
-		levels[rv.Exercise] = max(levels[rv.Exercise], rv.Level)
-	}
+// buildDashboard joins the course with the learner's progress, as the
+// story read it.
+func (s *Server) buildDashboard(st *story) dashboard {
 	d := dashboard{Total: len(s.cfg.Course.Exercises)}
-	for _, t := range s.cfg.Course.Tiers {
+	for i, t := range s.cfg.Course.Tiers {
 		tr := tierRow{Tier: t}
+		if i < len(st.Tiers) {
+			tr.Tag, tr.Cert = st.Tiers[i], st.Tiers[i].Status
+		}
 		for _, e := range t.Exercises {
-			p := bySlug[e.Slug]
+			p := st.Exercise(e.Slug)
 			row := exerciseRow{
-				Exercise: e, Status: string(p.Status), ActiveSeconds: p.ActiveSeconds, Runs: p.Runs,
-				Hints: hints[e.Slug], Levels: levels[e.Slug], PassedAt: p.PassedAt,
+				Exercise: e, ActiveSeconds: p.ActiveSeconds, Runs: p.Runs,
+				Hints: p.Hints, Levels: p.Level, PassedAt: p.PassedAt, OnCall: st.OnCall == e,
 			}
-			if p.Passed() {
+			switch {
+			case p.Passed:
+				row.Status = "passed"
+			case p.Started:
+				row.Status = "started"
+			}
+			if p.Passed {
 				tr.Passed++
 				d.Passed++
 			} else if d.Next == nil {
-				d.Next, d.NextStarted = e, p.Status != ""
+				d.Next, d.NextStarted = e, p.Started
 			}
-			if p.Status != "" {
+			if p.Started {
 				d.Started++
 				tr.Started++
 			}
@@ -299,37 +425,19 @@ func (s *Server) buildDashboard(ctx context.Context, userID int64) (dashboard, e
 		}
 		d.Tiers = append(d.Tiers, tr)
 	}
-	states := map[string]string{}
-	for _, row := range d.Rows {
-		states[row.Slug] = row.Status
-	}
-	d.Strip = courseStrip(s.cfg.Course, states)
-	// A picture, not 1 more link per exercise: the tables below link them all.
-	d.Strip.Label = fmt.Sprintf("The course to scale: %d of %d exercises pass, %d started.", d.Passed, d.Total, d.Started)
-	return d, nil
+	return d
 }
 
 func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 	id, _ := identity(r)
-	d, err := s.buildDashboard(r.Context(), id.User.ID)
-	if err == nil {
-		var certs []certStatus
-		if certs, err = s.certificateStatus(r.Context(), id.User.ID); err == nil {
-			for i := range d.Tiers {
-				for j := range certs {
-					if certs[j].Kind == fmt.Sprintf("tier%d", d.Tiers[i].N) {
-						d.Tiers[i].Cert = &certs[j]
-					}
-				}
-			}
-		}
-	}
+	st, err := s.loadStory(r.Context(), id.User, "")
 	if err != nil {
 		s.log.Error("dashboard", "err", err)
 		s.errorPage(w, r, http.StatusInternalServerError, "Your course could not load.")
 		return
 	}
-	s.render(w, r, http.StatusOK, "dashboard", view{Title: "Your course", Nav: "learn", Script: "pages/dashboard.js", Data: d})
+	s.render(w, r, http.StatusOK, "dashboard", view{Title: "Your page of the Ledger", Nav: "learn", Script: "pages/dashboard.js",
+		Data: s.buildDashboard(st), Story: st})
 }
 
 func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
@@ -348,23 +456,27 @@ func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prev, next := s.cfg.Course.Neighbours(ex.Slug)
+	id, _ := identity(r)
+	// The open exercise counts as started and worked in now: the IDE's
+	// bootstrap request starts it right after this page loads.
+	st, err := s.loadStory(r.Context(), id.User, ex.Slug)
+	if err != nil {
+		s.log.Error("ide", "err", err)
+		s.errorPage(w, r, http.StatusInternalServerError, "The exercise could not load.")
+		return
+	}
 	type rung struct {
 		Level       int
+		Mark        string // the letter or number in its marker: "1", or "E" for the explanation (VESPER.md 7.8)
 		Title       string
 		Description string
 		After       string // the level it waits for: "after hint 2"
 	}
 	var rungs []rung
 	for l := course.Hint1; l <= course.MaxLevel; l++ {
-		rg := rung{Level: int(l), Title: l.String(), Description: s.cfg.Course.LevelDescription(l)}
+		rg := rung{Level: int(l), Mark: rungMark(l), Title: l.String(), Description: s.cfg.Course.LevelDescription(l)}
 		if l > course.Hint1 {
-			prevLevel := (l - 1).String()
-			if l-1 > course.Hint3 {
-				prevLevel = "the " + strings.ToLower(prevLevel)
-			} else {
-				prevLevel = strings.ToLower(prevLevel)
-			}
-			rg.After = "after " + prevLevel
+			rg.After = "after " + (l - 1).InSentence()
 		}
 		rungs = append(rungs, rg)
 	}
@@ -381,8 +493,33 @@ func (s *Server) idePage(w http.ResponseWriter, r *http.Request) {
 			"Titles":    exerciseTitles(s.cfg.Course),
 			// The IDE moves what the browser kept under the old slug.
 			"RenamedFrom": s.cfg.Course.RenamedFrom(ex.Slug),
+			// The top bar (VESPER.md 7.2): the Tier readout, and "On call"
+			// with the Key when the Key is on the ring and this is the
+			// on-call exercise (16.2).
+			"TierValue": tierValueOf(s.cfg.Course, ex),
+			"OnCall":    st.KeyOnRing && st.OnCall == ex,
+			// The story line of this exercise's first pass (16.8).
+			"FirstPassLine": firstPassLine(ex.Number),
 		},
+		Story: st,
 	})
+}
+
+// rungMark is the marker of a ladder level: the number of a hint, or the
+// first letter of the explanation, the walkthrough and the solution.
+func rungMark(l course.Level) string {
+	if l <= course.Hint3 {
+		return itoa(int(l))
+	}
+	return l.String()[:1]
+}
+
+// tierValueOf is the exercise's tier as a readout value: "2, The Key".
+func tierValueOf(c *course.Course, ex *course.Exercise) string {
+	if t, ok := c.Tier(ex.Tier); ok {
+		return tierValue(t)
+	}
+	return itoa(ex.Tier)
 }
 
 // exerciseTitles maps each slug to "01 Parse logfmt log lines", for the
@@ -426,6 +563,8 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 		Title: "Account", Nav: "account", Script: "pages/account.js",
 		Data: map[string]any{
 			"Passkeys": passkeys, "PendingEmail": pending, "Sessions": len(sessions),
+			// A passkey is bound to this site's name (VESPER.md 8.10).
+			"Host": s.host(),
 		},
 	})
 }
@@ -451,13 +590,17 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 		row := adminUser{UserSummary: u}
 		// A few queries per user: the admin page lists the invited few.
 		if progress, err := s.cfg.Store.UserProgress(ctx, u.ID); err == nil {
+			// The skyline at 8 px, with no plates: a picture beside the count
+			// (VESPER.md 8.11).
 			states := map[string]string{}
 			for _, p := range progress {
 				states[p.Exercise] = string(p.Status)
 			}
-			row.Strip = courseStrip(s.cfg.Course, states)
-			row.Strip.Class = "strip-mini"
-			row.Strip.Label = fmt.Sprintf("%d of %d exercises pass", u.Passed, len(s.cfg.Course.Exercises))
+			sky, err := skylineFunc(s.cfg.Course, states, "mini",
+				fmt.Sprintf("%d of %d exercises pass", u.Passed, len(s.cfg.Course.Exercises)))
+			if err == nil {
+				row.Sky = &sky
+			}
 		}
 		if sessions, err := s.cfg.Store.Sessions(ctx, u.ID); err == nil {
 			for _, se := range sessions {
@@ -477,7 +620,7 @@ func (s *Server) adminPage(w http.ResponseWriter, r *http.Request) {
 // adminUser is 1 row of the admin page's user table.
 type adminUser struct {
 	store.UserSummary
-	Strip    strip
+	Sky      *skyline  // nil when the progress could not load
 	LastSeen time.Time // the newest session activity
 }
 

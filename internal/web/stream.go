@@ -236,7 +236,7 @@ func (s *Server) runTests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.endRun(userID)
-	if err := limit(s.testLimit, userID); err != nil {
+	if err := limit(s.testLimit, userID, limitTests); err != nil {
 		s.fail(w, r, err)
 		return
 	}

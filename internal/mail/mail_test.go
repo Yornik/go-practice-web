@@ -33,41 +33,48 @@ var when = time.Date(2026, 10, 19, 9, 30, 0, 0, time.UTC)
 func TestComposeEveryEmail(t *testing.T) {
 	link := site + "/verify-email?token=a&b=<c>"
 	tests := []struct {
-		email   Email
-		subject string
-		text    []string // substrings of the text part
-		html    []string // substrings of the HTML part
+		email    Email
+		subject  string
+		rest     bool     // HUSH ends with "Please rest."
+		security bool     // a security notice: "What happened:" and a WARNING before the button
+		button   string   // the label of the 1 button
+		text     []string // substrings of the text part
+		html     []string // substrings of the HTML part
 	}{
-		{VerifyEmail{Name: "Alice", Link: link, ValidFor: 48 * time.Hour}, "Verify your email address",
-			[]string{"Hello Alice,", "alice@example.com", link, "expires in 2 days"},
-			[]string{`href="https://go-practice.dev/verify-email?token=a&amp;b=%3cc%3e"`, "expires in 2 days"}},
-		{Recovery{Name: "Alice", Link: link, ValidFor: 15 * time.Minute}, "Recover your Go Practice account",
-			[]string{link, "expires in 15 minutes", "nobody can add a passkey"},
-			[]string{"Create a new passkey", "expires in 15 minutes"}},
-		{Invite{InvitedBy: "Yornik", Note: "Start with <01>", Link: link, Expires: when.Add(7 * 24 * time.Hour), Exercises: 50}, "Yornik invited you to Go Practice",
-			[]string{"Yornik invited you", "Go Practice: 50 Go exercises", `"Start with <01>"`, "expires on 26 October 2026", link},
-			[]string{"Go Practice: 50 Go exercises", "Start with &lt;01&gt;", "Create my account"}},
-		{Invite{InvitedBy: "Yornik", Link: link, Expires: when}, "Yornik invited you to Go Practice",
-			[]string{"Yornik invited you", "Go Practice: Go exercises"}, []string{"Create my account"}},
-		{PasskeyAdded{Name: "Alice", Passkey: "MacBook", When: when}, "A passkey was added to your account",
-			[]string{`"MacBook"`, "19 October 2026 at 09:30 UTC", site + "/account"},
-			[]string{"<strong>MacBook</strong>", `href="https://go-practice.dev/account"`}},
-		{PasskeyRemoved{Name: "Alice", Passkey: "Old key", When: when}, "A passkey was removed from your account",
-			[]string{`"Old key"`, "cannot sign in any more"}, []string{"Check my passkeys"}},
-		{EmailChangedOld{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when, Pending: true}}, "The email address of your account is changing",
-			[]string{"from a@example.com to b@example.com", "takes effect when the new address is verified"},
-			[]string{"<strong>b@example.com</strong>", "takes effect"}},
-		{EmailChangedOld{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when}}, "The email address of your account is changing",
+		{VerifyEmail{Name: "Alice", Link: link, ValidFor: 48 * time.Hour}, "Verify your email address", true, false, "Verify your address",
+			[]string{"Hello, Alice. Before I can send you anything important", "What this email is for: confirm that alice@example.com", link,
+				"How long the link works: 48 hours. It works once.", "If you did not ask for this: ignore this email. Nothing changes."},
+			[]string{`href="https://go-practice.dev/verify-email?token=a&amp;b=%3cc%3e"`, "48 hours", "<b>alice@example.com</b>"}},
+		{Recovery{Name: "Анна", Link: link, ValidFor: 15 * time.Minute}, "Recover your Go Practice account", false, false, "Add a new passkey",
+			[]string{"Hello, Анна. Someone asked for a new way into this account.", link, "How long the link works: 15 minutes.", "so do not forward it"},
+			[]string{"Add a new passkey", "15 minutes"}},
+		{Invite{InvitedBy: "Yornik", Note: "Start with <01>", Link: link, Expires: when.Add(7 * 24 * time.Hour), ValidFor: 7 * 24 * time.Hour, Exercises: 50},
+			"Yornik invited you to Go Practice", true, false, "Create your account",
+			[]string{"Good evening. Yornik asked me to bring you this invite", "Go Practice: 50 Go exercises", "A note from Yornik:\n“Start with <01>”",
+				"How long the link works: 7 days, until 26 October 2026. It works once.", "If you did not expect it: ignore this email.", link},
+			[]string{"Go Practice: 50 Go exercises", "“Start with &lt;01&gt;”", "<b>A note from Yornik:</b>", "7 days, until 26 October 2026"}},
+		{Invite{InvitedBy: "Yornik", Link: link, Expires: when}, "Yornik invited you to Go Practice", true, false, "Create your account",
+			[]string{"Go Practice: Go exercises", "How long the link works: until 19 October 2026."}, nil},
+		{PasskeyAdded{Name: "Alice", Passkey: "MacBook", When: when}, "A passkey was added to your account", false, true, "Open your account page",
+			[]string{"What happened: a new passkey, “MacBook”, was added", "19 October 2026 at 09:30 UTC", site + "/account", "If you added it: you need to do nothing."},
+			[]string{"<b>“MacBook”</b>", `href="https://go-practice.dev/account"`}},
+		{PasskeyRemoved{Name: "Alice", Passkey: "Old key", When: when}, "A passkey was removed from your account", false, true, "Open your account page",
+			[]string{"the passkey “Old key” was removed", "cannot sign in any more", "09:30 UTC"}, []string{"cannot sign in any more"}},
+		{EmailChangedOld{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when, Pending: true}}, "The email address of your account is changing", false, true, "Open your account page",
+			[]string{"from a@example.com to b@example.com", "takes effect when the new address is verified", "09:30 UTC"},
+			[]string{"<b>b@example.com</b>", "takes effect"}},
+		{EmailChangedOld{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when}}, "The email address of your account is changing", false, true, "Open your account page",
 			[]string{"go to b@example.com"}, []string{"go to b@example.com"}},
-		{EmailChangedNew{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when}}, "This is now your Go Practice email address",
-			[]string{"b@example.com is now", "replaces a@example.com"}, []string{"Your new email address"}},
-		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when, RemovedOthers: 2}, "Your account was recovered",
-			[]string{`"Phone"`, "2 old passkeys were removed", site + "/recover"},
+		{EmailChangedNew{EmailChange{Name: "Alice", Old: "a@example.com", New: "b@example.com", When: when}}, "This is now your Go Practice email address", false, true, "Open your account page",
+			[]string{"b@example.com became the email address", "replaces a@example.com", "09:30 UTC"}, []string{"<b>b@example.com</b> became"}},
+		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when, RemovedOthers: 2}, "Your account was recovered", false, true, "Recover my account",
+			[]string{"a recovery link sent to this address added a new passkey, “Phone”", "2 old passkeys were removed", site + "/recover",
+				"What the link does: it opens the recovery page. It does not sign you in, and it holds no token."},
 			[]string{"2 old passkeys were removed"}},
-		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when, RemovedOthers: 1}, "Your account was recovered",
+		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when, RemovedOthers: 1}, "Your account was recovered", false, true, "Recover my account",
 			[]string{"1 old passkey was removed"}, nil},
-		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when}, "Your account was recovered",
-			[]string{"If this was you"}, nil},
+		{RecoveryUsed{Name: "Alice", Passkey: "Phone", When: when}, "Your account was recovered", false, true, "Recover my account",
+			[]string{"If this was you: you need to do nothing."}, nil},
 	}
 	seen := map[string]bool{}
 	for _, tt := range tests {
@@ -91,22 +98,7 @@ func TestComposeEveryEmail(t *testing.T) {
 				t.Errorf("%s: HTML lacks %q", name, want)
 			}
 		}
-		// Shared checks: the footer, no blank-line runs, no contractions,
-		// no unrendered actions, and an escaped HTML part.
-		if !strings.Contains(m.Text, "\n--\nGo Practice sent this email") || strings.Contains(m.Text, "\n\n\n") {
-			t.Errorf("%s: text layout:\n%s", name, m.Text)
-		}
-		for _, part := range []string{m.Text, m.HTML, m.Subject} {
-			if strings.Contains(part, "{{") || strings.Contains(part, "n't") || strings.Contains(part, "<no value>") {
-				t.Errorf("%s: %q", name, part)
-			}
-		}
-		if strings.Contains(m.HTML, "<c>") || strings.Contains(m.HTML, "ZgotmplZ") {
-			t.Errorf("%s: HTML not escaped properly", name)
-		}
-		if !strings.Contains(m.HTML, `style="margin:0 0 16px 0;font-size:15px`) {
-			t.Errorf("%s: shared paragraph style missing", name)
-		}
+		checkStructure(t, name, m, tt.rest, tt.security, tt.button)
 	}
 	for _, name := range templateNames {
 		if !seen[name] {
@@ -124,20 +116,154 @@ func TestComposeEveryEmail(t *testing.T) {
 	}
 }
 
-func TestDuration(t *testing.T) {
-	f := funcs["duration"].(func(time.Duration) string)
+// checkStructure checks the structure of VESPER.md 13.2 that every mail
+// shares: the heading is the subject, HUSH's paragraph sits in its own
+// cyan-ruled block that holds no link, the plain part follows it, 1 amber
+// button with white text names the action and the full URL stands under
+// it, the footer says that replies are not read, and the markup is mail
+// markup: inline styles, no images, no web fonts, light only.
+func checkStructure(t *testing.T, name string, m Message, rest, security bool, button string) {
+	t.Helper()
+	// The plain-text part, in its order.
+	lines := strings.Split(m.Text, "\n")
+	if len(lines) < 4 || lines[0] != m.Subject || lines[1] != "" || lines[2] != "  HUSH, Vesper Labs:" || !strings.HasPrefix(lines[3], "  ") {
+		t.Errorf("%s: the text part does not open with the heading and HUSH's paragraph:\n%s", name, m.Text)
+	}
+	hushEnd := strings.Index(m.Text, "\n\n"+map[bool]string{true: "What happened:", false: "What this email is for:"}[security])
+	if hushEnd < 0 {
+		t.Errorf("%s: the plain part does not start with its lead:\n%s", name, m.Text)
+		return
+	}
+	hush := m.Text[:hushEnd]
+	if strings.Contains(hush, "http") || strings.Contains(hush, "@") {
+		t.Errorf("%s: HUSH's paragraph holds a link or an address:\n%s", name, hush)
+	}
+	if strings.Contains(hush, "Please rest.") != rest || strings.Contains(m.HTML, "Please rest.") != rest {
+		t.Errorf("%s: \"Please rest.\" is %v, want %v", name, !rest, rest)
+	}
+	at := func(s string) int { return strings.Index(m.Text, s) }
+	if at(button+":\n") < 0 {
+		t.Errorf("%s: the text part lacks %q with its URL", name, button+":")
+	}
+	if security {
+		if w := at("\nWARNING: "); w < 0 || w > at(button+":") || at("What happened:") > w {
+			t.Errorf("%s: a security notice needs What happened, then the WARNING, then the button:\n%s", name, m.Text)
+		}
+	} else if strings.Contains(m.Text, "WARNING") {
+		t.Errorf("%s: a WARNING outside a security notice", name)
+	}
+	if !strings.HasSuffix(m.Text, "\n--\nReplies to this address are not read.\nGo Practice sent this email automatically.\nhttps://go-practice.dev/\n") ||
+		strings.Contains(m.Text, "\n\n\n") {
+		t.Errorf("%s: text footer or blank lines:\n%s", name, m.Text)
+	}
+
+	// The HTML part.
+	h := m.HTML
+	for _, want := range []string{
+		"<title>" + htmlEscape(m.Subject) + "</title>",
+		`color:#070707;">` + htmlEscape(m.Subject) + "</h1>",
+		`<meta name="color-scheme" content="light only">`, `<meta name="supported-color-schemes" content="light only">`,
+		"height:2px;line-height:2px;font-size:0;background-color:#006B7D;", // the 2 px cyan top rule
+		"border-left:3px solid #006B7D;background-color:#E3F3F6;",          // HUSH's block
+		`<b>Vesper</b> Labs`, // the text wordmark
+		`style="margin:0 0 16px;font-size:16px;line-height:24px;color:#070707;"`,                // the shared paragraph
+		`<b style="color:#070707;">Replies to this address are not read.</b>`,                   // the footer
+		"<!--[if mso]><table role=\"presentation\" width=\"560\"",                               // Outlook holds the card at 560 px
+		"background-color:#AD4F00;", "color:#FFFFFF;text-decoration:none;\">" + button + "</a>", // the 1 button
+		"word-break:break-all;", // the full URL under it
+	} {
+		if !strings.Contains(h, want) {
+			t.Errorf("%s: HTML lacks %q", name, want)
+		}
+	}
+	if n := strings.Count(h, `bgcolor="#AD4F00"`); n != 1 {
+		t.Errorf("%s: %d buttons, want 1", name, n)
+	}
+	block := h[strings.Index(h, "HUSH, Vesper Labs"):]
+	block = block[:strings.Index(block, "</td></tr></table>")]
+	if strings.Contains(block, "<a ") || strings.Contains(block, "http") {
+		t.Errorf("%s: HUSH's block holds a link: %s", name, block)
+	}
+	if strings.Index(h, "HUSH, Vesper Labs") > strings.Index(h, `bgcolor="#AD4F00"`) {
+		t.Errorf("%s: the button is inside or before HUSH's block", name)
+	}
+	for _, bad := range []string{"<img", "<style", "class=", "@font-face", "url(", "<script", "border-radius", "ZgotmplZ", "<c>"} {
+		if strings.Contains(h, bad) {
+			t.Errorf("%s: HTML holds %q", name, bad)
+		}
+	}
+	// No unrendered actions, no contractions, no exclamation marks in the
+	// words of the mail.
+	for _, part := range []string{m.Text, m.Subject, visibleText(h)} {
+		if strings.Contains(part, "{{") || strings.Contains(part, "n't") || strings.Contains(part, "<no value>") || strings.Contains(part, "!") {
+			t.Errorf("%s: %q", name, part)
+		}
+	}
+}
+
+// htmlEscape escapes like html/template does in text.
+func htmlEscape(s string) string {
+	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&#34;", "'", "&#39;").Replace(s)
+}
+
+// visibleText drops the tags, the comments and the doctype of an HTML part.
+func visibleText(h string) string {
+	var b strings.Builder
+	in := false
+	for _, r := range h {
+		switch {
+		case r == '<':
+			in = true
+		case r == '>':
+			in = false
+		case !in:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func TestLifetime(t *testing.T) {
 	tests := map[time.Duration]string{
 		15 * time.Minute:   "15 minutes",
+		time.Minute:        "1 minute",
 		time.Hour:          "1 hour",
 		2 * time.Hour:      "2 hours",
 		90 * time.Minute:   "90 minutes",
 		24 * time.Hour:     "24 hours",
+		48 * time.Hour:     "48 hours", // auth.VerifyTTL, as the check-email page writes it
+		72 * time.Hour:     "3 days",
 		7 * 24 * time.Hour: "7 days",
 	}
 	for d, want := range tests {
-		if got := f(d); got != want {
-			t.Errorf("duration(%v) = %q, want %q", d, got, want)
+		if got := Lifetime(d); got != want {
+			t.Errorf("Lifetime(%v) = %q, want %q", d, got, want)
 		}
+	}
+}
+
+// TestFooterNamesTheSender sends through a Mailer whose sender knows its
+// address: the footer names it in both parts.
+func TestFooterNamesTheSender(t *testing.T) {
+	var buf bytes.Buffer
+	s, err := NewSender(Config{From: DefaultFrom}, slog.New(slog.NewJSONHandler(&buf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ls := s.(*LogSender)
+	m, err := compose(site, ls.Address(), "alice@example.com", VerifyEmail{Name: "Alice", Link: site + "/verify-email?token=x", ValidFor: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(m.Text, "\nGo Practice sent this email automatically from hush@vesper-labs.org.\n") ||
+		!strings.Contains(m.HTML, "Go Practice sent this email automatically from hush@vesper-labs.org. The site is <a href=\"https://go-practice.dev/\"") {
+		t.Errorf("the footer does not name the sender:\n%s", m.Text)
+	}
+	if err := NewMailer(s, site).Send(context.Background(), "alice@example.com", VerifyEmail{Name: "Alice", Link: site + "/verify-email?token=x", ValidFor: time.Hour}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "automatically from hush@vesper-labs.org.") {
+		t.Errorf("the Mailer did not pass the sender's address: %s", buf.String())
 	}
 }
 
@@ -188,7 +314,7 @@ func parse(t *testing.T, raw []byte) parsed {
 }
 
 func TestEncode(t *testing.T) {
-	from, err := ParseFrom("Go Practice <go-practice@yornik.eu>")
+	from, err := ParseFrom(DefaultFrom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,8 +338,16 @@ func TestEncode(t *testing.T) {
 	if err != nil || subject != m.Subject {
 		t.Errorf("Subject = %q (%v), want %q", subject, err, m.Subject)
 	}
+	// The display name holds a middle dot, so it goes as an RFC 2047
+	// word: a header carries ASCII only.
+	rawFrom := p.header.Get("From")
+	if !strings.HasPrefix(rawFrom, "=?utf-8?") || strings.ContainsFunc(rawFrom, func(r rune) bool { return r > 127 }) {
+		t.Errorf("From = %q, want an encoded word", rawFrom)
+	}
+	if a, err := mail.ParseAddress(rawFrom); err != nil || a.Name != "HUSH · Vesper Labs" || a.Address != "hush@vesper-labs.org" {
+		t.Errorf("From reads as %+v, %v", a, err)
+	}
 	checks := map[string]string{
-		"From":           `"Go Practice" <go-practice@yornik.eu>`,
 		"To":             "<alice@example.com>",
 		"Date":           "Mon, 19 Oct 2026 09:30:00 +0000",
 		"MIME-Version":   "1.0",
@@ -225,7 +359,7 @@ func TestEncode(t *testing.T) {
 		}
 	}
 	id := p.header.Get("Message-ID")
-	if !strings.HasPrefix(id, "<") || !strings.HasSuffix(id, "@yornik.eu>") {
+	if !strings.HasPrefix(id, "<") || !strings.HasSuffix(id, "@vesper-labs.org>") {
 		t.Errorf("Message-ID = %q", id)
 	}
 	if date, err := p.header.Date(); err != nil || !date.Equal(when) {
@@ -544,8 +678,9 @@ func TestSMTPSend(t *testing.T) {
 				t.Errorf("rcpt = %q", srv.rcpt)
 			}
 			p := parse(t, srv.data)
-			if p.header.Get("Subject") != "A passkey was added to your account" || !strings.Contains(p.text, "MacBook") ||
-				!strings.Contains(p.html, "<strong>MacBook</strong>") {
+			// The footer names the address the mail came from.
+			if p.header.Get("Subject") != "A passkey was added to your account" || !strings.Contains(p.text, "“MacBook”") ||
+				!strings.Contains(p.html, "<b>“MacBook”</b>") || !strings.Contains(p.text, "automatically from go-practice@yornik.eu.") {
 				t.Errorf("delivered message:\n%s", srv.data)
 			}
 		})

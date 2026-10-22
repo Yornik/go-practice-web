@@ -41,6 +41,15 @@ func (l Level) Valid() bool { return l >= Hint1 && l <= MaxLevel }
 // IsHint reports whether l is 1 of the 3 hints.
 func (l Level) IsHint() bool { return l >= Hint1 && l <= Hint3 }
 
+// InSentence is the level's name inside a sentence: "hint 2", or "the
+// walkthrough" for the explanation, the walkthrough and the solution.
+func (l Level) InSentence() string {
+	if l.IsHint() {
+		return strings.ToLower(l.String())
+	}
+	return "the " + strings.ToLower(l.String())
+}
+
 // String returns the name the course uses, for example "Hint 2".
 func (l Level) String() string {
 	switch l {

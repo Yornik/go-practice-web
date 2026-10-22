@@ -1,9 +1,6 @@
-{{define "heading"}}Recover your account{{end}}
 {{define "content"}}
-<p style="{{template "p"}}">Hello {{.E.Name}},</p>
-<p style="{{template "p"}}">Someone asked to recover the Go Practice account for <strong>{{.To}}</strong>. If that was you, open this link and create a new passkey.</p>
-<p style="margin:0 0 20px 0;"><a href="{{.E.Link}}" style="{{template "button"}}">Create a new passkey</a></p>
-<p style="{{template "p"}}">The link works once and expires in {{duration .E.ValidFor}}. On the same page you can remove your old passkeys.</p>
-<p style="{{template "small"}}">If the button does not work, copy this link into your browser:<br><a href="{{.E.Link}}" style="{{template "link"}}">{{.E.Link}}</a></p>
-<p style="{{template "small"}}">If you did not ask for this, ignore this email. Without this link, nobody can add a passkey to your account.</p>
+<p style="{{template "p"}}"><b>What this email is for:</b> someone asked to recover the Go Practice account for <b>{{.To}}</b>. If that was you, open the link and add a new passkey. On the same page you can remove your old passkeys.</p>
+{{template "action" (action "Add a new passkey" .E.Link)}}
+<p style="{{template "p"}}"><b>How long the link works:</b> {{lifetime .E.ValidFor}}. It works once.</p>
+<p style="{{template "p-last"}}"><b>If you did not ask for this:</b> ignore this email. Without the link, nobody can add a passkey to your account, so do not forward it.</p>
 {{end}}

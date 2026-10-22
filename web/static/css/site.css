@@ -1,449 +1,1051 @@
-/* site.css: the design system of Go Practice (".design/FINAL.md").
-   Graphite is the work. Blue pencil teaches. Red only means failing.
-   The layers keep selector specificity flat: a later layer wins. */
+/* site.css: the design system of Go Practice, the training portal of
+   Vesper Labs: version 2, "Projection" (.design/VESPER.md).
+   Cyan is what the system projects (HUSH's layer only); amber is what a
+   person wrote by hand. Red and green mean test results and errors.
+   The layers keep selector specificity flat: a later layer wins. The page
+   rules live in public.css and app.css, the IDE in ide.css. */
 @layer tokens, base, components, pages, ide;
 
 /* ------------------------------------------------------------------ */
-/* Fonts: B612 (the manual) and Spline Sans Mono (the machine), OFL 1.1 */
+/* Fonts, OFL 1.1, from @fontsource-variable 5.3.0 (VESPER.md 4):      */
+/* Saira for display, Atkinson Hyperlegible Next for reading and       */
+/* Atkinson Hyperlegible Mono for code. A latin-ext file loads only     */
+/* when a name needs it.                                               */
 /* ------------------------------------------------------------------ */
-/* B612 draws "(" and ")" almost like "[" and "]". In a Go course
-   "(optional)" must not read as "[optional]", so the 2 parentheses come
-   from Inter (OFL 1.1), cut to those 2 glyphs. */
-@font-face { font-family: "Manual Parens"; src: url("/static/fonts/inter-parens-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0028-0029; }
-@font-face { font-family: "Manual Parens"; src: url("/static/fonts/inter-parens-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0028-0029; }
-@font-face { font-family: "B612"; src: url("/static/fonts/b612-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "B612"; src: url("/static/fonts/b612-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
-@font-face { font-family: "B612"; src: url("/static/fonts/b612-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
-@font-face { font-family: "Spline Sans Mono"; src: url("/static/fonts/spline-sans-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: "Spline Sans Mono"; src: url("/static/fonts/spline-sans-mono-latin-ext-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face {
+  font-family: "Saira"; src: url("/static/fonts/saira-latin-standard-normal.woff2") format("woff2-variations");
+  font-weight: 100 900; font-stretch: 50% 125%; font-style: normal; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Saira"; src: url("/static/fonts/saira-latin-ext-standard-normal.woff2") format("woff2-variations");
+  font-weight: 100 900; font-stretch: 50% 125%; font-style: normal; font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; src: url("/static/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800; font-style: normal; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; src: url("/static/fonts/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800; font-style: normal; font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+2113, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; src: url("/static/fonts/atkinson-hyperlegible-next-latin-wght-italic.woff2") format("woff2-variations");
+  font-weight: 200 800; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono"; src: url("/static/fonts/atkinson-hyperlegible-mono-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800; font-style: normal; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono"; src: url("/static/fonts/atkinson-hyperlegible-mono-latin-ext-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800; font-style: normal; font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+2113, U+A720-A7FF;
+}
 
 /* ------------------------------------------------------------------ */
-/* Tokens. The 2 dark blocks hold the same values; a Go test checks it. */
+/* Tokens (VESPER.md 3.11). Daylight is the base: a printed spec sheet. */
+/* The 2 night blocks hold the same values; a Go test checks it.        */
 /* ------------------------------------------------------------------ */
 @layer tokens {
   :root {
     color-scheme: light;
-    --pad: #E4ECD9; --pad-deep: #D6E2C8; --sheet: #F6F9F1; --sheet-2: #ECF2E4;
-    --graphite: #1E2821; --graphite-2: #475A4C;
-    --rule: #BCCDB0; --rule-strong: #6B8562;
-    --blue: #2346A0; --blue-hover: #1B3784; --blue-wash: #E1E8F6; --select: #C9D5EF; --on-blue: #FFFFFF;
-    --red: #B3251A; --red-wash: #F8E1DB; --on-red: #F6F9F1;
-    --ok: #1C6A3A;
-    --grid: rgb(188 205 176 / 0.45); --backdrop: rgb(30 40 33 / 0.5);
-    --syn-kw: #6E2C7E; --syn-str: #7A4E05; --syn-num: #0E6670; --syn-com: #56685B;
+    --ground: #FFFFFF;          /* paper */
+    --ground-deep: #F1F1F0;     /* bars */
+    --surface: #F5F5F4;         /* planes: the spec grey of a printed sheet */
+    --surface-2: #EAEAE9;
+    --editor: #FFFFFF;
+    --ink: #070707;
+    --ink-2: #545659;
+    --rule: #D6D7D9;            /* hairlines that only group things */
+    --rule-strong: #76797D;     /* edges a reader needs to see: 3:1 and more */
+    --signal: #AD4F00;          /* amber as text and line, a spot ink at AA */
+    --signal-fill: #FFAA00;     /* amber as a fill, always under black ink */
+    --signal-key: #070707;      /* the keyline round an amber fill on paper */
+    --signal-wash: #FFF0D1;
+    --on-signal: #070707;
+    --hush: #006B7D;            /* cyan as a spot ink */
+    --hush-wash: #E3F3F6;
+    --red: #BD2A1E;
+    --red-wash: #FCE6E3;
+    --ok: #1C7A33;
+    --focus: #000000;
+    --select: #FFE2A6;
+    --lanyard: #8E2A20;         /* the story exception: the lanyard is oxide, never --red */
+    --dot: #CFD0D2;
+    --hz-a: #FFAA00; --hz-b: #070707;
+    --screen: #050505; --screen-ink: #EDEEEF; --screen-2: #A3A6AA; --screen-hush: #4CD3F2; --screen-rule: #2E3033; --screen-scan: #0E0F10;
+    --syn-k: #1F4E79; --syn-s: #7A4500; --syn-c: #595D61; --syn-t: #3D5F1C;
+    --backdrop: rgba(0, 0, 0, .74);
 
-    --manual: "Manual Parens", "B612", system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-    --machine: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --f-disp: "Saira", "Arial Narrow", sans-serif;
+    --f-read: "Atkinson Hyperlegible Next", system-ui, "Segoe UI", Roboto, sans-serif;
+    --f-code: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
+    --gut: 24px;
+    --edge: 48px;
+    --max: 1376px;
+    --measure: 66ch;
+    --cut-l: 18px;              /* chamfer rank 1: frames and slabs */
+    --cut-m: 10px;              /* rank 2: buttons and panels */
+    --cut-s: 5px;               /* rank 3: tags and plates */
     --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px;
-    --r: 4px;
-    --measure: 34em;
     --z-leaders: 3; --z-sticky: 10; --z-menu: 20; --z-dialog: 30; --z-toast: 40;
     --ease: cubic-bezier(.3, .6, .3, 1);
-    --t-draw: 600ms; --t-leader: 250ms; --t-open: 200ms; --t-fade: 120ms; --t-hover: 80ms;
-    --gutter: var(--s6);
+    --t-trace: 250ms; --t-open: 200ms; --t-fade: 120ms; --t-hover: 100ms;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --pad: #131C17; --pad-deep: #0E1511; --sheet: #1A251F; --sheet-2: #16201B;
-      --graphite: #DDE6D7; --graphite-2: #A3B4A7;
-      --rule: #2E4035; --rule-strong: #5C7766;
-      --blue: #A3BAFF; --blue-hover: #BDCDFF; --blue-wash: #1E2944; --select: #2E3F6B; --on-blue: #0E1511;
-      --red: #FF9086; --red-wash: #3B201D; --on-red: #1A251F;
-      --ok: #8AD6A0;
-      --grid: rgb(46 64 53 / 0.55); --backdrop: rgb(5 8 6 / 0.7);
-      --syn-kw: #DDA9EE; --syn-str: #E3C27C; --syn-num: #7ED3D9; --syn-com: #91A396;
+      --ground: #050505; --ground-deep: #000000; --surface: #0E0F10; --surface-2: #17181A; --editor: #0A0A0B;
+      --ink: #EDEEEF; --ink-2: #A3A6AA; --rule: #2A2C2F; --rule-strong: #777B80;
+      --signal: #FFAA00; --signal-fill: #FFAA00; --signal-key: #FFAA00; --signal-wash: #261B04; --on-signal: #050505;
+      --hush: #4CD3F2; --hush-wash: #0A1D22;
+      --red: #FF6150; --red-wash: #2A0E0B; --ok: #72D97C;
+      --focus: #FFFFFF; --select: #3D3112; --lanyard: #A63A2E; --dot: #26282B;
+      --hz-a: #FFAA00; --hz-b: #050505;
+      --syn-k: #A9C4DD; --syn-s: #DDBE8E; --syn-c: #8E9398; --syn-t: #B5CF9C;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --pad: #131C17; --pad-deep: #0E1511; --sheet: #1A251F; --sheet-2: #16201B;
-    --graphite: #DDE6D7; --graphite-2: #A3B4A7;
-    --rule: #2E4035; --rule-strong: #5C7766;
-    --blue: #A3BAFF; --blue-hover: #BDCDFF; --blue-wash: #1E2944; --select: #2E3F6B; --on-blue: #0E1511;
-    --red: #FF9086; --red-wash: #3B201D; --on-red: #1A251F;
-    --ok: #8AD6A0;
-    --grid: rgb(46 64 53 / 0.55); --backdrop: rgb(5 8 6 / 0.7);
-    --syn-kw: #DDA9EE; --syn-str: #E3C27C; --syn-num: #7ED3D9; --syn-com: #91A396;
+    --ground: #050505; --ground-deep: #000000; --surface: #0E0F10; --surface-2: #17181A; --editor: #0A0A0B;
+    --ink: #EDEEEF; --ink-2: #A3A6AA; --rule: #2A2C2F; --rule-strong: #777B80;
+    --signal: #FFAA00; --signal-fill: #FFAA00; --signal-key: #FFAA00; --signal-wash: #261B04; --on-signal: #050505;
+    --hush: #4CD3F2; --hush-wash: #0A1D22;
+    --red: #FF6150; --red-wash: #2A0E0B; --ok: #72D97C;
+    --focus: #FFFFFF; --select: #3D3112; --lanyard: #A63A2E; --dot: #26282B;
+    --hz-a: #FFAA00; --hz-b: #050505;
+    --syn-k: #A9C4DD; --syn-s: #DDBE8E; --syn-c: #8E9398; --syn-t: #B5CF9C;
   }
-  @media (max-width: 720px) {
-    :root { --gutter: var(--s4); }
+  @media (max-width: 720px) { :root { --edge: 16px; --gut: 16px; } }
+  /* The night blocks outrank :root, so the stronger hairline names them too. */
+  @media (prefers-contrast: more) {
+    :root, :root:not([data-theme="light"]), :root[data-theme="dark"] { --rule: #76797D; }
   }
   @media (prefers-reduced-motion: reduce) {
-    :root { --t-draw: 0ms; --t-leader: 0ms; --t-open: 0ms; --t-fade: 0ms; --t-hover: 0ms; }
+    :root { --t-trace: 0ms; --t-open: 0ms; --t-fade: 0ms; --t-hover: 0ms; }
   }
+  /* Story effects off (VESPER.md 16.5): theme-init.js sets data-story before the first paint. */
+  :root[data-story="off"] .gpw-story { display: none !important; }
+  :root[data-story="off"] .gpw-story-line { display: none; }
+  :root:not([data-story="off"]) .gpw-plain-line { display: none; }
 }
+::selection { background: var(--select); color: var(--ink); }
 
 /* ------------------------------------------------------------------ */
 /* Base                                                                 */
 /* ------------------------------------------------------------------ */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  /* A control that Tab scrolls into view keeps its 5 px of ring inside
+     the window (VESPER.md 3.10). */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-block: 8px; }
   body {
     margin: 0;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--pad);
-    color: var(--graphite);
-    font: 400 15px/24px var(--manual);
-    font-variant-numeric: tabular-nums;
+    background: var(--ground);
+    color: var(--ink);
+    font: 400 17px/1.55 var(--f-read);
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4, p, ol, ul, dl, dd, figure, pre, blockquote { margin: 0; }
   h1, h2, h3, h4 { font-weight: 700; text-wrap: balance; }
   p, li, dd { text-wrap: pretty; hyphens: manual; }
-  a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-thickness var(--t-hover); }
-  a:hover { text-decoration-thickness: 2px; }
-  code, kbd, samp, pre { font-family: var(--machine); }
-  code { font-size: 0.88em; }
+  /* A link is ink with an amber underline: the underline is its mark (VESPER.md 6.2). */
+  a { color: var(--ink); text-decoration: underline 1px var(--signal); text-underline-offset: 4px; }
+  a:hover { text-decoration-thickness: 3px; }
+  code, kbd, samp, pre { font-family: var(--f-code); }
+  code { font-size: .9em; }
   img, svg { display: block; max-width: 100%; }
-  svg.icon { display: inline-block; width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+  /* The sprite's strokes take their width from here, so 1 symbol serves 2 sizes. */
+  svg.icon { display: inline-block; width: 16px; height: 16px; flex: none; vertical-align: -3px; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
   button, input, select, textarea { font: inherit; color: inherit; }
-  ::selection { background: var(--select); color: var(--graphite); }
-  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   [hidden] { display: none !important; }
   table { border-collapse: collapse; }
   main { flex: 1 0 auto; }
   main:focus { outline: none; }
-  .visually-hidden {
-    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  .visually-hidden, .gpw-vh {
+    position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap; border: 0;
   }
   .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  /* Hidden above the window; on focus an amber plate drops in. */
   .skip-link {
-    position: absolute; left: var(--s4); top: var(--s2); z-index: var(--z-toast);
-    padding: var(--s2) var(--s4); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r);
-    font-weight: 700; transform: translateY(-200%);
+    position: absolute; left: 16px; top: -64px; z-index: var(--z-toast);
+    padding: 12px 16px; color: var(--on-signal); background: var(--signal-fill); outline: 1px solid var(--signal-key);
+    font: 700 14px/1 var(--f-disp); letter-spacing: .08em; text-transform: uppercase; text-decoration: none;
   }
-  .skip-link:focus { transform: none; }
-  .mono { font-family: var(--machine); }
-  .muted { color: var(--graphite-2); }
-  .text-small { font-size: 13px; line-height: 20px; }
+  .skip-link:focus { top: 12px; outline: 3px solid var(--focus); outline-offset: 2px; }
+  .mono, .gpw-mono { font-family: var(--f-code); }
+  .muted, .gpw-quiet { color: var(--ink-2); }
+  .text-small { font-size: 14px; line-height: 1.45; }
+  /* Motion answers an action, and only in colour (VESPER.md 9). */
+  @media (prefers-reduced-motion: no-preference) {
+    a, .btn, .text-button, .link-button, .site-nav a { transition: color var(--t-hover), text-decoration-color var(--t-hover); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }
+  }
 }
 
 /* ------------------------------------------------------------------ */
-/* Components                                                           */
+/* Components (VESPER.md 6). Today's class names, re-skinned to their   */
+/* frame class; a new component takes the gpw- prefix (VESPER.md 14.2).  */
 /* ------------------------------------------------------------------ */
 @layer components {
-  .wrap { width: 100%; max-width: calc(1200px + 2 * var(--gutter)); margin-inline: auto; padding-inline: var(--gutter); }
+  /* The 1376 px column with its side margins, and the 12-column grid. */
+  .wrap, .gpw-wrap { width: 100%; max-width: var(--max); margin-inline: auto; padding-inline: var(--edge); }
+  .gpw-g12 { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); }
 
-  /* Buttons: the label says what happens. 1 primary per view. */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
-    min-height: 40px; padding: 0 var(--s4);
-    border: 1px solid var(--rule-strong); border-radius: var(--r);
-    background: var(--sheet); color: var(--graphite);
-    font: 700 15px/1.2 var(--manual); text-decoration: none; text-align: center;
-    cursor: pointer; white-space: nowrap;
-    transition: background-color var(--t-hover), border-color var(--t-hover), color var(--t-hover);
-  }
-  .btn:hover { background: var(--sheet-2); text-decoration: none; }
-  .btn-primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
-  .btn-primary:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
-  .btn-quiet { min-height: 32px; padding: 0 var(--s1); border-color: transparent; background: none; color: var(--blue); font-weight: 700; }
-  .btn-quiet:hover { background: none; text-decoration: underline; text-underline-offset: 3px; }
-  .btn-danger { border-color: var(--red); color: var(--red); }
-  .btn-danger:hover { background: var(--red-wash); }
-  .btn-lg { min-height: 48px; padding: 0 var(--s5); font-size: 16px; }
-  .btn-sm { min-height: 32px; padding: 0 var(--s3); font-size: 14px; }
-  .btn[aria-disabled="true"], .btn:disabled { color: var(--graphite-2); border-color: var(--rule); background: var(--sheet); cursor: not-allowed; }
-  .btn-primary[aria-disabled="true"], .btn-primary:disabled { background: var(--sheet); }
-  .btn[aria-busy="true"] { cursor: progress; }
-  .btn-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s4); }
-  .link-button { padding: 0; border: 0; background: none; color: var(--blue); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; font: inherit; }
-  .link-button:hover { text-decoration-thickness: 2px; }
-
-  /* The balloon: a number or letter in a circle. It ends a leader. */
-  .balloon {
-    display: inline-grid; place-items: center; flex: none;
-    width: 22px; height: 22px; border: 1.5px solid var(--blue); border-radius: 50%;
-    color: var(--blue); background: transparent; font: 700 12px/1 var(--manual);
+  /* Type (VESPER.md 3.3). Saira in 2 voices: condensed heavy capitals are
+     the human voice, extended light the building's. Atkinson carries every
+     sentence a person reads. */
+  .gpw-lbl {
+    font: 600 12px/1.3 var(--f-disp); font-stretch: 88%;
+    text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2);
     font-variant-numeric: tabular-nums;
   }
-  .balloon-sm { width: 18px; height: 18px; font-size: 11px; border-width: 1.25px; }
-  .balloon-xs { width: 14px; height: 14px; font-size: 9px; border-width: 1px; }
-  .balloon.is-filled { background: var(--blue); color: var(--on-blue); }
-  .balloon.is-locked { border-style: dashed; border-color: var(--rule-strong); color: var(--graphite-2); }
-  .brand-mark {
-    display: inline-grid; place-items: center; flex: none;
-    width: 30px; height: 30px; border: 2px solid var(--blue); border-radius: 50%;
-    background: var(--sheet); color: var(--blue); font: 700 12px/1 var(--manual); letter-spacing: -0.02em;
+  /* A screen's labels are cyan in both themes (VESPER.md 6.20). The rule
+     sits beside .gpw-lbl: in the story sub-layer it would lose to it. */
+  .gpw-screen .gpw-lbl, .gpw-calm .gpw-lbl { color: var(--screen-hush); }
+  .gpw-h1 { font-family: var(--f-disp); font-weight: 760; font-stretch: 66%; text-transform: uppercase; line-height: .92; letter-spacing: .005em; font-size: clamp(44px, 4.85vw, 62px); }
+  .gpw-h2 { font-family: var(--f-disp); font-weight: 640; font-stretch: 106%; font-size: clamp(30px, 3.4vw, 46px); line-height: 1.04; letter-spacing: -.012em; text-wrap: balance; }
+  .gpw-h1-app { font: 680 44px/1.02 var(--f-disp); letter-spacing: -.012em; }
+  .gpw-lede { font-size: 19px; line-height: 1.55; max-width: 58ch; }
+  .gpw-sec-lede { font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 60ch; }
+  .gpw-sum { font-size: 18px; color: var(--ink-2); max-width: 60ch; }
+  .gpw-sum b { color: var(--ink); font-weight: 700; }
+  /* The phone sizes of the scale (VESPER.md 3.3). Here, not in a page
+     sheet: the sign-in family uses the app title too. */
+  @media (max-width: 720px) {
+    .gpw-h1-app { font-size: 32px; }
+    .gpw-sec-lede, .gpw-sum { font-size: 16.5px; }
   }
+  .gpw-nobr { white-space: nowrap; }
+  /* Code and units keep their form inside capitals: "Open rollcall.go:39", "About 7 h". */
+  .gpw-nocaps, .btn code, .gpw-lbl code, .text-button code { text-transform: none; letter-spacing: 0; }
+  .btn code { font: 500 .98em/1 var(--f-code); }
 
-  /* Fields */
-  .field { display: grid; gap: 6px; align-content: start; }
-  .field + .field { margin-top: var(--s4); }
-  .field > label, .field-label { font: 700 14px/20px var(--manual); color: var(--graphite); }
-  .help { font-size: 13px; line-height: 20px; color: var(--graphite-2); }
-  .text-input, .select, .textarea {
-    width: 100%; min-height: 40px; padding: 7px var(--s3);
-    border: 1px solid var(--rule-strong); border-radius: var(--r);
-    background: var(--sheet); color: var(--graphite);
-    font: 400 15px/24px var(--manual);
+  /* The slashed zero (VESPER.md 3.3). Saira's 0 is the same oval as its O
+     and Saira has no slashed 0, so the slash is drawn: the diagonal of a
+     box the size of the 0's counter. Its width is a share of the glyph's
+     own advance, so it follows the width axis by itself; the share and the
+     height follow the weight, which CSS cannot read, so 3 contexts set
+     them. The template helper "zero" writes gpw-zs and gpw-z. */
+  .gpw-z { position: relative; --zw: 40%; --zh: .47em; --zt: .03em; }
+  .gpw-z::after {
+    content: ""; position: absolute; left: 50%; top: 50.3%; width: var(--zw); height: var(--zh); transform: translate(-50%, -50%);
+    background: linear-gradient(to bottom right, transparent calc(50% - var(--zt)), currentColor calc(50% - var(--zt)) calc(50% + var(--zt)), transparent calc(50% + var(--zt)));
   }
-  .text-input.mono { font-family: var(--machine); font-size: 15px; }
-  .textarea { min-height: 160px; resize: vertical; }
-  .select { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--graphite-2) 50%), linear-gradient(135deg, var(--graphite-2) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
-  .text-input[readonly] { background: var(--sheet-2); color: var(--graphite-2); }
-  .text-input[aria-invalid="true"] { border-color: var(--red); }
-  .field-error { padding-left: var(--s3); border-left: 2px solid var(--red); color: var(--red); font-size: 14px; line-height: 21px; }
-  .check { display: inline-flex; align-items: flex-start; gap: var(--s2); font-size: 15px; line-height: 24px; cursor: pointer; }
-  .check input { width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--blue); flex: none; }
-  .form-status { min-height: 0; font-size: 14px; line-height: 21px; }
+  :is(.gpw-count-n, .gpw-count-of, .gpw-nf-num, .gpw-wall-num, .gpw-dep-n, .gpw-id, .gpw-oncall-n, .gpw-exn, .gpw-ct-cells, .gpw-ts-split, .gpw-pp-ex, .gpw-pp-stats, .gpw-tb, .titleblock, .gpw-calm-num) .gpw-z { --zw: 56%; --zh: .56em; --zt: .024em; }
+  :is(.gpw-tag, .btn, .gpw-btn, .gpw-sky-plate b, .avatar, .balloon, .gpw-pin, .count-badge, .gpw-count) .gpw-z { --zw: 30%; --zh: .44em; --zt: .036em; }
+
+  /* Shape (VESPER.md 3.5, 6.10, 6.32, 6.33). A chamfer is clip-path on a
+     pseudo-element, never on a focusable control or its ancestor, so a
+     focus ring is never cut. */
+  .gpw-brk {
+    --bk: var(--rule-strong); --bl: 14px;
+    background:
+      linear-gradient(var(--bk), var(--bk)) left top / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) left top / 1px var(--bl) no-repeat,
+      linear-gradient(var(--bk), var(--bk)) right top / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) right top / 1px var(--bl) no-repeat,
+      linear-gradient(var(--bk), var(--bk)) left bottom / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) left bottom / 1px var(--bl) no-repeat,
+      linear-gradient(var(--bk), var(--bk)) right bottom / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) right bottom / 1px var(--bl) no-repeat;
+  }
+  .gpw-plane { position: relative; isolation: isolate; }
+  .gpw-plane::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--surface);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%);
+  }
+  /* The same plane 1 layer back, at its 2 bottom corners only: at the top
+     right the plane hid the horizontal arm, and the lone stub read as a glitch. */
+  .gpw-ghost { position: relative; isolation: isolate; }
+  .gpw-ghost::after {
+    content: ""; position: absolute; inset: 0; z-index: -2; transform: translate(12px, 12px); pointer-events: none;
+    --bk: var(--rule-strong); --bl: 24px;
+    background:
+      linear-gradient(var(--bk), var(--bk)) right bottom / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) right bottom / 1px var(--bl) no-repeat,
+      linear-gradient(var(--bk), var(--bk)) left bottom / var(--bl) 1px no-repeat,
+      linear-gradient(var(--bk), var(--bk)) left bottom / 1px var(--bl) no-repeat;
+  }
+  /* A human boundary, in 3 places only: Breaker 0, Rule 1, the REFUSED stamp. */
+  .gpw-hazard { display: block; background: repeating-linear-gradient(135deg, var(--hz-a) 0 6px, var(--hz-b) 6px 12px); }
+
+  /* Buttons (VESPER.md 6.1). The keyline lives on ::before and the fill
+     1 px inside on ::after, both clipped; the button itself never is.
+     .btn is the quiet button; .btn-primary the 1 main action of a view. */
+  .btn, .gpw-btn {
+    --cut: var(--cut-m); --_key: var(--rule-strong); --_fill: transparent;
+    --_solid: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+    --_ring: polygon(evenodd, 0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 0,
+      1px 1px, 1px calc(100% - 1px), calc(100% - var(--cut) - .42px) calc(100% - 1px), calc(100% - 1px) calc(100% - var(--cut) - .42px), calc(100% - 1px) 1px, 1px 1px);
+    position: relative; isolation: isolate;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 48px; padding: 0 24px; border: 0; background: none; cursor: pointer;
+    text-decoration: none; text-align: center; white-space: nowrap;
+    font: 700 15px/1 var(--f-disp); font-stretch: 80%; text-transform: uppercase; letter-spacing: .1em; color: var(--ink);
+  }
+  .btn::before, .btn::after, .gpw-btn::before, .gpw-btn::after { content: ""; position: absolute; z-index: -1; pointer-events: none; }
+  .btn::before, .gpw-btn::before { inset: 0; background: var(--_key); clip-path: var(--_ring); }
+  .btn::after, .gpw-btn::after { inset: 1px; background: var(--_fill); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut) + .4px), calc(100% - var(--cut) + .4px) 100%, 0 100%); }
+  .btn:hover, .gpw-btn:hover { --_key: var(--signal); }
+  .btn-primary, .gpw-btn-go { --_key: var(--signal-key); --_fill: var(--signal-fill); color: var(--on-signal); }
+  .btn-primary::before, .gpw-btn-go::before { clip-path: var(--_solid); }
+  .btn-primary:hover, .gpw-btn-go:hover { --_key: var(--ink); --_fill: var(--ink); color: var(--ground); }
+  /* On an amber slab: a black plate with amber text, and a black focus ring. */
+  .gpw-btn-ink { --_key: var(--on-signal); --_fill: var(--on-signal); --focus: var(--on-signal); color: var(--signal-fill); }
+  .gpw-btn-ink::before { clip-path: var(--_solid); }
+  .gpw-btn-ink:hover { --_key: var(--on-signal); color: #FFFFFF; }
+  .gpw-btn-ink:focus-visible { outline-color: var(--on-signal); }
+  /* Only the confirming button of a WARNING dialog. */
+  .btn-danger, .gpw-btn-del { --_key: var(--red); color: var(--red); }
+  .btn-danger:hover, .gpw-btn-del:hover { --_key: var(--red); --_fill: var(--red-wash); }
+  .btn-lg { min-height: 48px; }
+  .btn-sm, .gpw-btn-sm { --cut: 7px; min-height: 32px; padding: 0 14px; font-size: 13px; }
+  .gpw-btn-sq { --cut: 7px; min-height: 36px; min-width: 72px; padding: 0 14px; font-size: 13px; }
+  .gpw-btn-wide { width: 100%; }
+  /* Disabled keeps aria-disabled, so it stays focusable and its reason is found. */
+  .btn[aria-disabled="true"], .btn:disabled, .gpw-btn[aria-disabled="true"] { --_key: var(--rule-strong); --_fill: transparent; color: var(--ink-2); cursor: not-allowed; }
+  .btn-primary[aria-disabled="true"]::before, .btn-primary:disabled::before { clip-path: var(--_ring); }
+  .btn[aria-busy="true"] { cursor: progress; }
+  /* A command: no box, ink with an amber underline, a 32 px target. */
+  .btn-quiet, .link-button, .gpw-linkbtn {
+    display: inline-flex; align-items: center; min-height: 32px; padding: 0; border: 0; background: none; cursor: pointer;
+    font: inherit; text-transform: none; letter-spacing: normal; white-space: normal; text-align: left;
+    color: var(--ink); text-decoration: underline 1px var(--signal); text-underline-offset: 4px;
+  }
+  .btn-quiet::before, .btn-quiet::after { display: none; }
+  .btn-quiet:hover, .link-button:hover, .gpw-linkbtn:hover { text-decoration-thickness: 3px; }
+  .btn-row, .gpw-btnrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+  .gpw-link { color: var(--ink); text-decoration: underline 1px var(--signal); text-underline-offset: 4px; }
+  .gpw-link:hover { text-decoration-thickness: 3px; }
+
+  /* Markers (VESPER.md 6.8): a number or a letter in a square, never a
+     circle. Open: an amber edge. Filled: amber under black ink. */
+  .balloon, .gpw-pin-o {
+    display: inline-grid; place-items: center; flex: none;
+    width: 24px; height: 24px; box-shadow: inset 0 0 0 1px var(--signal); border: 0; border-radius: 0;
+    color: var(--signal); background: transparent; font: 700 12px/1 var(--f-disp);
+    font-variant-numeric: tabular-nums;
+  }
+  .balloon-sm, .balloon-xs { width: 18px; height: 18px; font-size: 11px; }
+  .balloon.is-filled, .gpw-pin {
+    display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; font: 700 12px/1 var(--f-disp);
+    background: var(--signal-fill); color: var(--on-signal); box-shadow: inset 0 0 0 1px var(--signal-key);
+    clip-path: polygon(0 0, 100% 0, 100% 72%, 72% 100%, 0 100%);
+  }
+  .balloon-sm.is-filled, .balloon-xs.is-filled { width: 18px; height: 18px; font-size: 11px; }
+  .balloon.is-locked { box-shadow: none; border: 1px dashed var(--rule-strong); color: var(--ink-2); }
+  .gpw-pin-red { color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
+  .gpw-mark { display: block; width: 24px; height: 24px; color: var(--ink); }
+  .gpw-mk-plate, .gpw-mk-word { fill: currentColor; }
+  .gpw-mk-star { fill: var(--signal-fill); }
+
+  /* Fields (VESPER.md 6.3): a slot, not a card. A 1 px edge and a 2 px
+     floor; the floor turns amber when the field has focus. */
+  .field, .gpw-field { display: grid; gap: 7px; align-content: start; min-width: 0; }
+  .field + .field, .gpw-field + .gpw-field { margin-top: 22px; }
+  .field > label, .field-label, .gpw-flabel { font: 700 15.5px/1.35 var(--f-read); color: var(--ink); }
+  .help, .gpw-help { font-size: 14.5px; line-height: 1.45; color: var(--ink-2); max-width: 62ch; }
+  .text-input, .select, .textarea, .gpw-input, .gpw-sel {
+    display: block; width: 100%; min-width: 0; height: 48px; margin: 0; padding: 0 14px; border: 0; border-radius: 0;
+    background-color: var(--editor); color: var(--ink); font: 400 17px/1.2 var(--f-read);
+    box-shadow: inset 0 0 0 1px var(--rule-strong), inset 0 -2px 0 var(--rule-strong);
+  }
+  .textarea { height: auto; min-height: 160px; padding: 12px 14px; line-height: 1.5; resize: vertical; }
+  .text-input.mono { font: 400 16px/1.2 var(--f-code); }
+  .text-input:hover, .select:hover, .textarea:hover, .gpw-input:hover, .gpw-sel:hover { box-shadow: inset 0 0 0 1px var(--ink-2), inset 0 -2px 0 var(--ink-2); }
+  .text-input:focus-visible, .select:focus-visible, .textarea:focus-visible, .gpw-input:focus-visible, .gpw-sel:focus-visible { box-shadow: inset 0 0 0 1px var(--ink), inset 0 -2px 0 var(--signal); }
+  .text-input[readonly] { background-color: var(--surface); color: var(--ink-2); }
+  /* The browser's grey placeholder fails 4.5:1 on the night editor. */
+  .text-input::placeholder, .textarea::placeholder, .gpw-input::placeholder { color: var(--ink-2); opacity: 1; }
+  .text-input[aria-invalid="true"], .textarea[aria-invalid="true"], .gpw-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1px var(--red), inset 0 -2px 0 var(--red); }
+  .select, .gpw-sel {
+    appearance: none; -webkit-appearance: none; padding-right: 42px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position: right 21px center, right 15px center; background-size: 6px 6px; background-repeat: no-repeat;
+  }
+  .gpw-field-s { max-width: 320px; }
+  .field-error, .gpw-err { padding-left: 10px; box-shadow: inset 2px 0 0 var(--red); color: var(--red); font-size: 14.5px; line-height: 1.45; }
+  /* Checkboxes and radios are drawn, 24 px; checked is amber under black
+     ink. The radio keeps its ring: the 1 round shape a control may have. */
+  .check, .gpw-cb, .gpw-rd { display: inline-flex; align-items: flex-start; gap: 12px; min-height: 32px; font-size: 16px; line-height: 24px; cursor: pointer; }
+  .check input, .gpw-cb input, .gpw-rd input {
+    appearance: none; -webkit-appearance: none; flex: none; width: 24px; height: 24px; margin: 0; cursor: pointer;
+    background-color: var(--editor); box-shadow: inset 0 0 0 1.5px var(--rule-strong);
+  }
+  .check input[type="radio"], .gpw-rd input { border-radius: 50%; }
+  .check input:hover, .gpw-cb input:hover, .gpw-rd input:hover { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+  .check input[type="checkbox"]:checked, .gpw-cb input:checked {
+    box-shadow: inset 0 0 0 1px var(--signal-key);
+    background: var(--signal-fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M3.5 9.5l3.5 3.5 7.5-8' fill='none' stroke='%23070707' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+  }
+  /* The story checkbox is rendered checked; with story effects off it is drawn empty until site.js unchecks it (16.5). */
+  :root[data-story="off"] .gpw-cb input[data-story-check]:checked { background: var(--editor); box-shadow: inset 0 0 0 1.5px var(--rule-strong); }
+  .check input[type="radio"]:checked, .gpw-rd input:checked { box-shadow: inset 0 0 0 1px var(--signal-key); background: radial-gradient(circle, var(--on-signal) 0 4.5px, transparent 5px), var(--signal-fill); }
+  .check input:disabled { cursor: not-allowed; box-shadow: inset 0 0 0 1.5px var(--rule); }
+  .gpw-cb-t { display: block; font-weight: 700; }
+  .gpw-fs { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .gpw-fs legend { padding: 0; margin-bottom: 12px; font: 700 15.5px/1.35 var(--f-read); }
+  .gpw-rdrow { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-bottom: 10px; }
+  /* The IDE's -race box stays native and small. */
+  .check-sm input { appearance: auto; -webkit-appearance: auto; width: 16px; height: 16px; box-shadow: none; background: none; accent-color: var(--signal-fill); }
+  .form-status, .gpw-formstat { min-height: 0; font-size: 15px; line-height: 1.45; }
   /* Empty, it takes no room but stays in the accessibility tree, so the
      first message is heard: display: none would drop the live region. */
   .form-status:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .form-status[data-kind] { padding-left: var(--s3); }
-  .form-status[data-kind="error"] { border-left: 2px solid var(--red); color: var(--red); }
-  .form-status[data-kind="success"] { border-left: 2px solid var(--ok); color: var(--ok); }
-  .form-status[data-kind="info"] { border-left: 2px solid var(--blue); }
+  .form-status[data-kind] { padding-left: 10px; }
+  .form-status[data-kind="error"] { box-shadow: inset 2px 0 0 var(--red); color: var(--red); }
+  /* A confirmation is ink: green means a test result. */
+  .form-status[data-kind="success"] { box-shadow: inset 2px 0 0 var(--ink); color: var(--ink); }
+  .form-status[data-kind="info"] { box-shadow: inset 2px 0 0 var(--rule-strong); }
 
-  /* Callouts: the client's 3 safety labels. The only capitals in the UI. */
-  .callout { padding-left: var(--s3); border-left: 2px solid var(--blue); font-size: 15px; line-height: 24px; }
-  .callout b:first-child, .callout strong:first-child { font-weight: 700; }
-  .callout-caution { border-left-color: var(--graphite); }
-  .callout-warning { border-left-color: var(--red); }
-  .callout-warning b:first-child { color: var(--red); }
+  /* Callouts (VESPER.md 6.13): the client's 3 safety labels. The word
+     carries the warning, not a colour. */
+  .callout, .gpw-callout { padding: 13px 18px 14px 20px; background: var(--surface); box-shadow: inset 3px 0 0 var(--rule-strong); font-size: 15.5px; line-height: 1.5; max-width: 80ch; }
+  .callout b:first-child, .callout strong:first-child, .gpw-callout > b:first-child { font-weight: 800; letter-spacing: .02em; }
+  .callout-caution, .gpw-callout-caution { box-shadow: inset 3px 0 0 var(--signal-fill), inset 4px 0 0 var(--signal-key); }
+  .callout-warning, .gpw-callout-warn { box-shadow: inset 0 0 0 2px var(--ink); }
 
-  /* Status: an icon and a word, in the colour of its meaning. */
+  /* Status (VESPER.md 6.12): an icon and a word in the colour of its
+     meaning. Green and red only for test results and errors. */
   .status-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .status-ok { color: var(--ok); }
-  .status-fail { color: var(--red); }
-  .status-quiet { color: var(--graphite-2); }
-  .count-badge {
-    display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
-    border-radius: 9px; background: var(--red); color: var(--on-red); font: 700 11px/1 var(--manual);
+  .status-ok, .gpw-pass { color: var(--ok); }
+  .gpw-pass { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .status-fail, .gpw-st-fail { color: var(--red); }
+  .status-quiet, .gpw-st-idle { color: var(--ink-2); }
+  .gpw-done, .gpw-okword { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 700; }
+  .gpw-pi-s, svg.icon.gpw-pi-s { width: 14px; height: 14px; flex: none; stroke-width: 2; }
+  /* The count of problems: a red outlined square; advice in amber. */
+  .count-badge, .gpw-count {
+    display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 0;
+    box-shadow: inset 0 0 0 1px var(--red); background: none; color: var(--red);
+    font: 700 12px/1 var(--f-disp); font-variant-numeric: tabular-nums;
   }
-  /* Only advice: blue pencil, not red. */
-  .count-badge.is-advice { background: var(--blue); color: var(--on-blue); }
+  .count-badge.is-advice { box-shadow: inset 0 0 0 1px var(--signal); color: var(--signal); }
 
-  /* The title block: facts in cells, like the corner of a drawing. */
-  .titleblock { display: flex; flex-wrap: wrap; border: 1px solid var(--rule-strong); width: fit-content; max-width: 100%; }
-  .titleblock > div { padding: 6px 12px 7px; border-left: 1px solid var(--rule-strong); min-width: 0; }
-  .titleblock > div:first-child { border-left: 0; }
-  .titleblock dt { font-size: 12px; line-height: 16px; color: var(--graphite-2); }
-  .titleblock dd { font: 700 15px/20px var(--manual); white-space: nowrap; }
-  .titleblock dd.mono { font: 400 15px/20px var(--machine); }
+  /* Title blocks and fact lists (VESPER.md 6.7). The grid lines are inset
+     shadows, so a cell needs no background to show its edge. */
+  .titleblock { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; box-shadow: inset 1px 1px 0 var(--rule-strong); }
+  .titleblock > div, .gpw-tb > div { min-width: 0; padding: 8px 12px 10px; box-shadow: inset -1px -1px 0 var(--rule-strong); }
+  .titleblock dt { font: 600 12px/1.3 var(--f-disp); font-stretch: 88%; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); }
+  .titleblock dd, .gpw-tb dd { margin-top: 3px; font: 600 16px/1.3 var(--f-disp); white-space: nowrap; }
+  .gpw-tb dd { white-space: normal; overflow-wrap: anywhere; }
+  .titleblock dd.mono, .gpw-tb dd.gpw-mono { font: 500 15px/1.35 var(--f-code); letter-spacing: .02em; }
+  .gpw-tb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); box-shadow: inset 1px 1px 0 var(--rule-strong); }
+  .gpw-tb-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gpw-tb-wide { grid-column: 1 / -1; }
+  .facts, .gpw-fl { display: grid; grid-template-columns: minmax(132px, max-content) minmax(0, 1fr); }
+  .facts dt, .facts dd, .gpw-fl dt, .gpw-fl dd { padding: 11px 0; border-top: 1px solid var(--rule); }
+  .facts dt, .gpw-fl dt { color: var(--ink-2); font-size: 15.5px; }
+  .facts dd, .gpw-fl dd { min-width: 0; padding-left: 28px; font-size: 16px; overflow-wrap: anywhere; }
 
-  /* Fact lists: tabwriter-aligned, not boxed. */
-  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--s5); }
-  .facts dt { color: var(--graphite-2); }
-  .facts dd { min-width: 0; overflow-wrap: anywhere; }
-
-  /* The construction grid: only behind figures and certificates. */
-  .grid-bg {
-    background-color: var(--sheet);
-    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 24px 24px; background-position: -1px -1px;
+  /* Code blocks and keys (VESPER.md 6.16). No copy button: the learner types. */
+  pre.code, .prose pre, .gpw-guide-code {
+    margin: var(--s3) 0; padding: 12px 16px; border: 0; background: var(--surface); box-shadow: inset 2px 0 0 var(--rule-strong);
+    font: 400 14.5px/1.5 var(--f-code); tab-size: 4; -moz-tab-size: 4; overflow-x: auto; white-space: pre;
   }
-
-  /* Code blocks and keys */
-  pre.code, .prose pre {
-    margin: var(--s3) 0; padding: var(--s3) var(--s4);
-    background: var(--sheet-2); border: 1px solid var(--rule); border-radius: var(--r);
-    font: 400 13px/20px var(--machine); tab-size: 4; -moz-tab-size: 4; overflow-x: auto; white-space: pre;
-  }
-  .prose pre code { font-size: inherit; }
-  kbd { font: 400 12px/1 var(--machine); padding: 2px 4px; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--sheet); color: var(--graphite); }
+  .prose pre code, .gpw-guide-code code { font-size: inherit; }
+  kbd { padding: 2px 5px; border: 0; border-radius: 0; box-shadow: inset 0 0 0 1px var(--rule-strong); background: none; color: var(--ink); font: 600 .85em/1 var(--f-code); white-space: nowrap; }
 
   /* Prose rendered from the course Markdown. */
-  .prose { max-width: var(--measure); }
+  .prose, .gpw-prose { max-width: var(--measure); }
   .prose > * + * { margin-top: var(--s4); }
-  .prose h2 { font-size: 21px; line-height: 28px; margin-top: var(--s6); }
-  .prose h3 { font-size: 17px; line-height: 24px; margin-top: var(--s5); }
-  .prose h4 { font-size: 15px; line-height: 24px; margin-top: var(--s4); }
+  .prose h2 { font-size: 21px; line-height: 1.3; margin-top: var(--s6); }
+  .prose h3 { font-size: 18px; line-height: 1.35; margin-top: var(--s5); }
+  .prose h4 { font-size: 16px; line-height: 1.4; margin-top: var(--s4); }
   .prose ul, .prose ol { padding-left: 1.4em; }
   .prose li + li { margin-top: var(--s2); }
   .prose li > ul, .prose li > ol { margin-top: var(--s2); }
-  .prose blockquote { padding-left: var(--s3); border-left: 2px solid var(--rule-strong); color: var(--graphite-2); }
-  .prose table { width: 100%; font-size: 14px; line-height: 21px; display: block; overflow-x: auto; }
-  .prose th, .prose td { padding: 6px var(--s3) 6px 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
-  .prose th { font-weight: 400; font-size: 12px; line-height: 16px; color: var(--graphite-2); background: var(--sheet-2); padding-left: var(--s2); }
+  .prose blockquote { padding-left: var(--s3); box-shadow: inset 2px 0 0 var(--rule-strong); color: var(--ink-2); }
+  .prose table { font-size: 15px; line-height: 1.45; }
+  /* A table scrolls in its box, so it keeps its table role (site.js). The
+     box, like a code block that scrolls, can sit on a clipping edge, so its
+     ring is inside (VESPER.md 3.10). */
+  .gpw-tscroll { overflow-x: auto; scroll-padding: 10px; }
+  /* The table spans the column, as the frames draw it; a wider one still
+     grows past the box, and the box scrolls. */
+  .gpw-tscroll > table { width: 100%; }
+  .gpw-tscroll:focus-visible, pre[data-scroller]:focus-visible { outline-offset: -3px; }
+  .prose th, .prose td { padding: 8px var(--s3) 8px 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+  .prose th { font: 600 12px/1.3 var(--f-disp); font-stretch: 88%; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); border-bottom-color: var(--rule-strong); padding-left: var(--s2); }
   .prose td:first-child { padding-left: var(--s2); }
   .prose th:not(:first-child) { padding-left: 0; }
   .prose em { font-style: italic; }
   .prose strong { font-weight: 700; }
   .prose hr { border: 0; border-top: 1px solid var(--rule); }
 
-  /* Menus: the theme menu, the avatar menu. Floating: sheet, border, no shadow. */
+  /* Menus (VESPER.md 6.38): a plane under its button, a 2 px ink rule on
+     top, 40 px items and a tick column. No shadow, no motion. */
   .menu-wrap { position: relative; }
   .menu {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: var(--z-menu);
-    min-width: 200px; padding: var(--s1) 0;
-    background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r);
-    font-size: 15px; line-height: 22px;
+    min-width: 248px; max-width: 340px; padding: 6px 0; border: 0; border-radius: 0;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule-strong), inset 0 2px 0 var(--ink);
+    font: 500 15.5px/1.2 var(--f-read); color: var(--ink);
   }
-  .menu [role^="menuitem"] {
-    display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: 36px; padding: 0 var(--s4) 0 var(--s3);
-    border: 0; background: none; color: var(--graphite); text-align: left; text-decoration: none; cursor: pointer;
-    font: 400 15px/22px var(--manual);
+  .menu [role^="menuitem"], .gpw-mi {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 16px 0 10px;
+    border: 0; background: none; color: var(--ink); text-align: left; text-decoration: none; cursor: pointer;
+    font: 500 15.5px/1.2 var(--f-read);
   }
-  .menu [role^="menuitem"]:hover { background: var(--blue-wash); }
-  .menu [role^="menuitem"]:focus-visible { background: var(--blue-wash); outline: 2px solid var(--blue); outline-offset: -2px; }
-  @media (forced-colors: active) {
-    .menu [role^="menuitem"]:focus-visible { outline: 2px solid Highlight; }
-  }
-  .menu-phone-only { display: none; }
-  .menu-group-label { padding: var(--s1) var(--s4) 0 var(--s3); font-size: 13px; line-height: 20px; color: var(--graphite-2); }
-  .menu [role^="menuitem"] .icon { color: var(--blue); visibility: hidden; }
+  .menu [role^="menuitem"]:hover, .gpw-mi:hover { background: var(--surface-2); }
+  .menu [role^="menuitem"]:focus-visible, .gpw-mi:focus-visible { outline-offset: -3px; }
+  .menu [role^="menuitem"] .icon { width: 18px; height: 18px; padding: 2px; color: var(--ink); visibility: hidden; }
   .menu [aria-checked="true"] .icon { visibility: visible; }
-  .menu [aria-checked="true"] { font-weight: 700; }
-  .menu-label { padding: var(--s2) var(--s4) var(--s2) var(--s3); font-weight: 700; border-bottom: 1px solid var(--rule); margin-bottom: var(--s1); overflow-wrap: anywhere; }
-  .menu-label small { display: block; font-weight: 400; font-size: 13px; line-height: 20px; color: var(--graphite-2); }
-  .menu hr { border: 0; border-top: 1px solid var(--rule); margin: var(--s1) 0; }
-
-  .text-button {
-    display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 var(--s2);
-    border: 1px solid transparent; border-radius: var(--r); background: none; color: var(--graphite);
-    font: 400 15px/1 var(--manual); cursor: pointer;
+  .menu-label, .gpw-mi-who { display: grid; gap: 2px; padding: 8px 16px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--rule); font: 700 15.5px/1.3 var(--f-read); overflow-wrap: anywhere; }
+  .menu-label small { font-weight: 400; font-size: 13.5px; color: var(--ink-2); }
+  .menu-group-label, .gpw-mi-cap { padding: 4px 16px 2px; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+  .menu hr, .menu-sep, .gpw-mi-sep { height: 1px; margin: 6px 0; border: 0; background: var(--rule); }
+  .menu-phone-only { display: none; }
+  @media (max-width: 899px) {
+    .ide .menu-phone-only { display: block; }
   }
-  .text-button:hover, .text-button[aria-expanded="true"] { border-color: var(--rule-strong); background: var(--sheet); }
-  .text-button .icon { width: 12px; height: 12px; color: var(--graphite-2); transform: rotate(90deg); }
+
+  /* A text button has no box: Saira capitals, a 32 px target. */
+  .text-button, .gpw-navbtn {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0; border: 0; background: none; cursor: pointer; white-space: nowrap;
+    font: 600 14px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
+  }
+  .text-button:hover, .text-button[aria-expanded="true"], .gpw-navbtn:hover { color: var(--ink); }
+  .text-button .icon { width: 12px; height: 12px; color: var(--ink-2); transform: rotate(90deg); }
+  /* The Story effects toggle: the state word in a 1 px box. */
+  .gpw-switch b { padding: 4px 6px; font: 700 12px/1 var(--f-disp); letter-spacing: .1em; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--rule-strong); }
+  /* data-story, not aria-pressed: theme-init.js sets it before the first paint, so "On" never flashes. */
+  :root:not([data-story="off"]) .gpw-switch b { color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); }
+  /* The staff badge: the initials in a box, then the highest stamped tag
+     as an amber plate (or "Day 1"). The chamfer is on the tag cell, inside
+     the button, so the button's focus ring is whole. */
   .avatar {
-    display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0;
-    border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--sheet); color: var(--graphite);
-    font: 700 12px/1 var(--manual); cursor: pointer;
+    display: inline-flex; align-items: stretch; min-height: 32px; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; white-space: nowrap;
+    font: 700 13px/1 var(--f-disp); letter-spacing: .08em; color: var(--ink); text-decoration: none;
   }
-  .avatar:hover, .avatar[aria-expanded="true"] { border-color: var(--blue); color: var(--blue); }
+  .avatar > span { display: grid; place-items: center; padding: 0 10px; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+  .avatar:hover > span:first-child, .avatar[aria-expanded="true"] > span:first-child { box-shadow: inset 0 0 0 1px var(--ink); }
+  .avatar > .gpw-badge-tag { padding-right: 13px; text-transform: uppercase; color: var(--on-signal); background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); }
+  .avatar > .gpw-badge-day { font-stretch: 80%; text-transform: uppercase; }
 
-  /* Dialogs: native <dialog>, no animation. */
+  /* Dialogs (VESPER.md 6.4): a native <dialog>; its form is the plane, a
+     chamfered surface with a 2 px ink rule on top, drawn on pseudo-elements. */
   dialog.dialog {
-    width: min(520px, calc(100vw - 2 * var(--s4))); max-height: calc(100vh - 2 * var(--s4)); padding: var(--s5);
-    border: 1px solid var(--rule-strong); border-radius: var(--r);
-    background: var(--sheet); color: var(--graphite);
-    font-size: 15px; line-height: 24px; overflow: auto;
+    width: min(600px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0;
+    border: 0; background: none; color: var(--ink); font-size: 16px; line-height: 1.5; overflow: auto;
   }
   dialog.dialog::backdrop { background: var(--backdrop); }
-  .dialog h2 { font-size: 17px; line-height: 24px; }
-  .dialog > form > * + * { margin-top: var(--s4); }
-  .dialog .btn-row { margin-top: var(--s5); }
-
-  /* Toasts: bottom left, 1 at a time, a fade only. */
-  .toast-region { position: fixed; left: var(--s5); bottom: var(--s5); z-index: var(--z-toast); max-width: min(420px, calc(100vw - 2 * var(--s4))); }
-  .toast {
-    display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s3) var(--s3) var(--s4);
-    background: var(--sheet); border: 1px solid var(--rule-strong); border-left: 3px solid var(--ok); border-radius: var(--r);
-    font-size: 15px; line-height: 24px; animation: toast-in var(--t-fade) linear;
+  .dialog > form, .gpw-dlg-in { position: relative; isolation: isolate; padding: 26px 28px 30px; border-top: 2px solid var(--ink); }
+  .dialog > form::before, .gpw-dlg-in::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--rule-strong); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-l)), calc(100% - var(--cut-l)) 100%, 0 100%); }
+  .dialog > form::after, .gpw-dlg-in::after { content: ""; position: absolute; inset: 0 1px 1px; z-index: -1; background: var(--surface); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-l) + .4px), calc(100% - var(--cut-l) + .4px) 100%, 0 100%); }
+  .dialog h2, .gpw-dlg-h { font: 680 28px/1.1 var(--f-disp); letter-spacing: -.01em; }
+  .dialog > form > * + * { margin-top: 22px; }
+  .dialog .btn-row { margin-top: 28px; }
+  /* On a phone the form keeps its width for the content, and each button
+     fills its row, so the choice is 1 large target. */
+  @media (max-width: 720px) {
+    .dialog > form, .gpw-dlg-in { padding: 22px 18px 24px; }
+    .dialog h2, .gpw-dlg-h { font-size: 24px; }
+    .dialog .btn-row > .btn, .gpw-dlg-btns .gpw-btn { flex: 1 1 auto; }
   }
-  .toast[data-kind="info"] { border-left-color: var(--blue); }
-  .toast[data-kind="error"] { border-left-color: var(--red); }
-  .toast p { flex: 1; padding-top: 4px; }
+  @media (prefers-reduced-transparency: reduce) { dialog.dialog::backdrop { background: #000000; } }
+  @media (prefers-contrast: more) { dialog.dialog::backdrop { background: #000000; } }
+
+  /* Toasts (VESPER.md 6.14): bottom left, 1 at a time, a fade only. Done
+     is ink, failed is red: a toast is never green. */
+  .toast-region { position: fixed; left: 24px; bottom: 24px; z-index: var(--z-toast); max-width: min(420px, calc(100vw - 32px)); }
+  .toast {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px 12px 18px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule-strong), inset 3px 0 0 var(--ink);
+    font-size: 15.5px; line-height: 1.45; animation: toast-in var(--t-fade) linear;
+  }
+  .toast[data-kind="error"] { box-shadow: inset 0 0 0 1px var(--rule-strong), inset 3px 0 0 var(--red); }
+  .toast p { flex: 1; }
   .toast .btn { flex: none; }
   @keyframes toast-in { from { opacity: 0; } to { opacity: 1; } }
 
-  /* Tables: square, no outer frame. */
-  .table { width: 100%; font-size: 15px; line-height: 24px; }
-  .table th, .table td { padding: 8px var(--s4) 7px 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: middle; }
-  .table thead th { padding-top: 6px; padding-bottom: 6px; background: var(--sheet-2); font-weight: 400; font-size: 12px; line-height: 16px; color: var(--graphite-2); white-space: nowrap; }
-  .table th:first-child, .table td:first-child { padding-left: var(--s3); }
+  /* Tables (VESPER.md 6.11): no outer frame, label heads, 1 px rules. */
+  .table { width: 100%; font-size: 15.5px; line-height: 1.4; }
+  .table th, .table td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: middle; }
+  .table thead th {
+    padding-top: 10px; padding-bottom: 10px; border-bottom-color: var(--rule-strong); background: none; white-space: nowrap;
+    font: 600 12px/1.3 var(--f-disp); font-stretch: 88%; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2);
+  }
+  .table th:first-child, .table td:first-child { padding-left: 14px; }
   .table tbody th { font-weight: 700; }
-  .table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .table .num { text-align: right; white-space: nowrap; font: 500 15.5px/1.4 var(--f-disp); font-variant-numeric: tabular-nums; }
+  .table thead .num { font: 600 12px/1.3 var(--f-disp); font-stretch: 88%; }
   .table .actions { text-align: right; white-space: nowrap; }
   .table .actions .btn + .btn { margin-left: var(--s2); }
-  .table-dense th, .table-dense td { padding-top: 4px; padding-bottom: 3px; font-size: 14px; line-height: 24px; }
-  .table-scroll { overflow-x: auto; }
+  .table-dense th, .table-dense td { padding-top: 5px; padding-bottom: 4px; font-size: 14.5px; }
+  /* A scroll area clips, so it keeps room for the 3 px focus ring of a
+     control at its edge (VESPER.md 3.10). */
+  .table-scroll { overflow-x: auto; padding: 6px; margin: -6px; scroll-padding: 10px; }
 
-  /* The course to scale: 1 bar per exercise, as wide as its hours. */
-  .course-strip { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
-  .strip-tier { display: flex; flex-direction: column; gap: 6px; min-width: 0; container-type: inline-size; }
-  .strip-bars { display: flex; gap: 2px; height: 16px; }
-  .strip-bars > * { flex-basis: 0; min-width: 3px; background: var(--sheet); box-shadow: inset 0 0 0 1px var(--rule-strong); }
-  .strip-bars > a:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .strip-bars > [data-state="started"] { background: var(--blue-wash); box-shadow: inset 0 0 0 1.5px var(--blue); }
-  .strip-bars > [data-state="passed"] { background: var(--graphite); box-shadow: none; }
-  /* "Here" stands 4 px taller at both ends: a shape cue, so it does not rely on colour against "passed". */
-  .strip-bars > [data-state="here"] { background: var(--blue); box-shadow: none; margin-block: -4px; }
+  /* The header (VESPER.md 6.5): 64 px, the lockup at the left, the nav
+     pushed right. The current page has a 3 px amber bar on the bottom edge. */
+  .site-head { position: relative; z-index: var(--z-sticky); background: var(--ground); border-bottom: 1px solid var(--rule); }
+  .site-head-in { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 16px; min-width: 32px; min-height: 32px; margin-right: auto; padding: 5px 0; color: var(--ink); text-decoration: none; }
+  .gpw-lockup { display: block; width: auto; height: 22px; }
+  .gpw-brand-mark { display: none; width: 26px; height: 26px; }
+  .gpw-brand-sub { padding-left: 16px; border-left: 1px solid var(--rule-strong); font: 600 13px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+  .site-nav { display: flex; align-items: center; gap: 26px; }
+  .site-nav a {
+    position: relative; display: inline-flex; align-items: center; min-height: 32px; white-space: nowrap;
+    font: 600 14px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none;
+  }
+  .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--ink); }
+  .site-nav a[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -17px; height: 3px; background: var(--signal-fill); }
+  .head-end { display: flex; align-items: center; gap: 26px; }
+  .gpw-nav-sep { width: 1px; height: 20px; background: var(--rule-strong); }
+  .nav-toggle, .nav-sheet { display: none; }
+  .nav-sheet .wrap { padding-top: 6px; padding-bottom: 16px; }
+  .nav-sheet nav { display: grid; }
+  .nav-sheet nav a {
+    display: flex; align-items: center; min-height: 44px; border-bottom: 1px solid var(--rule);
+    font: 600 16px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none;
+  }
+  .nav-sheet nav a[aria-current="page"] { padding-left: 12px; color: var(--ink); box-shadow: inset 3px 0 0 var(--signal-fill); }
+  .gpw-sheet-row { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .gpw-sheet-theme { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; border: 0; }
+  .gpw-sheet-theme legend { margin-bottom: 8px; padding: 0; }
+  @media (max-width: 1180px) {
+    .gpw-brand-sub { display: none; }
+  }
+  /* At 1060 px and less the links, the divider and the toggle fold into "Menu". */
+  @media (max-width: 1060px) {
+    .site-nav, .head-end > .gpw-nav-sep, .head-end > .gpw-switch { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .nav-sheet:not([hidden]) { display: block; background: var(--surface); border-top: 1px solid var(--rule); }
+  }
+  /* Theme stays in the header down to 421 px; below, the sheet holds it. */
+  @media (min-width: 421px) {
+    .nav-sheet .gpw-sheet-theme, .site-head:not(.is-app) .nav-sheet .gpw-sheet-row { display: none; }
+  }
+  @media (max-width: 720px) {
+    .site-head-in { height: 56px; gap: 12px; }
+    .gpw-lockup { height: 13px; }
+    .head-end { gap: 16px; }
+  }
+  @media (max-width: 420px) {
+    .head-end > .theme-menu { display: none; }
+  }
+  @media (max-width: 379px) {
+    .gpw-lockup { display: none; }
+    .gpw-brand-mark { display: block; }
+  }
+
+  /* The footer (VESPER.md 6.5). The disclaimer is the landing page's own. */
+  .site-foot { border-top: 1px solid var(--rule-strong); padding: 28px 0 24px; font-size: 15px; }
+  .site-foot-in { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; }
+  .site-foot nav { display: flex; flex-wrap: wrap; gap: 0 24px; }
+  .site-foot nav a { display: inline-flex; align-items: center; min-height: 32px; }
+  @media (max-width: 720px) {
+    .site-foot-in, .site-foot nav { flex-direction: column; align-items: flex-start; }
+  }
+
+  /* Forced colours: author backgrounds go, so every plate, button and
+     panel gets a border, and a state drawn with a fill gets a system colour. */
   @media (forced-colors: active) {
-    .strip-bars > * { border: 1px solid CanvasText; }
-    .strip-bars > [data-state="passed"] { background: CanvasText; }
-    .strip-bars > [data-state="here"] { background: Highlight; }
-  }
-  /* The hours go under the tier for every tier, so the labels share 1
-     baseline even where a tier is narrower than "Tier 1  4 h". */
-  .strip-label { display: flex; flex-direction: column; font-size: 13px; line-height: 18px; white-space: nowrap; }
-  /* With 10 tiers a short tier is narrower than "Tier 6": its label keeps
-     the number, and the narrowest drop the hours. */
-  @container (max-width: 52px) {
-    .strip-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  }
-  @container (max-width: 30px) {
-    .strip-label span { display: none; }
-  }
-  .strip-label b { font-weight: 700; }
-  .strip-label span { color: var(--graphite-2); }
-  .strip-lg .strip-bars { height: 24px; }
-  .strip-mini { gap: 3px; }
-  .strip-mini .strip-tier { gap: 0; }
-  .strip-mini .strip-bars { height: 8px; gap: 1px; }
-  .strip-mini .strip-bars > * { min-width: 1px; }
-  .strip-mini .strip-bars > [data-state="here"] { margin-block: -2px; }
-  @media (max-width: 720px) {
-    .course-strip:not(.strip-mini) { flex-direction: column; gap: var(--s3); }
-    .course-strip:not(.strip-mini) .strip-tier { width: calc(var(--tier-h) / var(--tier-max) * 100%) !important; flex: none !important; }
-  }
-
-  /* The public header and the app header. */
-  .site-head { border-bottom: 1px solid var(--rule); position: relative; z-index: var(--z-sticky); }
-  .site-head .wrap { display: flex; align-items: center; gap: var(--s5); min-height: 68px; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--graphite); text-decoration: none; font: 700 18px/1 var(--manual); white-space: nowrap; }
-  .brand:hover { text-decoration: none; }
-  .site-nav { display: flex; align-items: center; gap: var(--s3); }
-  .site-nav a { position: relative; display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--s2); color: var(--graphite-2); text-decoration: none; font-size: 15px; }
-  .site-nav a:hover { color: var(--graphite); }
-  .site-nav a[aria-current="page"] { color: var(--graphite); }
-  .site-nav a[aria-current="page"]::after { content: ""; position: absolute; left: var(--s2); right: var(--s2); bottom: 4px; border-bottom: 2px solid var(--graphite); }
-  .public .site-nav a { color: var(--graphite); }
-  .head-end { display: flex; align-items: center; gap: var(--s3); margin-left: auto; }
-  .public .head-end { margin-left: 0; }
-  .app .site-nav { margin-right: auto; }
-  .public .site-nav { margin-left: auto; }
-  .nav-toggle { display: none; }
-  .nav-sheet { display: none; }
-  .nav-sheet .theme-choice { display: flex; gap: var(--s4); flex-wrap: wrap; }
-  @media (max-width: 720px) {
-    .site-head .wrap { min-height: 60px; gap: var(--s3); }
-    .site-head .site-nav, .site-head .theme-menu { display: none; }
-    .nav-toggle { display: inline-flex; margin-left: auto; }
-    .head-end { margin-left: 0; }
-    .nav-sheet:not([hidden]) {
-      display: block; border-top: 1px solid var(--rule); background: var(--pad);
-      padding: var(--s2) var(--gutter) var(--s5);
+    .btn, .gpw-btn, .avatar > span, .gpw-switch b, .balloon, .gpw-pin, .count-badge, .text-input, .select, .textarea, .callout, .menu, .toast, .dialog > form { border: 1px solid CanvasText; }
+    .btn::before, .btn::after, .gpw-btn::before, .gpw-btn::after, .dialog > form::before, .dialog > form::after, .gpw-plane::before, .gpw-ghost::after { display: none; }
+    .balloon.is-filled, .gpw-pin { forced-color-adjust: none; background: Highlight; color: HighlightText; clip-path: none; }
+    /* No chamfer here: the clip made the tag cell a layer over the badge's
+       inset Highlight ring in the IDE, so the ring showed on 1 half only. */
+    .avatar > .gpw-badge-tag { clip-path: none; }
+    .site-nav a[aria-current="page"] { text-decoration: underline 3px; }
+    .nav-sheet nav a[aria-current="page"] { text-decoration: underline 3px; }
+    .check input, .gpw-cb input, .gpw-rd input { appearance: auto; -webkit-appearance: auto; width: 20px; height: 20px; }
+    .menu [role^="menuitem"]:focus-visible { outline: 3px solid Highlight; }
+    .gpw-hazard { forced-color-adjust: none; background: repeating-linear-gradient(135deg, CanvasText 0 6px, Canvas 6px 12px); }
+    /* The slash keeps its gradient and takes the colour that forced
+       colours give its digit: an inherited colour is the author's, so
+       #050505 on the slab's black Canvas. Where preserve-parent-color is
+       missing, CanvasText. */
+    .gpw-z::after { forced-color-adjust: none; color: CanvasText; }
+    @supports (forced-color-adjust: preserve-parent-color) {
+      .gpw-z::after { forced-color-adjust: preserve-parent-color; color: inherit; }
     }
-    .nav-sheet a { display: flex; align-items: center; min-height: 48px; border-bottom: 1px solid var(--rule); color: var(--graphite); text-decoration: none; font-size: 17px; }
-    .nav-sheet a[aria-current="page"] { font-weight: 700; }
-    .nav-sheet fieldset { margin: var(--s4) 0 0; padding: 0; border: 0; }
-    .nav-sheet legend { padding: 0; margin-bottom: var(--s2); font-weight: 700; font-size: 14px; }
+    /* The mark takes its 1-colour form: the plate, with the V and the diamond cut out. */
+    .gpw-mk-star { display: none; }
+    .menu hr, .menu-sep, .gpw-mi-sep { border-top: 1px solid CanvasText; }
+    /* The header's separator stands upright: a top border would leave a dot. */
+    .gpw-nav-sep { border-left: 1px solid CanvasText; }
+    :focus-visible { outline-color: Highlight; }
   }
-
-  .site-foot { border-top: 1px solid var(--rule); padding: var(--s5) 0 var(--s6); font-size: 14px; line-height: 22px; color: var(--graphite-2); }
-  .site-foot .wrap { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
-  .site-foot a { color: var(--graphite-2); display: inline-block; padding-block: 2px; }
-  .site-foot a:hover { color: var(--graphite); }
 }
 
 /* ------------------------------------------------------------------ */
-/* Pages                                                                */
+/* Story components that more than 1 page shows (partials/story.html).  */
+/* Every selector here uses gpw- classes only; a Go test checks it.     */
+/* ------------------------------------------------------------------ */
+@layer components.story {
+  /* The readout strip (VESPER.md 6.5): where you are, as a static
+     readout. A fact about you is amber; HUSH is cyan. */
+  .gpw-telem { border-bottom: 1px solid var(--rule); }
+  .gpw-telem-in { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--gut); max-width: var(--max); margin: 0 auto; padding: 0 var(--edge); }
+  .gpw-telem .gpw-t { position: relative; padding: 10px 0 11px 14px; border-left: 1px solid var(--rule); }
+  .gpw-telem .gpw-t::before { content: ""; position: absolute; left: -1px; top: 0; width: 1px; height: 9px; background: var(--rule-strong); }
+  .gpw-telem dt { margin-bottom: 3px; }
+  .gpw-telem dd { font: 500 15px/1.3 var(--f-disp); font-variant-numeric: tabular-nums; }
+  .gpw-telem dd b { color: var(--signal); font-weight: 650; }
+  .gpw-telem dd i { font-style: normal; color: var(--hush); }
+
+  /* The stamped tag (VESPER.md 6.18): a steel tag with a punched hole and
+     a 5 px chamfer. Solid amber always means stamped. */
+  .gpw-tag {
+    --cut: var(--cut-s);
+    position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: .55em; padding: 6px 11px 6px 9px;
+    font: 700 12.5px/1.05 var(--f-disp); font-stretch: 88%; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+  }
+  .gpw-tag::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    clip-path: polygon(evenodd, 0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 0,
+      1px 1px, 1px calc(100% - 1px), calc(100% - var(--cut) - .42px) calc(100% - 1px), calc(100% - 1px) calc(100% - var(--cut) - .42px), calc(100% - 1px) 1px, 1px 1px);
+  }
+  .gpw-tag::after { content: ""; order: -1; flex: none; width: 6px; height: 6px; border-radius: 50%; border: 1px solid currentColor; }
+  .gpw-tag-on { color: var(--on-signal); }
+  .gpw-tag-on::before { background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%); }
+  .gpw-tag-cur { color: var(--ink); }
+  .gpw-tag-cur::before { background: var(--signal); }
+  .gpw-tag-off { color: var(--ink-2); }
+  .gpw-tag-off::before { background: var(--rule-strong); }
+  /* Ready to claim: a 2 px amber keyline, as the dial's band and the
+     certificates page's plate draw it (VESPER.md 16.1). */
+  .gpw-tag-ready { color: var(--ink); }
+  .gpw-tag-ready::before {
+    background: var(--signal);
+    clip-path: polygon(evenodd, 0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 0,
+      2px 2px, 2px calc(100% - 2px), calc(100% - var(--cut) - .83px) calc(100% - 2px), calc(100% - 2px) calc(100% - var(--cut) - .83px), calc(100% - 2px) 2px, 2px 2px);
+  }
+
+  /* The Key (VESPER.md 6.28): 1 silhouette at every size, in currentColor. */
+  .gpw-pi-key { width: 34px; height: 12px; flex: none; color: var(--signal); }
+  .gpw-keybig { width: 92px; height: 32px; flex: none; }
+  .gpw-moon { width: 14px; height: 14px; flex: none; }
+
+  /* Screens (VESPER.md 6.20): dark in both themes, static scanlines, a
+     cyan top rule. Wall panel 3 and the Calm Score are the only 2. */
+  .gpw-screen, .gpw-calm {
+    color: var(--screen-hush); border-top: 2px solid var(--screen-hush);
+    background-color: var(--screen); background-image: repeating-linear-gradient(0deg, var(--screen-scan) 0 1px, transparent 1px 3px);
+  }
+  /* The Calm Score (VESPER.md 6.21): a line so flat that it looks wrong. */
+  .gpw-calm { position: relative; padding: 14px 18px 18px; }
+  .gpw-calm-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .gpw-calm-h .gpw-lbl:first-child { display: inline-flex; align-items: center; gap: 8px; }
+  .gpw-calm-num { margin: 14px 0 10px; font: 200 92px/.86 var(--f-disp); font-stretch: 125%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .gpw-calm-svg { display: block; width: 100%; height: 22px; }
+  .gpw-sv-hc { stroke: var(--screen-rule); fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .gpw-calm .gpw-sv-cy { stroke: var(--screen-hush); fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .gpw-sv-cyf2 { fill: var(--screen-hush); }
+  .gpw-calm-say { margin-top: 12px; font-style: italic; font-size: 15px; line-height: 1.45; color: var(--screen-hush); }
+  .gpw-calm-cap { margin-top: 6px; font-size: 14px; color: var(--screen-2); }
+  .gpw-calm-cap.gpw-calm-true { font-size: 15px; color: var(--screen-hush); }
+  .gpw-calm-strip { margin-top: 48px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 44px; align-items: end; padding: 16px 26px 22px; }
+  .gpw-calm-strip .gpw-calm-h { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--screen-rule); }
+  .gpw-calm-strip .gpw-calm-num { margin: 16px 0 0; font-size: 124px; }
+  .gpw-calm-strip .gpw-calm-txt { grid-column: 2; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; }
+  .gpw-calm-strip .gpw-calm-say, .gpw-calm-strip .gpw-calm-cap { margin-top: 0; }
+  .gpw-calm-chart { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: stretch; }
+  .gpw-calm-y { display: flex; flex-direction: column; justify-content: space-between; height: 72px; margin: -6px 0; font: 600 12px/1 var(--f-disp); font-variant-numeric: tabular-nums; color: var(--screen-2); text-align: right; }
+  .gpw-calm-chart .gpw-calm-svg { height: 72px; }
+  .gpw-calm-days { grid-column: 2; display: flex; justify-content: space-between; margin-top: 6px; font: 600 12px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; color: var(--screen-2); }
+  @media (max-width: 1080px) {
+    .gpw-calm-lobby .gpw-calm-num { font-size: 76px; }
+  }
+  @media (max-width: 720px) {
+    .gpw-calm-num { font-size: 76px; }
+    .gpw-calm-h { flex-wrap: wrap; }
+    .gpw-calm-strip { grid-template-columns: minmax(0, 1fr); padding: 14px 16px 18px; }
+    .gpw-calm-strip .gpw-calm-txt { grid-column: 1; }
+    .gpw-calm-strip .gpw-calm-num { font-size: 84px; }
+  }
+
+  /* The skyline (VESPER.md 6.15): the course as a city, 1 tower per
+     exercise. A picture, never a set of controls. */
+  .gpw-sky { display: flex; gap: 14px; }
+  /* A year is a container: below 600 px a plate sets its hours under the
+     tier, so the 5 plates of a year always fit side by side. */
+  .gpw-sky-yr { flex: 1 1 0; position: relative; min-width: 0; container: gpw-sky / inline-size; }
+  .gpw-sky-yr + .gpw-sky-yr { padding-left: 14px; }
+  .gpw-sky-yr + .gpw-sky-yr::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px dashed var(--rule-strong); }
+  .gpw-sky-yl { position: absolute; left: 0; top: 0; font: 600 12px/1 var(--f-disp); font-stretch: 88%; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+  .gpw-sky-yr + .gpw-sky-yr .gpw-sky-yl { left: 14px; }
+  .gpw-sky-band .gpw-sky-yr:first-child .gpw-sky-yl { display: none; }
+  /* The headroom above the towers' scale holds the plates and the year label. */
+  .gpw-sky-row { box-sizing: content-box; display: flex; gap: 12px; height: 380px; padding-top: 52px; align-items: stretch; border-bottom: 2px solid var(--ink); }
+  /* A group is 1 grid cell that holds its towers and its plate in flow, so a
+     group is never narrower than its plate and a plate never reaches over
+     the next group, at any width. */
+  .gpw-sky-g { display: grid; grid-template-rows: minmax(0, 1fr); }
+  .gpw-sky-towers { grid-area: 1 / 1; display: flex; align-items: flex-end; gap: 3px; min-width: 0; }
+  .gpw-tw {
+    position: relative; display: block; flex: 1 1 0; min-width: 2px;
+    background: repeating-linear-gradient(0deg, transparent 0 6px, var(--rule) 6px 7px);
+    box-shadow: inset 1px 0 0 var(--rule-strong), inset -1px 0 0 var(--rule-strong), inset 0 2px 0 var(--rule-strong);
+  }
+  .gpw-tw-on { background: var(--ink); box-shadow: none; }
+  .gpw-tw-cur { background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); }
+  /* A roof on the tallest tower of each tier: a setback and a mast. */
+  .gpw-tw-roof::before {
+    content: ""; position: absolute; left: 22%; right: 22%; bottom: 100%; height: 7px;
+    box-shadow: inset 1px 0 0 var(--rule-strong), inset -1px 0 0 var(--rule-strong), inset 0 1px 0 var(--rule-strong);
+    background: linear-gradient(var(--rule-strong), var(--rule-strong)) 50% 0 / 1px 100% no-repeat;
+  }
+  .gpw-tw-roof.gpw-tw-on::before { background: var(--ink); box-shadow: none; }
+  .gpw-tw-roof.gpw-tw-cur::before { background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); }
+  /* The tier plate: the stamped-tag shape, solid, so nothing draws through its text. */
+  .gpw-sky-plate {
+    --cut: var(--cut-s);
+    grid-area: 1 / 1; align-self: end; justify-self: start; position: relative; isolation: isolate; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px 4px 7px; font: 500 12.5px/1 var(--f-disp); color: var(--ink-2);
+    background: var(--ground); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  }
+  .gpw-sky-plate::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--rule-strong);
+    clip-path: polygon(evenodd, 0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 0,
+      1px 1px, 1px calc(100% - 1px), calc(100% - var(--cut) - .42px) calc(100% - 1px), calc(100% - 1px) calc(100% - var(--cut) - .42px), calc(100% - 1px) 1px, 1px 1px);
+  }
+  .gpw-sky-plate::after { content: ""; order: -1; flex: none; width: 5px; height: 5px; border-radius: 50%; border: 1px solid currentColor; }
+  .gpw-sky-plate b { font: 760 13px/1 var(--f-disp); font-stretch: 80%; letter-spacing: .06em; color: var(--ink); }
+  .gpw-sky-plate-on { color: var(--ink); }
+  .gpw-sky-plate-cur, .gpw-sky-plate-cur b { color: var(--on-signal); }
+  .gpw-sky-plate-cur::before { background: var(--signal-fill); box-shadow: inset 0 0 0 1px var(--signal-key); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%); }
+  @container gpw-sky (max-width: 599px) {
+    .gpw-sky-plate { display: inline-grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: 4px; row-gap: 3px; padding: 4px 7px 5px 5px; }
+    .gpw-sky-plate::after { grid-area: 1 / 1; }
+    .gpw-sky-plate b { grid-area: 1 / 2; }
+    .gpw-sky-plate > span { grid-area: 2 / 1 / 3 / 3; font-stretch: 88%; }
+  }
+  /* The halftone reflection under the ground rule: the landing only, static. */
+  .gpw-sky-refl .gpw-sky-row { margin-bottom: 132px; }
+  .gpw-sky-refl .gpw-tw::after {
+    content: ""; position: absolute; left: 0; right: 0; top: calc(100% + 6px); height: 34%;
+    background: radial-gradient(circle, var(--rule-strong) .9px, transparent 1.3px) 0 0 / 4px 4px;
+    -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent);
+  }
+  .gpw-sky-refl .gpw-tw-cur::after { background-image: radial-gradient(circle, var(--signal) 1px, transparent 1.4px); }
+  .gpw-sky-dash .gpw-sky-row { height: 200px; }
+  .gpw-sky-dash .gpw-sky-plate { padding-right: 7px; font-size: 12px; }
+  .gpw-sky-dash .gpw-sky-plate b { font-size: 12.5px; }
+  .gpw-sky-key .gpw-sky-row { height: 120px; }
+  /* The admin's mini: 8 px, no plates, no year labels. */
+  .gpw-sky-mini { gap: 4px; width: 200px; }
+  .gpw-sky-mini .gpw-sky-yr + .gpw-sky-yr { padding-left: 4px; }
+  .gpw-sky-mini .gpw-sky-row { height: 8px; padding-top: 0; gap: 2px; border-bottom-width: 1px; }
+  .gpw-sky-mini .gpw-sky-towers { gap: 1px; }
+  .gpw-sky-mini .gpw-tw { min-width: 1px; background: none; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+  .gpw-sky-mini .gpw-tw-on { background: var(--ink); box-shadow: none; }
+  .gpw-sky-mini .gpw-tw-cur { background: var(--signal-fill); }
+  .gpw-sky-mini .gpw-tw-roof::before { display: none; }
+  .gpw-sky-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; font-size: 14.5px; color: var(--ink-2); }
+  .gpw-sky-legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .gpw-sky-legend .gpw-tw { flex: none; width: 12px; height: 16px; }
+  @media (max-width: 720px) {
+    .gpw-telem-in { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gpw-telem .gpw-t { padding: 8px 0 9px 10px; }
+    .gpw-telem .gpw-t:nth-child(n+3) { display: none; }
+    .gpw-sky:not(.gpw-sky-mini) { flex-direction: column; gap: 40px; }
+    .gpw-sky:not(.gpw-sky-mini) .gpw-sky-yr + .gpw-sky-yr { padding-left: 0; }
+    .gpw-sky:not(.gpw-sky-mini) .gpw-sky-yr + .gpw-sky-yr::before { display: none; }
+    .gpw-sky .gpw-sky-yr .gpw-sky-yl, .gpw-sky-band .gpw-sky-yr:first-child .gpw-sky-yl { display: block; left: 0; top: 0; }
+    .gpw-sky-row { height: 220px; gap: 6px; }
+    .gpw-sky-towers { gap: 2px; }
+    .gpw-sky-plate { padding: 3px 6px 3px 5px; gap: 4px; font-size: 12px; }
+    .gpw-sky-plate b { font-size: 12.5px; }
+    .gpw-sky-refl .gpw-sky-row { margin-bottom: 60px; }
+    .gpw-sky-refl .gpw-tw::after { height: 22%; }
+    .gpw-sky-dash .gpw-sky-row { height: 150px; }
+  }
+  @media (max-width: 400px) {
+    .gpw-telem dd { font-size: 14px; }
+  }
+  /* The skyline's scale (VESPER.md 6.15): a tower is as tall as its estimate in
+     tenths of an hour, from half an hour (gpw-h5) to 6 h, the full height (gpw-h60);
+     a tier's plate rises 16 px over its tallest tower; a group is as wide as its
+     number of towers, 1 to 10. A fixed scale, so the CSP needs no style attribute
+     and nothing is generated at start; TestSkylineScale checks it. It starts at 5
+     because gpw-h1 and gpw-h2 are the headlines, and stops at 10 because gpw-g12
+     is the 12-column grid. */
+  .gpw-h5 { height: 8.333%; }
+  .gpw-h6 { height: 10.000%; }
+  .gpw-h7 { height: 11.667%; }
+  .gpw-h8 { height: 13.333%; }
+  .gpw-h9 { height: 15.000%; }
+  .gpw-h10 { height: 16.667%; }
+  .gpw-h11 { height: 18.333%; }
+  .gpw-h12 { height: 20.000%; }
+  .gpw-h13 { height: 21.667%; }
+  .gpw-h14 { height: 23.333%; }
+  .gpw-h15 { height: 25.000%; }
+  .gpw-h16 { height: 26.667%; }
+  .gpw-h17 { height: 28.333%; }
+  .gpw-h18 { height: 30.000%; }
+  .gpw-h19 { height: 31.667%; }
+  .gpw-h20 { height: 33.333%; }
+  .gpw-h21 { height: 35.000%; }
+  .gpw-h22 { height: 36.667%; }
+  .gpw-h23 { height: 38.333%; }
+  .gpw-h24 { height: 40.000%; }
+  .gpw-h25 { height: 41.667%; }
+  .gpw-h26 { height: 43.333%; }
+  .gpw-h27 { height: 45.000%; }
+  .gpw-h28 { height: 46.667%; }
+  .gpw-h29 { height: 48.333%; }
+  .gpw-h30 { height: 50.000%; }
+  .gpw-h31 { height: 51.667%; }
+  .gpw-h32 { height: 53.333%; }
+  .gpw-h33 { height: 55.000%; }
+  .gpw-h34 { height: 56.667%; }
+  .gpw-h35 { height: 58.333%; }
+  .gpw-h36 { height: 60.000%; }
+  .gpw-h37 { height: 61.667%; }
+  .gpw-h38 { height: 63.333%; }
+  .gpw-h39 { height: 65.000%; }
+  .gpw-h40 { height: 66.667%; }
+  .gpw-h41 { height: 68.333%; }
+  .gpw-h42 { height: 70.000%; }
+  .gpw-h43 { height: 71.667%; }
+  .gpw-h44 { height: 73.333%; }
+  .gpw-h45 { height: 75.000%; }
+  .gpw-h46 { height: 76.667%; }
+  .gpw-h47 { height: 78.333%; }
+  .gpw-h48 { height: 80.000%; }
+  .gpw-h49 { height: 81.667%; }
+  .gpw-h50 { height: 83.333%; }
+  .gpw-h51 { height: 85.000%; }
+  .gpw-h52 { height: 86.667%; }
+  .gpw-h53 { height: 88.333%; }
+  .gpw-h54 { height: 90.000%; }
+  .gpw-h55 { height: 91.667%; }
+  .gpw-h56 { height: 93.333%; }
+  .gpw-h57 { height: 95.000%; }
+  .gpw-h58 { height: 96.667%; }
+  .gpw-h59 { height: 98.333%; }
+  .gpw-h60 { height: 100.000%; }
+  .gpw-g-top5 > .gpw-sky-plate { bottom: calc(8.333% + 16px); }
+  .gpw-g-top6 > .gpw-sky-plate { bottom: calc(10.000% + 16px); }
+  .gpw-g-top7 > .gpw-sky-plate { bottom: calc(11.667% + 16px); }
+  .gpw-g-top8 > .gpw-sky-plate { bottom: calc(13.333% + 16px); }
+  .gpw-g-top9 > .gpw-sky-plate { bottom: calc(15.000% + 16px); }
+  .gpw-g-top10 > .gpw-sky-plate { bottom: calc(16.667% + 16px); }
+  .gpw-g-top11 > .gpw-sky-plate { bottom: calc(18.333% + 16px); }
+  .gpw-g-top12 > .gpw-sky-plate { bottom: calc(20.000% + 16px); }
+  .gpw-g-top13 > .gpw-sky-plate { bottom: calc(21.667% + 16px); }
+  .gpw-g-top14 > .gpw-sky-plate { bottom: calc(23.333% + 16px); }
+  .gpw-g-top15 > .gpw-sky-plate { bottom: calc(25.000% + 16px); }
+  .gpw-g-top16 > .gpw-sky-plate { bottom: calc(26.667% + 16px); }
+  .gpw-g-top17 > .gpw-sky-plate { bottom: calc(28.333% + 16px); }
+  .gpw-g-top18 > .gpw-sky-plate { bottom: calc(30.000% + 16px); }
+  .gpw-g-top19 > .gpw-sky-plate { bottom: calc(31.667% + 16px); }
+  .gpw-g-top20 > .gpw-sky-plate { bottom: calc(33.333% + 16px); }
+  .gpw-g-top21 > .gpw-sky-plate { bottom: calc(35.000% + 16px); }
+  .gpw-g-top22 > .gpw-sky-plate { bottom: calc(36.667% + 16px); }
+  .gpw-g-top23 > .gpw-sky-plate { bottom: calc(38.333% + 16px); }
+  .gpw-g-top24 > .gpw-sky-plate { bottom: calc(40.000% + 16px); }
+  .gpw-g-top25 > .gpw-sky-plate { bottom: calc(41.667% + 16px); }
+  .gpw-g-top26 > .gpw-sky-plate { bottom: calc(43.333% + 16px); }
+  .gpw-g-top27 > .gpw-sky-plate { bottom: calc(45.000% + 16px); }
+  .gpw-g-top28 > .gpw-sky-plate { bottom: calc(46.667% + 16px); }
+  .gpw-g-top29 > .gpw-sky-plate { bottom: calc(48.333% + 16px); }
+  .gpw-g-top30 > .gpw-sky-plate { bottom: calc(50.000% + 16px); }
+  .gpw-g-top31 > .gpw-sky-plate { bottom: calc(51.667% + 16px); }
+  .gpw-g-top32 > .gpw-sky-plate { bottom: calc(53.333% + 16px); }
+  .gpw-g-top33 > .gpw-sky-plate { bottom: calc(55.000% + 16px); }
+  .gpw-g-top34 > .gpw-sky-plate { bottom: calc(56.667% + 16px); }
+  .gpw-g-top35 > .gpw-sky-plate { bottom: calc(58.333% + 16px); }
+  .gpw-g-top36 > .gpw-sky-plate { bottom: calc(60.000% + 16px); }
+  .gpw-g-top37 > .gpw-sky-plate { bottom: calc(61.667% + 16px); }
+  .gpw-g-top38 > .gpw-sky-plate { bottom: calc(63.333% + 16px); }
+  .gpw-g-top39 > .gpw-sky-plate { bottom: calc(65.000% + 16px); }
+  .gpw-g-top40 > .gpw-sky-plate { bottom: calc(66.667% + 16px); }
+  .gpw-g-top41 > .gpw-sky-plate { bottom: calc(68.333% + 16px); }
+  .gpw-g-top42 > .gpw-sky-plate { bottom: calc(70.000% + 16px); }
+  .gpw-g-top43 > .gpw-sky-plate { bottom: calc(71.667% + 16px); }
+  .gpw-g-top44 > .gpw-sky-plate { bottom: calc(73.333% + 16px); }
+  .gpw-g-top45 > .gpw-sky-plate { bottom: calc(75.000% + 16px); }
+  .gpw-g-top46 > .gpw-sky-plate { bottom: calc(76.667% + 16px); }
+  .gpw-g-top47 > .gpw-sky-plate { bottom: calc(78.333% + 16px); }
+  .gpw-g-top48 > .gpw-sky-plate { bottom: calc(80.000% + 16px); }
+  .gpw-g-top49 > .gpw-sky-plate { bottom: calc(81.667% + 16px); }
+  .gpw-g-top50 > .gpw-sky-plate { bottom: calc(83.333% + 16px); }
+  .gpw-g-top51 > .gpw-sky-plate { bottom: calc(85.000% + 16px); }
+  .gpw-g-top52 > .gpw-sky-plate { bottom: calc(86.667% + 16px); }
+  .gpw-g-top53 > .gpw-sky-plate { bottom: calc(88.333% + 16px); }
+  .gpw-g-top54 > .gpw-sky-plate { bottom: calc(90.000% + 16px); }
+  .gpw-g-top55 > .gpw-sky-plate { bottom: calc(91.667% + 16px); }
+  .gpw-g-top56 > .gpw-sky-plate { bottom: calc(93.333% + 16px); }
+  .gpw-g-top57 > .gpw-sky-plate { bottom: calc(95.000% + 16px); }
+  .gpw-g-top58 > .gpw-sky-plate { bottom: calc(96.667% + 16px); }
+  .gpw-g-top59 > .gpw-sky-plate { bottom: calc(98.333% + 16px); }
+  .gpw-g-top60 > .gpw-sky-plate { bottom: calc(100.000% + 16px); }
+  .gpw-g1 { flex: 1 1 0; }
+  .gpw-g2 { flex: 2 1 0; }
+  .gpw-g3 { flex: 3 1 0; }
+  .gpw-g4 { flex: 4 1 0; }
+  .gpw-g5 { flex: 5 1 0; }
+  .gpw-g6 { flex: 6 1 0; }
+  .gpw-g7 { flex: 7 1 0; }
+  .gpw-g8 { flex: 8 1 0; }
+  .gpw-g9 { flex: 9 1 0; }
+  .gpw-g10 { flex: 10 1 0; }
+  /* Reduced transparency and more contrast: no texture, no reflection. */
+  @media (prefers-reduced-transparency: reduce) {
+    .gpw-sky-refl .gpw-tw::after { display: none; }
+    .gpw-calm, .gpw-screen { background-image: none; }
+  }
+  @media (prefers-contrast: more) {
+    .gpw-sky-refl .gpw-tw::after { display: none; }
+    .gpw-calm, .gpw-screen { background-image: none; }
+  }
+  @media (forced-colors: active) {
+    .gpw-tag, .gpw-calm, .gpw-screen, .gpw-sky-plate { border: 1px solid CanvasText; }
+    .gpw-tag::before, .gpw-sky-plate::before { display: none; }
+    .gpw-tag { clip-path: none; }
+    .gpw-tag-ready { border-width: 2px; }
+    .gpw-calm-num { forced-color-adjust: none; color: CanvasText; }
+    .gpw-tw { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+    .gpw-tw-on { background: CanvasText; }
+    .gpw-tw-cur { background: Highlight; }
+    .gpw-tw-roof::before { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+    .gpw-sv-cyf2 { fill: CanvasText; }
+  }
+  @media print {
+    .gpw-telem { display: none; }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Pages: the frame every page shares. The pages themselves are in      */
+/* public.css and app.css.                                              */
 /* ------------------------------------------------------------------ */
 @layer pages {
   /* Shared page frame */
   .page { padding-block: var(--s7) var(--s8); }
-  .page-head { display: grid; gap: var(--s3); margin-bottom: var(--s6); }
-  .page-head h1 { font-size: 36px; line-height: 44px; }
-  .app .page-head h1 { font-size: 28px; line-height: 36px; }
-  .lede { font-size: 19px; line-height: 30px; max-width: var(--measure); }
-  .app .lede { font-size: 17px; line-height: 27px; }
+  .page-head { display: grid; gap: 14px; margin-bottom: var(--s6); }
+  /* An app page title (gpw-h1-app): Saira 680, sentence case. */
+  .page-head h1 { font: 680 44px/1.02 var(--f-disp); letter-spacing: -.012em; }
+  .lede { font-size: 19px; line-height: 1.55; max-width: 58ch; }
+  .app .lede, .summary { font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 60ch; }
   .section { padding-block: var(--s6); border-top: 1px solid var(--rule); }
-  .section > h2, .section-head h2 { font-size: 21px; line-height: 28px; }
+  /* A section head: Saira 106 %, 640, sentence case. */
+  .section > h2, .section-head h2 { font: 640 24px/1.15 var(--f-disp); font-stretch: 106%; letter-spacing: -.01em; }
   .section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); margin-bottom: var(--s4); }
-  .section-intro { color: var(--graphite-2); max-width: 42em; }
+  .section-intro { color: var(--ink-2); max-width: 60ch; }
   .narrow { max-width: 480px; }
   .medium { max-width: 560px; }
-  .body-text { font-size: 17px; line-height: 28px; max-width: var(--measure); }
+  .body-text { font-size: 17px; line-height: 1.55; max-width: var(--measure); }
   .stack > * + * { margin-top: var(--s4); }
   .mt-2 { margin-top: var(--s2); }
   .mt-3 { margin-top: var(--s3); }
@@ -452,64 +1054,16 @@
   .mt-6 { margin-top: var(--s6); }
   .stack-lg > * + * { margin-top: var(--s5); }
 
-  /* Landing: the hero */
-  .hero { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 40px var(--s7); padding-block: var(--s7); align-items: start; }
-  .hero h1 { grid-column: 1 / -1; font-size: 48px; line-height: 56px; letter-spacing: -0.012em; max-width: 22em; }
-  .hero-text .lede { max-width: none; }
-  .hero-text .body-text { margin-top: var(--s4); font-size: 17px; line-height: 28px; }
-  .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s4) var(--s5); margin-top: var(--s6); }
-  .hero-invite { margin-top: var(--s4); font-size: 15px; line-height: 24px; color: var(--graphite-2); }
-
-  /* Figures */
-  .fig { position: relative; min-width: 0; }
-  .fig-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 36px; align-items: start; }
-  .fig-sheet { position: relative; border: 1px solid var(--rule-strong); border-radius: var(--r); padding: 18px 0; overflow: hidden; min-width: 0; }
-  .fig-code { font: 400 13.5px/24px var(--machine); tab-size: 4; -moz-tab-size: 4; overflow-x: auto; padding: 0 20px; color: var(--graphite); }
-  .fig-code .ln { display: block; white-space: pre; min-height: 24px; }
-  .fig-code .mark { text-decoration: underline; text-decoration-color: var(--blue); text-decoration-thickness: 2px; text-underline-offset: 4px; text-decoration-skip-ink: none; }
-  .fig-code .eol { display: inline-block; width: 0; }
-  .fig-code .eol-num { display: none; margin-left: 8px; vertical-align: -3px; }
-  .fig-notes { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s4); }
-  .fig-notes li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
-  .fig-notes .balloon { margin-top: 1px; background: var(--pad); }
-  .fig-notes p { font-style: italic; color: var(--blue); font-size: 15px; line-height: 22px; }
-  .fig-notes code { font-style: normal; font-size: 13px; white-space: nowrap; }
-  .fig-caption { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s3) var(--s5); margin-top: var(--s4); padding-right: 336px; }
-  .fig-caption p { font-size: 15px; line-height: 23px; max-width: 40em; flex: 1 1 22em; }
-  .fig-caption b { font-weight: 700; }
-  .leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: var(--z-leaders); }
-  .leaders path { fill: none; stroke: var(--blue); stroke-width: 1.25; }
-  .leaders circle { fill: var(--blue); }
-  .leaders.draw path { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: leader-draw var(--t-draw) var(--ease) forwards; animation-delay: var(--delay, 0ms); }
-  @keyframes leader-draw { to { stroke-dashoffset: 0; } }
-  @media (forced-colors: active) {
-    .leaders path { stroke: CanvasText; }
-    .leaders circle { fill: CanvasText; }
-  }
-  /* Syntax colours of the static figures, the same 4 as the editor. */
-  .tok-kw { color: var(--syn-kw); }
-  .tok-str { color: var(--syn-str); }
-  .tok-num { color: var(--syn-num); }
-  .tok-com { color: var(--syn-com); }
-
-  /* Figure 2: a problem as the IDE shows it. */
-  .fig2 { display: grid; grid-template-columns: minmax(0, 640px) minmax(0, 1fr); gap: var(--s7); margin-top: var(--s6); align-items: start; }
-  .fig2-notes { list-style: none; padding: 0; display: grid; align-content: start; gap: var(--s4); padding-top: var(--s7); }
-  /* Notes, not a sequence: no numbers. Each one sits beside its subject. */
-  .fig2-notes li { padding-left: var(--s3); border-left: 1.25px solid var(--blue); }
-  .fig2-notes p { font-style: italic; color: var(--blue); font-size: 15px; line-height: 22px; }
-  .fig2 figcaption { margin-top: var(--s4); font-size: 15px; line-height: 23px; }
-  .fig2 figcaption b { font-weight: 700; }
-
-  /* The problem: shared by the landing's Figure 2 and the IDE. */
-  .problem { position: relative; margin-left: 11px; padding-left: 22px; border-left: 1.25px solid var(--blue); }
-  .problem > .balloon { position: absolute; left: -11.5px; top: 0; background: var(--pad); }
-  .problem > .balloon.is-filled { background: var(--blue); color: var(--on-blue); }
-  .problem-source { font-size: 13px; line-height: 22px; color: var(--graphite-2); }
-  .problem-title { margin-top: 2px; font: 700 19px/26px var(--manual); color: var(--blue); overflow-wrap: anywhere; }
+  /* The problem and its anatomy: the landing's Figure 2, the verify page
+     and the IDE share them until those pages move to the v2 classes. */
+  .problem { position: relative; margin-left: 11px; padding-left: 22px; border-left: 1.25px solid var(--signal); }
+  .problem > .balloon { position: absolute; left: -11.5px; top: 0; background: var(--ground); }
+  .problem > .balloon.is-filled { background: var(--signal-fill); color: var(--on-signal); }
+  .problem-source { font-size: 13px; line-height: 22px; color: var(--ink-2); }
+  .problem-title { margin-top: 2px; font: 700 19px/26px var(--f-read); color: var(--signal); overflow-wrap: anywhere; }
   .problem-title code { font-size: 0.9em; }
   .problem-where { margin-top: var(--s1); font-size: 14px; line-height: 22px; }
-  .problem-where a { font-family: var(--machine); font-size: 13px; }
+  .problem-where a { font-family: var(--f-code); font-size: 13px; }
   .problem-lead { margin-top: var(--s2); font-size: 15px; line-height: 24px; }
   .problem-actions { margin-top: var(--s2); }
   .problem-fact { margin-top: var(--s2); font-size: 14px; line-height: 22px; }
@@ -517,11 +1071,11 @@
   .link-button.source-link { text-decoration: none; }
   .link-button.source-link code { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
   .stub-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s1) var(--s4); font-size: 14px; line-height: 22px; }
-  .stub-list dt { color: var(--graphite-2); font-size: 13px; }
-  .stub-fn { white-space: nowrap; color: var(--graphite-2); }
-  .stub-fn a { color: var(--blue); }
+  .stub-list dt { color: var(--ink-2); font-size: 13px; }
+  .stub-fn { white-space: nowrap; color: var(--ink-2); }
+  .stub-fn a { color: var(--signal); }
   .seen-list { list-style: none; padding: 0; display: grid; gap: 2px; font-size: 14px; line-height: 22px; }
-  .anatomy { margin-top: var(--s4); padding: 14px var(--s3) var(--s3); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); }
+  .anatomy { margin-top: var(--s4); padding: 14px var(--s3) var(--s3); background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 0; }
   .anatomy-plain { padding-top: var(--s3); overflow-x: auto; }
   /* The raw message wraps between its parts, never inside a short one.
      The room for the balloons is the parts' own top margin, so only a
@@ -529,19 +1083,19 @@
      stays close to the line above it. */
   /* The sizes are in em, so the balloons keep their room when a reader
      spaces the text out (WCAG 1.4.12). */
-  .raw { font: 400 14px/1.6em var(--machine); white-space: pre-wrap; color: var(--graphite); overflow-wrap: anywhere; }
-  .raw .part { position: relative; display: inline-block; max-width: 100%; margin-top: 2.1em; border-bottom: 1.5px solid var(--blue); line-height: 1.45em; vertical-align: baseline; }
+  .raw { font: 400 14px/1.6em var(--f-code); white-space: pre-wrap; color: var(--ink); overflow-wrap: anywhere; }
+  .raw .part { position: relative; display: inline-block; max-width: 100%; margin-top: 2.1em; border-bottom: 1.5px solid var(--signal); line-height: 1.45em; vertical-align: baseline; }
   /* A part of 1 or 2 characters, such as a column, is as wide as its balloon. */
   .raw .part.is-short { min-width: 19px; text-align: center; }
   .raw .part.is-key { background: var(--red-wash); }
   .raw .part::before {
     content: attr(data-part); position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%);
-    display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid var(--blue); border-radius: 50%;
-    color: var(--blue); background: var(--sheet); font: 700 11px/1 var(--manual);
+    display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid var(--signal); border-radius: 50%;
+    color: var(--signal); background: var(--surface); font: 700 11px/1 var(--f-read);
   }
-  .raw .part::after { content: ""; position: absolute; left: 50%; bottom: 100%; height: 9px; border-left: 1px solid var(--blue); }
-  .raw-block { font: 400 12.5px/19px var(--machine); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--graphite); }
-  .raw-block .ref-line { display: block; margin-left: -10px; padding-left: 8px; border-left: 2px solid var(--blue); }
+  .raw .part::after { content: ""; position: absolute; left: 50%; bottom: 100%; height: 9px; border-left: 1px solid var(--signal); }
+  .raw-block { font: 400 12.5px/19px var(--f-code); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+  .raw-block .ref-line { display: block; margin-left: -10px; padding-left: 8px; border-left: 2px solid var(--signal); }
   /* 1 grid for all rows, so every meaning starts at the same x, as in a
      tabwriter. The part column takes at most 45%; a long part puts its
      meaning on the next line. */
@@ -556,246 +1110,34 @@
   .xsec { margin-top: var(--s3); }
   .xsec > summary {
     display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer;
-    font: 700 14px/20px var(--manual); color: var(--blue); padding: 4px 0; width: fit-content;
+    font: 700 14px/20px var(--f-read); color: var(--signal); padding: 4px 0; width: fit-content;
   }
   .xsec > summary::-webkit-details-marker { display: none; }
   .xsec > summary .icon { width: 12px; height: 12px; transition: transform var(--t-hover); }
   .xsec[open] > summary .icon { transform: rotate(90deg); }
-  .xsec > summary .count { font-weight: 400; color: var(--graphite-2); }
+  .xsec > summary .count { font-weight: 400; color: var(--ink-2); }
   .xsec-body { font-size: 15px; line-height: 24px; padding: 2px 0 var(--s2) 18px; }
   .xsec-body > * + * { margin-top: var(--s2); }
   .xsec-body ul, .xsec-body ol { padding-left: 1.3em; }
   .xsec-body li + li { margin-top: 2px; }
-  .xsec-body pre { margin: var(--s2) 0; padding: var(--s3); background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); font: 400 12.5px/20px var(--machine); tab-size: 4; overflow-x: auto; }
+  .xsec-body pre { margin: var(--s2) 0; padding: var(--s3); background: var(--surface); border: 1px solid var(--rule); border-radius: 0; font: 400 12.5px/20px var(--f-code); tab-size: 4; overflow-x: auto; }
   .xsec-body pre code { font-size: inherit; }
   .problem-course { margin-top: var(--s4); font-size: 14px; line-height: 22px; }
 
-  /* Landing: below the hero */
-  .procedure { list-style: none; padding: 0; margin-top: var(--s6); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s5); counter-reset: step; }
-  .procedure li { counter-increment: step; border-top: 2px solid var(--graphite); padding-top: var(--s3); font-size: 16px; line-height: 25px; }
-  .procedure li::before { content: counter(step); display: block; font-weight: 700; font-size: 21px; line-height: 28px; margin-bottom: var(--s2); }
-  .procedure li b { display: block; }
-  .landing .section { padding-block: var(--s7); }
-  .landing .section > .wrap > h2 { font-size: 28px; line-height: 36px; }
-  .landing .section-intro { margin-top: var(--s3); font-size: 17px; line-height: 28px; }
-  .landing .course-strip { margin-top: var(--s6); }
-  .course-contents { columns: 3; column-gap: var(--s7); margin-top: var(--s6); }
-  .course-contents > div { break-inside: avoid; padding-bottom: var(--s6); }
-  .course-contents h3 { font-size: 17px; line-height: 24px; }
-  .course-contents h3 + p { font-size: 14px; line-height: 21px; color: var(--graphite-2); margin-top: 2px; }
-  .course-contents ol { list-style: none; padding: 0; margin-top: var(--s3); }
-  .course-contents li { position: relative; display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; gap: 0; font-size: 15px; line-height: 24px; padding: 1px 0; }
-  /* The dotted leader runs along the last line; the title and the hours
-     cover it with the pad colour, so a 2-line title keeps its number on
-     line 1 and its hours on the last line. */
-  .course-contents li::after { content: ""; position: absolute; left: 2em; right: 0; bottom: 8px; border-bottom: 1.5px dotted var(--rule-strong); }
-  .course-contents .no { align-self: start; color: var(--graphite-2); }
-  .course-contents .t { position: relative; z-index: 1; min-width: 0; padding-right: 24px; }
-  .course-contents .t span { background: var(--pad); padding-right: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  .course-contents .h { position: relative; z-index: 1; align-self: end; padding-left: 6px; background: var(--pad); color: var(--graphite-2); white-space: nowrap; }
-  .course-contents a { color: var(--graphite); text-decoration: none; }
-  .course-contents a:hover { color: var(--blue); text-decoration: underline; }
-  .contents-cert p { font-size: 15px; line-height: 24px; max-width: 26em; }
-  .rules { list-style: none; padding: 0; margin-top: var(--s5); display: grid; gap: var(--s3); counter-reset: rule; max-width: 46em; }
-  .rules li { counter-increment: rule; display: grid; grid-template-columns: 28px 1fr; font-size: 16px; line-height: 26px; }
-  .rules li::before { content: counter(rule) "."; font-weight: 700; }
-
-  /* The guide */
-  .guide-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--s7); align-items: start; }
-  .toc { position: sticky; top: var(--s5); font-size: 14px; line-height: 21px; }
-  .toc h2 { font-size: 14px; line-height: 21px; color: var(--graphite-2); font-weight: 400; margin-bottom: var(--s2); }
-  .toc ol { list-style: none; padding: 0; display: grid; gap: 2px; }
-  .toc a { display: block; padding: 4px 0 4px var(--s3); border-left: 2px solid var(--rule); color: var(--graphite-2); text-decoration: none; }
-  .toc a:hover { color: var(--graphite); }
-  .toc a[aria-current="location"] { border-left-color: var(--graphite); color: var(--graphite); font-weight: 700; }
-  .guide-section { padding-block: var(--s5) var(--s6); border-top: 1px solid var(--rule); scroll-margin-top: var(--s5); }
-  .guide-section:first-child { border-top: 0; padding-top: 0; }
-  .guide-section > h2 { font-size: 28px; line-height: 36px; margin-bottom: var(--s4); }
-  .guide-section .prose { font-size: 17px; line-height: 28px; max-width: none; }
-  /* Prose keeps the measure; code and tables may use the full width. */
-  .guide-section .prose > :not(pre, table, .table-scroll) { max-width: var(--measure); }
-  .guide-tools td:first-child { font-family: var(--machine); font-size: 0.88em; white-space: nowrap; }
-  .guide-section .prose ol > li::marker { font-weight: 700; }
-  .checklist-card { max-width: 40em; padding: var(--s6); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); }
-  .guide-section > .checklist-card > h2 { font-size: 24px; line-height: 32px; margin: 0; }
-  .checklist-card .prose { margin-top: var(--s4); font-size: 16px; line-height: 26px; max-width: none; }
-  .checklist-card .prose > :first-child { margin-top: 0; }
-  .checklist-card .prose ul { padding-left: 0; list-style: none; }
-  .checklist-card .prose > ul > li { position: relative; padding-left: 28px; }
-  .checklist-card .prose > ul > li::before { content: ""; position: absolute; left: 0; top: 5px; width: 14px; height: 14px; border: 1.5px solid var(--rule-strong); border-radius: 2px; }
-  .checklist-card .prose p { font-weight: 700; margin-top: var(--s5); }
-  .guide-guides { display: grid; gap: var(--s3); margin-top: var(--s4); max-width: 44em; }
-  .guide-guides details { border-top: 1px solid var(--rule); padding-top: var(--s3); }
-  .guide-guides summary { display: flex; align-items: center; gap: var(--s2); cursor: pointer; list-style: none; font: 700 17px/24px var(--manual); }
-  .guide-guides summary::-webkit-details-marker { display: none; }
-  .guide-guides summary .icon { width: 12px; height: 12px; color: var(--blue); }
-  .guide-guides details[open] summary .icon { transform: rotate(90deg); }
-  .guide-guides .prose { margin: var(--s3) 0 var(--s4) 20px; font-size: 16px; line-height: 26px; max-width: 40em; }
-  .guide-guides .prose h2 { font-size: 17px; line-height: 24px; margin-top: var(--s5); }
-  .guide-keys { margin-top: var(--s4); max-width: var(--measure); row-gap: var(--s2); align-items: baseline; }
-  .guide-keys dt { white-space: nowrap; }
-
-  /* Sign in, sign up, recovery */
-  .auth { max-width: 560px; }
-  .auth .page-head { margin-bottom: var(--s5); }
-  .auth-form { margin-top: var(--s5); }
-  .auth-form .btn { margin-top: var(--s4); }
-  .auth-aside { margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--rule); display: grid; gap: var(--s2); font-size: 15px; line-height: 24px; }
-  .steps-form { list-style: none; padding: 0; counter-reset: fstep; margin-top: var(--s5); }
-  .steps-form > li { counter-increment: fstep; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 0 var(--s2); }
-  .steps-form > li + li { margin-top: var(--s6); }
-  .steps-form > li::before { content: counter(fstep); font: 700 21px/28px var(--manual); }
-  .steps-form h2 { font-size: 17px; line-height: 28px; margin-bottom: var(--s3); }
-  .invite-note { margin-top: var(--s4); padding-left: var(--s3); border-left: 2px solid var(--blue); }
-  /* A long address must wrap at 320 px, not scroll the page. */
-  .check-email .lede strong { overflow-wrap: anywhere; }
-
-  /* The course (dashboard) */
-  .course-head { display: grid; gap: var(--s4); padding-bottom: var(--s6); }
-  .course-head h1 { font-size: 28px; line-height: 36px; }
-  .course-head .summary { font-size: 17px; line-height: 27px; }
-  .course-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); margin-top: var(--s2); }
-  .course-next p { font-size: 17px; line-height: 27px; }
-  .tier { padding-block: var(--s5) var(--s6); border-top: 1px solid var(--rule); }
-  .tier-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s4); }
-  .tier > .table-scroll { margin-top: var(--s4); }
-  .tier:has(> .table-scroll[hidden]) { padding-bottom: var(--s5); }
-  .tier-head h2 { font-size: 21px; line-height: 28px; }
-  .tier-head .theme { font-size: 17px; line-height: 28px; color: var(--graphite); font-weight: 400; }
-  .tier-head .state { margin-left: auto; font-size: 14px; line-height: 22px; color: var(--graphite-2); }
-  .tier-head .state a { font-weight: 700; }
-  /* Fixed columns, so the tables of all tiers line up. */
-  .log { table-layout: fixed; }
-  .log .col-no { width: 64px; }
-  .log .col-est { width: 96px; }
-  .log .col-active { width: 128px; }
-  .log .col-runs { width: 80px; }
-  .log .col-help { width: 156px; }
-  .log .col-passed { width: 140px; }
-  .log td, .log th { white-space: nowrap; }
-  .log .ex-title { white-space: normal; min-width: 14em; }
-  .log tbody th { font-weight: 400; }
-  .log .no { width: 3.5em; font-weight: 700; color: var(--graphite-2); }
-  .log tr.is-started > *:first-child { box-shadow: inset 2px 0 0 var(--blue); }
-  /* The titles are links at rest too: graphite with a quiet rule, blue on hover. */
-  .log a { color: var(--graphite); text-decoration: underline; text-decoration-color: var(--rule-strong); text-decoration-thickness: 1px; text-underline-offset: 4px; }
-  .log tbody tr:hover { background: var(--sheet-2); }
-  .log a:hover, .log tbody tr:hover a { color: var(--blue); text-decoration-color: currentColor; }
-  .tier-folded { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); }
-
-  /* Certificates */
-  .cert-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s5); align-items: start; }
-  .cert-card { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; padding: var(--s5); background-color: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); }
-  .cert-card h2 { font-size: 17px; line-height: 24px; }
-  .cert-card .theme { font-size: 15px; line-height: 22px; }
-  .cert-card .progress-line { font-size: 14px; line-height: 21px; color: var(--graphite-2); }
-  .cert-card .titleblock { background: var(--sheet); width: 100%; }
-  .cert-card .titleblock > div:last-child { flex: 1; }
-  .cert-card .titleblock dd { white-space: normal; overflow-wrap: anywhere; }
-  .cert-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); margin-top: auto; padding-top: var(--s2); font-size: 15px; }
-  .cert-foot { margin-top: var(--s6); font-size: 14px; line-height: 22px; color: var(--graphite-2); }
-  .name-preview { margin-top: var(--s2); }
-  .name-preview dd { font-size: 17px; line-height: 24px; white-space: normal; overflow-wrap: anywhere; }
-  .no-glyph { background: var(--red-wash); color: var(--red); outline: 1px solid var(--red); outline-offset: 0; }
-
-  /* The verify page */
-  .verdict { display: flex; align-items: center; gap: var(--s3); font-size: 36px; line-height: 44px; }
-  .verdict .icon { width: 32px; height: 32px; stroke-width: 2; }
-  .verdict-ok .icon { color: var(--ok); }
-  .verdict-bad .icon { color: var(--red); }
-  .drawing { margin-top: var(--s6); padding: var(--s6); border: 1px solid var(--rule-strong); border-radius: var(--r); display: grid; gap: var(--s5); }
-  .drawing h2 { font-size: 21px; line-height: 28px; }
-  .drawing h2 + .theme { margin-top: calc(var(--s1) - var(--s5)); font-size: 15px; line-height: 22px; color: var(--graphite-2); }
-  .drawing-list { list-style: none; padding: 0; column-gap: var(--s7); font-size: 15px; line-height: 26px; }
-  .drawing-list:has(> li:nth-child(4)) { columns: 2; }
-  .drawing-list li { break-inside: avoid; display: grid; grid-template-columns: 2.2em 1fr; }
-  .drawing-list .no { color: var(--graphite-2); }
-  .drawing-tiers { display: grid; gap: var(--s3); }
-  /* 10 tiers take 2 columns of 5, read down. */
-  @media (min-width: 600px) {
-    .drawing-tiers:has(> li:nth-child(6)) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; column-gap: var(--s7); }
-  }
-  .drawing .titleblock { justify-self: end; background: var(--sheet); }
-  .drawing .titleblock dd { white-space: normal; overflow-wrap: anywhere; }
-  .verify-facts { margin-top: var(--s6); display: grid; gap: var(--s5); max-width: 760px; }
-  .verify-facts h2 { font-size: 21px; line-height: 28px; margin-bottom: var(--s3); }
-  .lookup { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-end; }
-  .lookup .field { flex: 1 1 260px; }
-
-  /* Account and admin */
-  .account > * { max-width: 760px; }
-  .theme-choice-row { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); margin: 0; padding: 0; border: 0; }
-  .account .section { padding-block: var(--s5) var(--s6); }
-  .account .section > h2 { margin-bottom: var(--s4); }
-  /* Each label sits on the first line of its field: the input's text, or the value. */
-  .account .facts { align-items: start; row-gap: var(--s4); }
-  .account .facts dt { padding-top: 8px; }
-  .account .facts .fact-value { display: block; padding-top: 8px; }
-  .account .facts dd > .help { margin-top: 6px; }
-  .account form .facts { grid-template-columns: max-content minmax(0, 420px); }
-  .admin .section > h2 { margin-bottom: var(--s2); }
-  .admin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); max-width: 960px; }
-  .admin-grid > .field + .field { margin-top: 0; }
-  .result-panel { margin-top: var(--s4); padding: var(--s4); background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: var(--r); display: grid; gap: var(--s3); max-width: 960px; }
-  .result-panel .copy-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
-  .result-panel .copy-row .text-input { flex: 1 1 320px; }
-  .user-progress { display: flex; align-items: center; gap: var(--s3); min-width: 260px; }
-  .user-progress .course-strip { width: 200px; flex: none; }
-
-  /* Errors */
-  .error-page .page-head h1 { font-size: 36px; line-height: 44px; }
-  .error-links { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
-
-  @media (max-width: 1180px) {
-    .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
-    .hero-text { max-width: 40em; }
-    .procedure { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .course-contents { columns: 2; }
-    .fig2 { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
-    .fig2-notes { padding-top: 0; max-width: 40em; }
-  }
-  @media (max-width: 1080px) {
-    .guide-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
-    .toc { position: static; }
-  }
-  @media (max-width: 900px) {
-    .cert-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .admin-grid { grid-template-columns: minmax(0, 1fr); }
-  }
   @media (max-width: 720px) {
-    body { font-size: 15px; }
+    body { font-size: 16px; }
     .page { padding-block: var(--s6) var(--s7); }
-    .page-head h1, .error-page .page-head h1 { font-size: 28px; line-height: 36px; }
-    .app .page-head h1, .course-head h1 { font-size: 24px; line-height: 32px; }
-    .lede { font-size: 17px; line-height: 27px; }
-    .body-text { font-size: 16px; line-height: 26px; }
-    .hero { padding-block: var(--s6); }
-    .hero h1 { font-size: 34px; line-height: 40px; }
-    .hero h1 br { display: none; }
-    .hero-actions .btn { width: 100%; }
-    .fig-body { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
-    .fig-code { font-size: 12.5px; line-height: 22px; padding: 0 14px; }
-    .fig-code .eol-num { display: inline-grid; }
-    .fig .leaders { display: none; }
-    .fig-caption { padding-right: 0; }
-    .procedure { grid-template-columns: minmax(0, 1fr); }
-    .course-contents { columns: 1; }
-    .landing .section { padding-block: var(--s6); }
-    .landing .section > .wrap > h2, .guide-section > h2 { font-size: 24px; line-height: 32px; }
-    .guide-section .prose { font-size: 16px; line-height: 26px; }
-    .checklist-card { padding: var(--s4); }
-    .cert-grid { grid-template-columns: minmax(0, 1fr); }
-    .verdict { font-size: 28px; line-height: 36px; }
-    .drawing { padding: var(--s4); }
-    .drawing-list { columns: 1; }
-    .drawing .titleblock { justify-self: stretch; }
-    .facts { grid-template-columns: minmax(0, 1fr); gap: 0; }
-    .facts dd + dt { margin-top: var(--s2); }
-    .account form .facts { grid-template-columns: minmax(0, 1fr); }
+    .page-head h1 { font-size: 32px; }
+    .lede { font-size: 17px; }
+    .app .lede, .summary { font-size: 16.5px; }
+    .body-text { font-size: 16px; }
+    /* A fact list: the name over its value. */
+    .facts, .gpw-fl { grid-template-columns: minmax(0, 1fr); }
+    .facts dt, .gpw-fl dt { padding-bottom: 2px; }
+    .facts dd, .gpw-fl dd { border-top: 0; padding-top: 0; padding-left: 0; }
     .parts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
     .parts dd { padding-left: 25px; margin-bottom: var(--s1); }
     .raw { font-size: 13.5px; }
-    .tier-head .state { margin-left: 0; width: 100%; }
     /* Tables become lists of rows: the first column is the heading,
        the others an aligned fact list. */
     .table-stack thead { display: none; }
@@ -804,21 +1146,13 @@
     .table-stack th, .table-stack td { display: block; border: 0; padding: 1px 0; text-align: left !important; }
     .table-stack tr > :first-child { padding: 0 0 var(--s1); font-weight: 700; box-shadow: none !important; }
     .table-stack td[data-label] { position: relative; padding-left: 8.5em; }
-    .table-stack td[data-label]::before { content: attr(data-label); position: absolute; left: 0; color: var(--graphite-2); }
+    .table-stack td[data-label]::before { content: attr(data-label); position: absolute; left: 0; color: var(--ink-2); }
     .table-stack td.actions { padding-top: var(--s2); }
     .table-stack td.actions .btn { margin: 0 var(--s2) var(--s2) 0 !important; }
     .table-stack td.is-empty { display: none; }
-    /* Touch targets of 44 px on phones. */
-    .text-button, .avatar, .btn-sm, .btn-quiet, .nav-toggle { min-height: 44px; }
-    .avatar { min-width: 44px; }
-    .xsec > summary { min-height: 44px; }
-    .site-foot a { padding-block: var(--s2); }
-    .ide .menu-phone-only { display: block; }
+    .xsec > summary { min-height: 32px; }
   }
   @media print {
-    body.print-checklist * { visibility: hidden; }
-    body.print-checklist .checklist-card, body.print-checklist .checklist-card * { visibility: visible; }
-    body.print-checklist .checklist-card { position: absolute; left: 0; top: 0; border: 1px solid #000; }
-    .site-head, .site-foot, .toc, .no-print { display: none !important; }
+    .site-head, .site-foot, .no-print { display: none !important; }
   }
 }

@@ -1,111 +1,119 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/app.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page admin">
-  <header class="page-head">
-    <h1>Admin</h1>
-  </header>
+{{- /* No story on admin pages, except the header (VESPER.md 8.11). */}}
+<div class="gpw-wrap gpw-acct gpw-admin">
+  <h1 class="gpw-h1-app">Admin</h1>
 
-  <section class="section" aria-labelledby="invite-title">
-    <h2 id="invite-title">Create an invite</h2>
-    <p class="help">An invite link works once. With an email address, the site mails the link.</p>
-    <form id="invite-form" class="mt-4" novalidate>
-      <div class="admin-grid">
-        <div class="field">
-          <label for="invite-email">Email (optional)</label>
-          <input class="text-input" id="invite-email" name="email" type="email" maxlength="254" autocomplete="off">
+  <section class="gpw-as" aria-labelledby="invite-title">
+    <h2 id="invite-title" class="gpw-as-h">Create an invite</h2>
+    <div class="gpw-as-body gpw-as-wide">
+      <p class="help">An invite link works once. With an email address, the site mails the link.</p>
+      <form id="invite-form" class="gpw-adm-form" novalidate>
+        <div class="gpw-adm-grid">
+          <div class="field">
+            <label for="invite-email">Email (optional)</label>
+            <input class="text-input" id="invite-email" name="email" type="email" maxlength="254" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="invite-note">Note (optional)</label>
+            <input class="text-input" id="invite-note" name="note" maxlength="500" autocomplete="off" aria-describedby="invite-note-help">
+            <p class="help" id="invite-note-help">The new learner sees it on the sign-up page.</p>
+          </div>
+          <div class="field">
+            <label for="invite-days">Valid for</label>
+            <select class="select" id="invite-days" name="days">
+              <option value="1">1 day</option>
+              <option value="3">3 days</option>
+              <option value="7" selected>7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+            </select>
+          </div>
         </div>
-        <div class="field">
-          <label for="invite-note">Note (optional)</label>
-          <input class="text-input" id="invite-note" name="note" maxlength="500" autocomplete="off" aria-describedby="invite-note-help">
-          <p class="help" id="invite-note-help">The new learner sees it on the sign-up page.</p>
+        <div class="btn-row gpw-as-btns"><button type="submit" class="btn btn-primary">Create the invite link</button></div>
+        <p class="form-status" role="status" aria-live="polite" data-status="invite"></p>
+      </form>
+      <div class="gpw-adm-result" data-invite-result hidden>
+        <label class="field-label" for="invite-link">Invite link</label>
+        <div class="gpw-adm-copy">
+          <input class="text-input mono" id="invite-link" readonly data-invite-link>
+          <button type="button" class="btn" data-copy>Copy the link</button>
         </div>
-        <div class="field">
-          <label for="invite-days">Valid for</label>
-          <select class="select" id="invite-days" name="days">
-            <option value="1">1 day</option>
-            <option value="3">3 days</option>
-            <option value="7" selected>7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-          </select>
-        </div>
+        <p data-invite-mail></p>
       </div>
-      <p class="mt-4"><button type="submit" class="btn btn-primary">Create the invite link</button></p>
-      <p class="form-status mt-3" role="status" aria-live="polite" data-status="invite"></p>
-    </form>
-    <div class="result-panel" data-invite-result hidden>
-      <label class="field-label" for="invite-link">Invite link</label>
-      <div class="copy-row">
-        <input class="text-input mono" id="invite-link" readonly data-invite-link>
-        <button type="button" class="btn" data-copy>Copy the link</button>
-      </div>
-      <p data-invite-mail></p>
     </div>
   </section>
 
-  <section class="section" aria-labelledby="invites-title">
-    <h2 id="invites-title">Invites</h2>
-    <div class="table-scroll"{{if not .Data.Invites}} hidden{{end}} data-invites-table>
-      <table class="table table-dense table-stack">
-        <thead><tr><th scope="col">Created</th><th scope="col">Status</th><th scope="col">Email</th><th scope="col">Note</th><th scope="col">Created by</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
-        <tbody>
-          {{- range .Data.Invites}}
-          <tr data-invite="{{hex .TokenHash}}">
-            <td><time datetime="{{iso .CreatedAt}}">{{shortdate .CreatedAt}}</time></td>
-            <td data-label="Status">
-              {{- if .Used}}Used by {{index $.Data.Names .UsedBy}} on {{shortdate .UsedAt}}
-              {{- else if .Expired $.Data.Now}}<span class="muted">Expired on {{shortdate .ExpiresAt}}</span>
-              {{- else}}Open until {{shortdate .ExpiresAt}}{{end}}
-            </td>
-            <td data-label="Email">{{if .Email}}{{.Email}}{{else}}<span class="muted">none</span>{{end}}</td>
-            <td data-label="Note">{{if .Note}}{{.Note}}{{else}}<span class="muted">none</span>{{end}}</td>
-            <td data-label="Created by">{{index $.Data.Names .CreatedBy}}</td>
-            <td class="actions">{{if and (not .Used) (not (.Expired $.Data.Now))}}<button type="button" class="btn btn-sm btn-danger" data-revoke>Revoke invite<span class="visually-hidden"> of {{shortdate .CreatedAt}}{{with .Email}} for {{.}}{{end}}</span></button>{{end}}</td>
-          </tr>
-          {{- end}}
-        </tbody>
-      </table>
+  <section class="gpw-as" aria-labelledby="invites-title">
+    <h2 id="invites-title" class="gpw-as-h">Invites</h2>
+    <div class="gpw-as-body gpw-as-wide">
+      <div class="gpw-adm-scroll"{{if not .Data.Invites}} hidden{{end}} data-invites-table>
+        <table class="gpw-adm">
+          <caption class="gpw-vh">Invites</caption>
+          <thead><tr><th scope="col" class="gpw-lbl">Created</th><th scope="col" class="gpw-lbl">Status</th><th scope="col" class="gpw-lbl">Email</th><th scope="col" class="gpw-lbl">Note</th><th scope="col" class="gpw-lbl">Created by</th><th scope="col"><span class="gpw-vh">Actions</span></th></tr></thead>
+          <tbody>
+            {{- range .Data.Invites}}
+            <tr data-invite="{{hex .TokenHash}}">
+              <td data-label="Created"><time datetime="{{iso .CreatedAt}}">{{shortdate .CreatedAt}}</time></td>
+              <td data-label="Status">
+                {{- if .Used}}Used by {{index $.Data.Names .UsedBy}} on {{shortdate .UsedAt}}
+                {{- else if .Expired $.Data.Now}}<span class="gpw-quiet">Expired on {{shortdate .ExpiresAt}}</span>
+                {{- else}}Open until {{shortdate .ExpiresAt}}{{end}}
+              </td>
+              <td data-label="Email">{{if .Email}}{{.Email}}{{else}}<span class="gpw-quiet">none</span>{{end}}</td>
+              <td data-label="Note">{{if .Note}}{{.Note}}{{else}}<span class="gpw-quiet">none</span>{{end}}</td>
+              <td data-label="Created by">{{index $.Data.Names .CreatedBy}}</td>
+              <td class="gpw-adm-act">{{if and (not .Used) (not (.Expired $.Data.Now))}}<button type="button" class="btn btn-sm" data-revoke aria-haspopup="dialog">Revoke invite<span class="gpw-vh"> of {{shortdate .CreatedAt}}{{with .Email}} for {{.}}{{end}}</span></button>{{end}}</td>
+            </tr>
+            {{- end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="gpw-quiet"{{if .Data.Invites}} hidden{{end}} data-invites-empty>No invites yet. Create 1 above.</p>
+      <p class="form-status" role="status" aria-live="polite" data-status="invites"></p>
     </div>
-    <p class="muted"{{if .Data.Invites}} hidden{{end}} data-invites-empty>No invites yet. Create 1 above.</p>
-    <p class="form-status mt-3" role="status" aria-live="polite" data-status="invites"></p>
   </section>
 
-  <section class="section" aria-labelledby="users-title">
-    <h2 id="users-title">Users</h2>
-    <div class="table-scroll">
-      <table class="table table-dense table-stack users">
-        <thead>
-          <tr><th scope="col">User</th><th scope="col">Email</th><th scope="col">Progress</th><th scope="col" class="num">Active</th><th scope="col" class="num">Runs</th><th scope="col">Last seen</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
-        </thead>
-        <tbody>
-          {{- range .Data.Users}}
-          <tr data-user="{{.ID}}" data-name="{{.DisplayName}}">
-            <th scope="row">{{.DisplayName}} <span class="muted mono text-small">{{.Username}}</span></th>
-            <td data-label="Email">{{if .Email}}{{.Email}}{{if .EmailVerified}} <span class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><span class="visually-hidden">verified</span></span>{{else}} <span class="muted">(not verified)</span>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
-            <td data-label="Progress"><span class="user-progress">{{template "strip" .Strip}}<span>{{.Passed}} of {{$.Data.Total}}</span></span></td>
-            <td class="num" data-label="Active">{{duration .ActiveSeconds}}</td>
-            <td class="num" data-label="Runs">{{.Runs}}</td>
-            <td data-label="Last seen">{{if .LastSeen.IsZero}}<span class="muted">never</span>{{else}}{{shortdate .LastSeen}}{{end}}</td>
-            <td data-label="Role">{{if .IsAdmin}}admin{{else}}learner{{end}}</td>
-            <td data-label="Status">{{if .Disabled}}<span class="status-line status-fail"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>disabled</span>{{else}}active{{end}}</td>
-            <td class="actions">
-              {{- if eq .ID $.User.ID}}
-              <button type="button" class="btn btn-sm btn-danger" aria-disabled="true" aria-describedby="self-reason">Disable<span class="visually-hidden"> {{.DisplayName}}</span></button>
-              {{- else if .Disabled}}
-              <button type="button" class="btn btn-sm" data-enable>Enable<span class="visually-hidden"> {{.DisplayName}}</span></button>
-              {{- else}}
-              <button type="button" class="btn btn-sm btn-danger" data-disable>Disable<span class="visually-hidden"> {{.DisplayName}}</span></button>
-              {{- end}}
-              {{- if and (not .IsAdmin) (not .Disabled)}}
-              <button type="button" class="btn btn-sm" data-make-admin>Make admin<span class="visually-hidden">: {{.DisplayName}}</span></button>
-              {{- end}}
-            </td>
-          </tr>
-          {{- end}}
-        </tbody>
-      </table>
+  <section class="gpw-as" aria-labelledby="users-title">
+    <h2 id="users-title" class="gpw-as-h">Users</h2>
+    <div class="gpw-as-body gpw-as-wide">
+      <div class="gpw-adm-scroll">
+        <table class="gpw-adm users">
+          <caption class="gpw-vh">Users</caption>
+          <thead>
+            <tr><th scope="col" class="gpw-lbl">User</th><th scope="col" class="gpw-lbl">Email</th><th scope="col" class="gpw-lbl">Progress</th><th scope="col" class="gpw-lbl">Last seen</th><th scope="col" class="gpw-lbl">Role</th><th scope="col" class="gpw-lbl">Status</th><th scope="col"><span class="gpw-vh">Actions</span></th></tr>
+          </thead>
+          <tbody>
+            {{- range .Data.Users}}
+            <tr data-user="{{.ID}}" data-name="{{.DisplayName}}">
+              <th scope="row">{{.DisplayName}} <span class="gpw-quiet gpw-mono">{{.Username}}</span></th>
+              <td data-label="Email">{{if .Email}}{{.Email}}{{if .EmailVerified}} <span class="gpw-okword"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg><span class="gpw-vh">verified</span></span>{{else}} <span class="gpw-quiet">(not verified)</span>{{end}}{{else}}<span class="gpw-quiet">none</span>{{end}}</td>
+              <td data-label="Progress"><span class="gpw-adm-prog">{{with .Sky}}{{template "skyline" .}}{{end}}<span>{{zero (printf "%d of %d" .Passed $.Data.Total)}}</span></span></td>
+              <td data-label="Last seen">{{if .LastSeen.IsZero}}<span class="gpw-quiet">never</span>{{else}}{{shortdate .LastSeen}}{{end}}</td>
+              <td data-label="Role">{{if .IsAdmin}}admin{{else}}learner{{end}}</td>
+              <td data-label="Status">{{if .Disabled}}disabled{{else}}active{{end}}</td>
+              <td class="gpw-adm-act">
+                {{- if eq .ID $.User.ID}}
+                <button type="button" class="btn btn-sm" aria-disabled="true" aria-describedby="self-reason">Disable<span class="gpw-vh"> {{.DisplayName}}</span></button>
+                {{- else if .Disabled}}
+                <button type="button" class="btn btn-sm" data-enable>Enable<span class="gpw-vh"> {{.DisplayName}}</span></button>
+                {{- else}}
+                <button type="button" class="btn btn-sm" data-disable aria-haspopup="dialog">Disable<span class="gpw-vh"> {{.DisplayName}}</span></button>
+                {{- end}}
+                {{- if and (not .IsAdmin) (not .Disabled)}}
+                <button type="button" class="btn btn-sm" data-make-admin aria-haspopup="dialog">Make admin<span class="gpw-vh">: {{.DisplayName}}</span></button>
+                {{- end}}
+              </td>
+            </tr>
+            {{- end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="help gpw-as-reason" id="self-reason">You cannot disable your own account.</p>
+      <p class="form-status" role="status" aria-live="polite" data-status="users"></p>
     </div>
-    <p class="help mt-2" id="self-reason">You cannot disable your own account.</p>
-    <p class="form-status mt-3" role="status" aria-live="polite" data-status="users"></p>
   </section>
 </div>
 {{end}}

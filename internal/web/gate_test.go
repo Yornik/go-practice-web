@@ -259,6 +259,24 @@ func TestEmailGate(t *testing.T) {
 	wantStatus(t, h.do(req{method: "GET", path: "/learn", as: grace}), http.StatusOK)
 }
 
+// TestUnverifiedHeader: until the address is verified, every page shows
+// the public header with "Sign out"; the app header's links would lead
+// back to /check-email.
+func TestUnverifiedHeader(t *testing.T) {
+	h := newHarness(t)
+	ada := h.unverifiedAdmin()
+	for _, path := range []string{"/account", "/guide", "/verify", "/no-such-page"} {
+		body := h.do(req{method: "GET", path: path, as: ada}).Body.String()
+		if strings.Contains(body, `<header class="site-head is-app">`) || !strings.Contains(body, `data-logout>Sign out</button>`) {
+			t.Errorf("%s shows the app header to an unverified user", path)
+		}
+	}
+	h.verify(ada)
+	if body := h.do(req{method: "GET", path: "/account", as: ada}).Body.String(); !strings.Contains(body, `<header class="site-head is-app">`) {
+		t.Error("/account lacks the app header once the address is verified")
+	}
+}
+
 func TestCheckEmailPage(t *testing.T) {
 	h := newHarness(t)
 	w := h.do(req{method: "GET", path: "/check-email"})
@@ -276,8 +294,8 @@ func TestCheckEmailPage(t *testing.T) {
 	}
 	body := page()
 	for _, want := range []string{
-		"<title>Check your email, Go Practice</title>",
-		"We sent a link to <strong>ada@example.com</strong>. Open it to start the course.",
+		"<title>Check your email, Vesper Labs Go Practice</title>",
+		"We sent a link to ada@example.com. Open it to start the course.",
 		"The link works for 48 hours.",
 		">Send the link again</button>",
 		`<a class="btn" href="/account">Change the address</a>`,
@@ -286,7 +304,7 @@ func TestCheckEmailPage(t *testing.T) {
 		// The harness's mailbox is like the log sender.
 		"<b>NOTE:</b> This server sends no email: SMTP is not set up. The link is in the server log",
 	} {
-		if !strings.Contains(body, want) {
+		if !strings.Contains(body, want) && !strings.Contains(pageText(body), want) {
 			t.Errorf("page lacks %q", want)
 		}
 	}
@@ -298,7 +316,7 @@ func TestCheckEmailPage(t *testing.T) {
 
 	// An expired link says so; a new one is on its way at once.
 	h.clock.Advance(auth.VerifyTTL + time.Minute)
-	if body := page(); !strings.Contains(body, "The link to <strong>ada@example.com</strong> does not work any more.") {
+	if body := pageText(page()); !strings.Contains(body, "The link to ada@example.com does not work any more.") {
 		t.Error("the page does not say that the link expired")
 	}
 	w = h.do(req{method: "POST", path: "/api/auth/verify-email/resend", body: map[string]any{}, as: ada})
@@ -306,7 +324,7 @@ func TestCheckEmailPage(t *testing.T) {
 	if got := decodeJSON[map[string]string](t, w)["email"]; got != "ada@example.com" {
 		t.Errorf("resend went to %q", got)
 	}
-	if body := page(); !strings.Contains(body, "We sent a link to <strong>ada@example.com</strong>.") {
+	if body := pageText(page()); !strings.Contains(body, "We sent a link to ada@example.com.") {
 		t.Error("the page does not show the new link")
 	}
 	// The limits of docs/DESIGN.md answer with their own message, which
@@ -331,7 +349,7 @@ func TestCheckEmailPage(t *testing.T) {
 	h.clock.Advance(time.Hour)
 	w = h.do(req{method: "PUT", path: "/api/account", body: map[string]string{"displayName": "Ada Admin", "email": "ada@example.org"}, as: ada})
 	wantStatus(t, w, http.StatusOK)
-	if body := page(); !strings.Contains(body, "We sent a link to <strong>ada@example.org</strong>.") {
+	if body := pageText(page()); !strings.Contains(body, "We sent a link to ada@example.org.") {
 		t.Error("the page does not show the new address")
 	}
 
@@ -376,7 +394,7 @@ func TestCheckEmailWithoutAddress(t *testing.T) {
 	wantStatus(t, w, http.StatusBadRequest)
 	w = h.do(req{method: "PUT", path: "/api/account", body: map[string]string{"displayName": "Olaf", "email": "olaf@example.com"}, as: old})
 	wantStatus(t, w, http.StatusOK)
-	if !strings.Contains(h.do(req{method: "GET", path: "/check-email", as: old}).Body.String(), "We sent a link to <strong>olaf@example.com</strong>.") {
+	if !strings.Contains(pageText(h.do(req{method: "GET", path: "/check-email", as: old}).Body.String()), "We sent a link to olaf@example.com.") {
 		t.Error("the page does not show the added address")
 	}
 }
@@ -427,7 +445,7 @@ func TestEmailRequired(t *testing.T) {
 	if page := h.do(req{method: "GET", path: "/account", as: bob}).Body.String(); !strings.Contains(page, "Not verified. Open the link in the email to start the course.") {
 		t.Error("the account page does not say that the address is not verified")
 	}
-	if page := h.do(req{method: "GET", path: "/account", as: admin}).Body.String(); !strings.Contains(page, "verified</span> Recovery links") {
+	if page := h.do(req{method: "GET", path: "/account", as: admin}).Body.String(); !strings.Contains(page, "Verified.</span> Recovery links") {
 		t.Error("the account page does not say that the address is verified")
 	}
 }
@@ -483,7 +501,7 @@ func TestSignUpNext(t *testing.T) {
 			h.mails.setDelivers(tt.smtp)
 			token := invite(tt.invite, tt.smtp)
 			page := h.do(req{method: "GET", path: "/join?invite=" + token}).Body.String()
-			if mailed := strings.Contains(page, "The invite came to this address, so it counts as verified."); mailed != (tt.smtp && tt.invite != "") {
+			if mailed := strings.Contains(pageText(page), ", so that address counts as verified."); mailed != (tt.smtp && tt.invite != "") {
 				t.Errorf("the join page says mailed: %v", mailed)
 			}
 			name := strings.SplitN(tt.signUp, "@", 2)[0]
@@ -522,3 +540,7 @@ func TestResendAfterVerify(t *testing.T) {
 		t.Errorf("%d mails after the refused resend, want %d", len(h.mails.msgs), sent)
 	}
 }
+
+// pageText is a page without its tags: an address breaks only after its
+// "@", so its 2 halves are separate elements in the markup.
+func pageText(body string) string { return anyTag.ReplaceAllString(body, "") }

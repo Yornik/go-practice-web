@@ -46,7 +46,9 @@ func NewSender(cfg Config, logger *slog.Logger) (Sender, error) {
 	}
 	if !cfg.Enabled() {
 		logger.Warn("SMTP is not configured: emails are written to the log, not sent")
-		return NewLogSender(logger), nil
+		s := NewLogSender(logger)
+		s.from, _ = ParseFrom(cfg.From) // checked above
+		return s, nil
 	}
 	return NewSMTPSender(cfg)
 }
@@ -80,6 +82,9 @@ const implicitTLSPort = 465
 
 // Delivers is true: a message that Send accepted went to the SMTP server.
 func (*SMTPSender) Delivers() bool { return true }
+
+// Address is the From address, which the footer of every mail names.
+func (s *SMTPSender) Address() string { return s.from.Address }
 
 func (s *SMTPSender) tlsConfig() *tls.Config {
 	c := &tls.Config{MinVersion: tls.VersionTLS12}
@@ -180,6 +185,7 @@ func (s *SMTPSender) deliver(conn net.Conn, to string, raw []byte) error {
 // is how a recovery link reaches the tester.
 type LogSender struct {
 	logger *slog.Logger
+	from   *mail.Address // the configured sender; nil when there is none
 }
 
 // NewLogSender returns a sender that logs at INFO.
@@ -190,6 +196,15 @@ func NewLogSender(logger *slog.Logger) *LogSender {
 // Delivers is false: the message stops in the log, where anyone who reads
 // the log can use its links.
 func (*LogSender) Delivers() bool { return false }
+
+// Address is the configured From address, so a logged mail reads as the
+// sent one would; "" when there is none.
+func (s *LogSender) Address() string {
+	if s.from == nil {
+		return ""
+	}
+	return s.from.Address
+}
 
 // Send logs m.
 func (s *LogSender) Send(ctx context.Context, m Message) error {

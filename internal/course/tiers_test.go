@@ -44,14 +44,14 @@ func TestFiftyShape(t *testing.T) {
 		t.Fatalf("got %d exercises in %d tiers", len(c.Exercises), len(c.Tiers))
 	}
 	t2, _ := c.Tier(2)
-	if t2.Name != "The Key" || t2.Label() != "Tier 2 · The Key" || t2.Title() != "Tier 2" {
+	if t2.Name != "The Key" || t2.Label() != "Tier 2, The Key" || t2.Title() != "Tier 2" {
 		t.Errorf("tier 2 = %q %q", t2.Name, t2.Label())
 	}
 	if !strings.HasPrefix(t2.Theme, "Types with methods") {
 		t.Errorf("tier 2 theme = %q", t2.Theme)
 	}
 	t10, ok := c.Tier(10)
-	if !ok || t10.Label() != "Tier 10 · The Key Turns" || t10.Range() != "45–50" || len(t10.Exercises) != 6 {
+	if !ok || t10.Label() != "Tier 10, The Key Turns" || t10.Range() != "45–50" || len(t10.Exercises) != 6 {
 		t.Fatalf("tier 10 = %+v", t10)
 	}
 	if t10.Exercises[0].Tier != 10 || t10.Exercises[0].Slug != "45-singleflight" {

@@ -73,7 +73,8 @@ func (s *Service) CreateInvite(ctx context.Context, admin store.User, in InviteR
 		mctx, cancel := context.WithTimeout(ctx, mailTimeout)
 		defer cancel()
 		err := s.mailer.Send(mctx, email, mail.Invite{
-			InvitedBy: admin.DisplayName, Note: note, Link: link, Expires: inv.ExpiresAt, Exercises: s.exercises,
+			InvitedBy: admin.DisplayName, Note: note, Link: link, Expires: inv.ExpiresAt,
+			ValidFor: time.Duration(days) * 24 * time.Hour, Exercises: s.exercises,
 		})
 		switch {
 		case err != nil:

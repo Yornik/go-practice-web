@@ -1,0 +1,27 @@
+{{/* partials/gate.html: the parts of the access panel that more than 1
+     page of the sign-in family shows (VESPER.md 8.3 to 8.5). No story on
+     these pages: an auth page must be unmistakable. */}}
+
+{{/* An email address that takes the width it needs and breaks only after
+     its "@". The argument is an emailAddr of the page data. */}}
+{{define "gate-addr"}}{{with .}}<span class="gpw-nobr">{{.At}}</span>{{with .Domain}}<wbr><span class="gpw-nobr">{{.}}</span>{{end}}{{end}}{{end}}
+
+{{/* The facts of a plain sign-in page: the site and how you sign in. The
+     argument is the site's host. */}}
+{{define "gate-strip-site"}}<dl class="gpw-gate-strip"><div><dt class="gpw-lbl">Site</dt><dd>{{zero .}}</dd></div><div><dt class="gpw-lbl">Sign in with</dt><dd>A passkey</dd></div><div><dt class="gpw-lbl">Password</dt><dd>None</dd></div></dl>{{end}}
+
+{{/* The domain move note (VESPER.md 8.3): a passkey belongs to the site
+     that made it, so every passkey made on the old host stops working.
+     (dict "From" old "To" new "Button" true). It is a plain fact, not
+     story. */}}
+{{define "gate-moved"}}
+  <aside class="gpw-gate-aside" aria-labelledby="moved-h">
+    <h2 id="moved-h" class="gpw-gate-ah">Did you use <span class="gpw-nobr">{{.From}}</span>?</h2>
+    <p>Go Practice moved from <span class="gpw-nobr">{{.From}}</span> to <span class="gpw-nobr">{{.To}}</span>. Your account and your progress moved with it.</p>
+    <p>A passkey works only on the site that made it. So a passkey made on <span class="gpw-nobr">{{.From}}</span> does not work here.</p>
+    <p>Recover your account to add a new passkey. The recovery link goes to the email address of your account.</p>
+    {{- if .Button}}
+    <a class="btn" href="/recover">Recover your account</a>
+    {{- end}}
+  </aside>
+{{- end}}

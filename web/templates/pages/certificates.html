@@ -1,50 +1,157 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/app.css"}}">
+{{- end}}
+{{define "readout"}}{{with .Story}}{{template "telem-app" .Readout}}{{end}}{{end}}
 {{define "content"}}
-<div class="wrap page">
-  <header class="page-head">
-    <h1>Certificates</h1>
-    <p class="lede">1 per tier and 1 for the course. Each one is a signed PDF with a public verify page. You choose if it shows your time and your hints.</p>
-  </header>
-  <ul class="cert-grid" data-display-name="{{.User.DisplayName}}">
-    {{- range .Data.Cards}}
-    <li class="cert-card{{if .Certificate}} grid-bg{{end}}" data-kind="{{.Kind}}" data-label="{{.Short}} certificate"
-        {{- with .Held}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{end}}>
-      <h2>{{.Name}}</h2>
-      <p class="theme">{{.Theme}}</p>
-      {{- with .Certificate}}
-      <dl class="titleblock">
-        <div><dt>Issued</dt><dd>{{shortdate .IssuedAt}}</dd></div>
-        <div><dt>ID</dt><dd class="mono">{{.ID}}</dd></div>
-      </dl>
-      <p class="progress-line">Printed name: {{.Name}}. {{if .ShowStats}}Shows your activity.{{else}}Does not show your activity.{{end}}</p>
-      <p class="form-status" role="status" aria-live="polite" data-card-status></p>
-      <div class="cert-actions">
-        <a class="btn btn-sm" href="{{.PDF}}">Open the PDF</a>
-        <a href="{{.URL}}">Verify page</a>
-        <button type="button" class="link-button" data-copy-link>Copy the verify link</button>
-        <button type="button" class="link-button" data-claim="again">Issue again</button>
-      </div>
-      {{- else}}
-      {{- with .Earlier}}
-      <p class="progress-line">You hold an earlier certificate of this kind, <span class="mono">{{.ID}}</span>, issued {{shortdate .IssuedAt}}. It stays valid. The course has grown since, so it covers fewer exercises than this one.</p>
-      <div class="cert-actions">
-        <a href="{{.PDF}}">Open the earlier PDF</a>
-        <a href="{{.URL}}">Verify page</a>
-        <button type="button" class="link-button" data-copy-link>Copy the verify link</button>
-      </div>
-      {{- end}}
-      <p class="form-status" role="status" aria-live="polite" data-card-status></p>
-      {{- if .Eligible}}
-      <p class="status-line status-ok"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>All {{.Total}} exercises pass.</p>
-      <div class="cert-actions">
-        <button type="button" class="btn btn-primary" data-claim="{{if .Earlier}}again{{else}}new{{end}}">Claim the {{.Short}} certificate</button>
-      </div>
-      {{- else}}
-      <p class="progress-line">{{.Passed}} of {{.Total}} pass.{{with .Missing}} {{len .}} to go{{if le (len .) 6}}: {{join . ", "}}{{end}}.{{end}}</p>
-      {{- end}}
-      {{- end}}
-    </li>
+{{- $d := .Data}}
+{{- $name := .User.DisplayName}}
+{{- with .Story}}
+{{- $s := .}}
+{{- with $d.Head}}
+<div class="gpw-wrap gpw-dash gpw-certs" data-display-name="{{$name}}">
+  {{- /* The head counts certificates once; the strip counts tags (VESPER.md 8.7). */}}
+  <div class="gpw-dash-head">
+    <p class="gpw-bignum"><span class="gpw-count-in" aria-hidden="true"><span class="gpw-count-n">{{zero (pad2 .Held)}}</span><span class="gpw-count-of">{{zero (printf "/%d" .Kinds)}}</span></span><span class="gpw-vh">{{.Said}}</span></p>
+    <div class="gpw-dash-title">
+      <h1 class="gpw-h1-app">Certificates</h1>
+      <p class="gpw-sum">A stamped tag for each tier, and the Key for the whole course. Each one is a signed PDF with a public verify page.</p>
+    </div>
+  </div>
+  <dl class="gpw-ro4">
+    <div><dt class="gpw-lbl">Tags stamped</dt><dd>{{zero .Tags}}{{with .Ready}}<span class="gpw-ro-sub">{{.}}</span>{{end}}</dd></div>
+    <div><dt class="gpw-lbl">Oldest certificate</dt><dd>{{if .Oldest}}{{zero .Oldest}}{{else}}None yet{{end}}</dd></div>
+    <div><dt class="gpw-lbl">Newest certificate</dt><dd>{{if .Newest}}{{zero .Newest}}{{else}}None yet{{end}}</dd></div>
+    <div><dt class="gpw-lbl">Signing key</dt><dd><span class="gpw-mono">{{$d.Fingerprint}}</span></dd></div>
+  </dl>
+
+  {{- /* 1 primary action per view: the first claim on the page. */}}
+  {{- $primary := true}}
+  <div class="gpw-ct">
+    {{- range .Years}}
+    <section class="gpw-ct-year" aria-labelledby="cy{{.N}}">
+      <div class="gpw-ct-yh"><h2 id="cy{{.N}}">Year {{.N}}</h2><p class="gpw-lbl">{{zero .Label}}</p></div>
+      <ol class="gpw-ct-list">
+        {{- range .Tiers}}
+        {{- $k := printf " of tier %d" .N}}
+        <li class="gpw-ct-row {{.CertClass}}" data-kind="tier{{.N}}" data-label="tier {{.N}} certificate" data-title="{{.Label}}" data-range="{{.Span}}" data-summary="{{.ClaimSummary}}"
+            {{- with .Cert}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{else}}{{with .Status}}{{with .Earlier}} data-url="{{.URL}}"{{end}}{{end}}{{end}}>
+          {{.PlateSVG}}
+          <div class="gpw-ct-h"><h3>{{zero .Label}}</h3><p class="gpw-lbl gpw-ct-st">{{.PlateWord}}</p></div>
+          <div class="gpw-ct-more">
+            {{- with .CertLine}}
+            <p class="gpw-ct-line">{{.}}</p>
+            {{- else}}{{with .LineSentence}}
+            <p class="gpw-ct-line gpw-ct-theme">{{.}}</p>
+            {{- end}}{{end}}
+            <ol class="gpw-ct-cells" aria-hidden="true">{{range .Cells}}<li class="gpw-ct-c-{{if eq .State "passed"}}on{{else if eq .State "oncall"}}cur{{else}}off{{end}}">{{zero (pad2 .Number)}}</li>{{end}}</ol>
+            <p class="gpw-formstat form-status" role="status" aria-live="polite" data-card-status></p>
+            {{- if .IsStamped}}
+            {{- with .Cert}}
+            <dl class="gpw-tb">
+              <div><dt class="gpw-lbl">Issued</dt><dd>{{zero (shortdate .IssuedAt)}}</dd></div>
+              <div><dt class="gpw-lbl">Certificate ID</dt><dd class="gpw-mono">{{.ID}}</dd></div>
+            </dl>
+            <p class="gpw-ct-note">Printed name: {{.Name}}. {{if .ShowStats}}Shows your activity.{{else}}Does not show your activity.{{end}}</p>
+            <div class="gpw-ct-act">
+              <a class="gpw-btn gpw-btn-q gpw-btn-sm" href="{{.PDF}}">Open the PDF<span class="gpw-vh">{{$k}}</span></a>
+              <a class="gpw-link" href="{{.URL}}">Verify page<span class="gpw-vh">{{$k}}</span></a>
+              <button type="button" class="gpw-linkbtn" data-copy-link>Copy the verify link<span class="gpw-vh">{{$k}}</span></button>
+              <button type="button" class="gpw-linkbtn" data-claim="again" aria-haspopup="dialog">Issue again<span class="gpw-vh">{{$k}}</span></button>
+            </div>
+            {{- end}}
+            {{- else}}
+            {{- with .Status}}{{with .Earlier}}
+            <p class="gpw-ct-note">You hold an earlier certificate of this kind, <span class="gpw-mono">{{.ID}}</span>, issued {{shortdate .IssuedAt}}. It stays valid. The course has grown since, so it covers fewer exercises than this one.</p>
+            <div class="gpw-ct-act">
+              <a class="gpw-btn gpw-btn-q gpw-btn-sm" href="{{.PDF}}">Open the earlier PDF<span class="gpw-vh">{{$k}}</span></a>
+              <a class="gpw-link" href="{{.URL}}">Verify page<span class="gpw-vh"> of the earlier certificate{{$k}}</span></a>
+              <button type="button" class="gpw-linkbtn" data-copy-link>Copy the verify link<span class="gpw-vh"> of the earlier certificate{{$k}}</span></button>
+            </div>
+            {{- end}}{{end}}
+            {{- if .IsReady}}
+            <p class="gpw-ct-ok"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg>{{.Progress}}</p>
+            <div class="gpw-ct-act"><button type="button" class="gpw-btn {{if $primary}}gpw-btn-go{{else}}gpw-btn-q{{end}}" data-claim="{{if and .Status .Status.Earlier}}again{{else}}new{{end}}" aria-haspopup="dialog">{{zero .ClaimTitle}}</button></div>
+            {{- $primary = false}}
+            {{- else}}
+            <p class="gpw-ct-note">{{.Progress}}</p>
+            {{- end}}
+            {{- end}}
+          </div>
+        </li>
+        {{- end}}
+      </ol>
+    </section>
     {{- end}}
-  </ul>
-  <p class="cert-foot">The verify page of a certificate shows the same facts as its PDF, as an accessible web page. A certificate of the first course (25 exercises) shows the numbers of the current course, and says what it was issued as. Every certificate is signed with the key that has the fingerprint <span class="mono">{{.Data.Fingerprint}}</span>. The public key is at <a href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a>.</p>
+  </div>
+
+  {{- /* The Key: the course certificate, on its own rail under both years. */}}
+  {{- with $s.Key}}
+  <section class="gpw-ct-key" aria-labelledby="key-h" data-kind="course" data-label="course certificate" data-title="The complete course" data-range="01 to {{pad2 $s.Total}}" data-summary="{{$s.KeySummary}}"
+      {{- with .Held}} data-name="{{.Name}}" data-show-stats="{{.ShowStats}}" data-url="{{.URL}}"{{end}}>
+    <div class="gpw-ct-keyart">{{$s.KeyArt}}<p class="gpw-lbl gpw-ct-keylbl"><span>Breaker {{zero "0"}},</span> <span>Hall 3</span></p></div>
+    <div class="gpw-ct-keybody">
+      <div class="gpw-ct-h"><h2 id="key-h" class="gpw-ct-keyt">The Key: the course certificate</h2><p class="gpw-lbl gpw-ct-st">{{$d.Head.KeyState}}</p></div>
+      {{- if .Held}}
+      <p class="gpw-ct-line">{{.Held.Name}} held the Key through {{$s.Total}} exercises and wrote every tool by hand. Every pager in Meridian still works.</p>
+      {{- else if .Ready}}
+      <p class="gpw-ct-line">Every tool is in the Ledger with you as its author. Claim the Key.</p>
+      {{- else}}
+      <p class="gpw-ct-line">The Key covers all {{$s.Total}} exercises. When every tool is in the Ledger with you as its author, you can claim it.</p>
+      {{- end}}
+      <figure class="gpw-ct-sky">
+        <figcaption class="gpw-skyfig-h"><span class="gpw-lbl">The course to scale</span>{{with $d.KeyCaption}}<span class="gpw-lbl">{{zero .}}</span>{{end}}</figcaption>
+        {{template "skyline" $d.KeySky}}
+      </figure>
+      <p class="gpw-formstat form-status" role="status" aria-live="polite" data-card-status></p>
+      {{- if .Held}}{{with .Held}}
+      <dl class="gpw-tb">
+        <div><dt class="gpw-lbl">Issued</dt><dd>{{zero (shortdate .IssuedAt)}}</dd></div>
+        <div><dt class="gpw-lbl">Certificate ID</dt><dd class="gpw-mono">{{.ID}}</dd></div>
+      </dl>
+      <p class="gpw-ct-note">Printed name: {{.Name}}. {{if .ShowStats}}Shows your activity.{{else}}Does not show your activity.{{end}}</p>
+      <div class="gpw-ct-act">
+        <a class="gpw-btn gpw-btn-q gpw-btn-sm" href="{{.PDF}}">Open the PDF<span class="gpw-vh"> of the Key</span></a>
+        <a class="gpw-link" href="{{.URL}}">Verify page<span class="gpw-vh"> of the Key</span></a>
+        <button type="button" class="gpw-linkbtn" data-copy-link>Copy the verify link<span class="gpw-vh"> of the Key</span></button>
+        <button type="button" class="gpw-linkbtn" data-claim="again" aria-haspopup="dialog">Issue again<span class="gpw-vh"> of the Key</span></button>
+      </div>
+      {{- end}}
+      {{- else if .Ready}}
+      <p class="gpw-ct-ok"><svg class="icon gpw-pi-s" aria-hidden="true"><use href="#i-tick"/></svg>{{$d.Head.KeyCount}}</p>
+      <div class="gpw-ct-act"><button type="button" class="gpw-btn {{if $primary}}gpw-btn-go{{else}}gpw-btn-q{{end}}" data-claim="{{if .Earlier}}again{{else}}new{{end}}" aria-haspopup="dialog">Claim the course certificate</button></div>
+      {{- else}}
+      <p class="gpw-ct-note">{{$d.Head.KeyCount}}</p>
+      {{- end}}
+      {{- with .Earlier}}
+      <div class="gpw-ct-earlier">
+        <h3 class="gpw-ct-eh">You hold an earlier course certificate</h3>
+        <p>It stays valid. The course has grown since, so it covers fewer exercises than the Key does now.</p>
+        <dl class="gpw-tb">
+          {{- with index $d.Earlier "course"}}{{with .Covers}}<div class="gpw-tb-wide"><dt class="gpw-lbl">Covers</dt><dd>{{zero .}}</dd></div>{{end}}{{end}}
+          <div><dt class="gpw-lbl">Issued</dt><dd>{{zero (shortdate .IssuedAt)}}</dd></div>
+          <div><dt class="gpw-lbl">Certificate ID</dt><dd class="gpw-mono">{{.ID}}</dd></div>
+        </dl>
+        {{- with index $d.Earlier "course"}}{{with .Note}}
+        <p class="gpw-ct-note">{{.}}</p>
+        {{- end}}{{end}}
+        <div class="gpw-ct-act" data-earlier-url="{{.URL}}">
+          <a class="gpw-btn gpw-btn-q gpw-btn-sm" href="{{.PDF}}">Open the earlier PDF</a>
+          <a class="gpw-link" href="{{.URL}}">Verify page<span class="gpw-vh"> of the earlier course certificate</span></a>
+          <button type="button" class="gpw-linkbtn" data-copy-link>Copy the verify link<span class="gpw-vh"> of the earlier course certificate</span></button>
+        </div>
+        <p class="gpw-ct-note">{{if $s.Key.Ready}}Claim the Key above.{{else}}When all {{$s.Total}} pass, claim the Key here.{{end}} The new certificate replaces the earlier one, and the earlier ID then points to it.</p>
+      </div>
+      {{- end}}
+    </div>
+  </section>
+  {{- end}}
+  <p class="gpw-ct-foot">The verify page of a certificate shows the same facts as its PDF, as an accessible web page. A certificate of the first course shows the numbers of the current course, and says what it was issued as. Every certificate is signed with the key in the strip above. The public key is at <a class="gpw-link gpw-mono" href="/.well-known/go-practice-certificates.pub">/.well-known/go-practice-certificates.pub</a>.</p>
 </div>
+{{- end}}
+{{- else}}
+<div class="gpw-wrap gpw-dash gpw-certs">
+  <h1 class="gpw-h1-app">Certificates</h1>
+  <p class="gpw-sum">Your certificates could not load. Reload the page.</p>
+</div>
+{{- end}}
 {{end}}

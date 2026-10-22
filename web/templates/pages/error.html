@@ -1,18 +1,56 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page error-page">
-  <section aria-labelledby="error-title">
-    <header class="page-head">
-      <h1 id="error-title">{{.Data.Message}}</h1>
-      {{- with .Data.Detail}}
-      <p class="lede">{{.}}</p>
+{{- with .Data}}
+<div class="wrap gpw-nf">
+  <div class="gpw-nf-head">
+    <p class="gpw-nf-num" aria-hidden="true">{{zero .Status}}</p>
+    <div class="gpw-nf-title">
+      <h1 id="error-title" class="gpw-h1-app"><span class="gpw-vh">{{.Status}}: </span>{{.Message}}</h1>
+      {{- with .Detail}}
+      <p class="gpw-sum">{{.}}</p>
       {{- end}}
-    </header>
-    <p>{{if eq .Data.Status 404}}Check the address, or go to:{{else}}Go to:{{end}}</p>
-    <p class="error-links mt-3">
-      {{- if .User}}<a href="/learn">Your course</a>{{else}}<a href="/">The start page</a>{{end}}
-      <a href="/guide">The guide</a>
-      <a href="/verify">Verify a certificate</a>
-    </p>
-  </section>
+      <ul class="gpw-nf-ways" aria-label="Pages that answer">
+        <li>{{if $.User}}<a class="btn" href="/learn">Your course</a>{{else}}<a class="btn" href="/">The start page</a>{{end}}</li>
+        <li><a class="btn" href="/guide">The guide</a></li>
+        <li><a class="btn" href="/verify">Verify a certificate</a></li>
+      </ul>
+    </div>
+  </div>
+  {{- if .Rows}}
+  <div class="gpw-nf-grid">
+    {{- /* The roll call stays with story effects off: it tells the facts.
+         The asked-for path is user text: escaped, cut, never a link. */}}
+    <figure class="gpw-po" aria-labelledby="po-cap">
+      <div class="gpw-po-bar"><span class="gpw-lbl">{{zero "Roll call, floor 61"}}</span><span class="gpw-lbl">{{zero (.At.Format "2 Jan 2006, 15:04:05")}}</span></div>
+      <p class="gpw-po-cmd"><code>$ rollcall --inventory pages.txt</code></p>
+      <div class="gpw-po-scroll" tabindex="0" role="group" aria-label="Roll call output">
+        <table class="gpw-po-tbl"><caption class="gpw-vh">Every page in the inventory, and the address you asked for</caption>
+          <thead><tr><th scope="col">State</th><th scope="col">Path</th><th scope="col">Last heartbeat</th><th scope="col" class="gpw-story">HUSH says</th></tr></thead>
+          <tbody>
+            {{- range .Rows}}
+            <tr{{if .Miss}} class="gpw-po-miss"{{end}}><td data-label="State">{{.State}}</td><td data-label="Path">{{.Path}}</td><td data-label="Last heartbeat">{{.Beat}}</td><td class="gpw-po-hush gpw-story" data-label="HUSH says">{{.Hush}}</td></tr>
+            {{- end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="gpw-po-sum"><code>{{len .Rows}} checked: {{sub (len .Rows) 1}} healthy, 1 unknown. Exit status 1.</code></p>
+      {{- range .Rows}}{{if .Miss}}
+      <figcaption class="gpw-vh" id="po-cap">A roll call lists the address you asked for, {{.Path}}, as unknown: no page with that address exists.</figcaption>
+      {{- end}}{{end}}
+    </figure>
+    <figure class="gpw-nf-scale gpw-story" aria-labelledby="fs-cap">
+      {{template "floor-scale"}}
+      <figcaption id="fs-cap">The floor scale of the Spire. Vesper Labs has floors 58 to 64. No floor is lit: there is no floor 404.</figcaption>
+    </figure>
+  </div>
+  {{- end}}
 </div>
+{{- end}}
 {{end}}
+
+{{/* The Spire's floors 0 to 64 and the scale running on to F404
+     (VESPER.md 6.27). A 0 in a label is set in Atkinson Mono (gpw-sv-z),
+     whose 0 is slashed. */}}
+{{define "floor-scale"}}<svg class="gpw-nf-svg" viewBox="0 0 250 562" aria-hidden="true"><path class="gpw-sv-h2" d="M0 560.0H250"/><path class="gpw-sv-plane" d="M22.0 560.0L34.0 112.0H88.0L100.0 560.0Z"/><path class="gpw-sv-h2" d="M22.0 560.0L34.0 112.0H88.0L100.0 560.0"/><path class="gpw-sv-h" d="M22.2 553.0H99.8"/><path class="gpw-sv-h" d="M22.4 546.0H99.6"/><path class="gpw-sv-h" d="M22.6 539.0H99.4"/><path class="gpw-sv-h" d="M22.8 532.0H99.2"/><path class="gpw-sv-h" d="M22.9 525.0H99.1"/><path class="gpw-sv-h" d="M23.1 518.0H98.9"/><path class="gpw-sv-h" d="M23.3 511.0H98.7"/><path class="gpw-sv-h" d="M23.5 504.0H98.5"/><path class="gpw-sv-h" d="M23.7 497.0H98.3"/><path class="gpw-sv-h" d="M23.9 490.0H98.1"/><path class="gpw-sv-h" d="M24.1 483.0H97.9"/><path class="gpw-sv-h" d="M24.2 476.0H97.8"/><path class="gpw-sv-h" d="M24.4 469.0H97.6"/><path class="gpw-sv-h" d="M24.6 462.0H97.4"/><path class="gpw-sv-h" d="M24.8 455.0H97.2"/><path class="gpw-sv-h" d="M25.0 448.0H97.0"/><path class="gpw-sv-h" d="M25.2 441.0H96.8"/><path class="gpw-sv-h" d="M25.4 434.0H96.6"/><path class="gpw-sv-h" d="M25.6 427.0H96.4"/><path class="gpw-sv-h" d="M25.8 420.0H96.2"/><path class="gpw-sv-h" d="M25.9 413.0H96.1"/><path class="gpw-sv-h" d="M26.1 406.0H95.9"/><path class="gpw-sv-h" d="M26.3 399.0H95.7"/><path class="gpw-sv-h" d="M26.5 392.0H95.5"/><path class="gpw-sv-h" d="M26.7 385.0H95.3"/><path class="gpw-sv-h" d="M26.9 378.0H95.1"/><path class="gpw-sv-h" d="M27.1 371.0H94.9"/><path class="gpw-sv-h" d="M27.2 364.0H94.8"/><path class="gpw-sv-h" d="M27.4 357.0H94.6"/><path class="gpw-sv-h" d="M27.6 350.0H94.4"/><path class="gpw-sv-h" d="M27.8 343.0H94.2"/><path class="gpw-sv-h" d="M28.0 336.0H94.0"/><path class="gpw-sv-h" d="M28.2 329.0H93.8"/><path class="gpw-sv-h" d="M28.4 322.0H93.6"/><path class="gpw-sv-h" d="M28.6 315.0H93.4"/><path class="gpw-sv-h" d="M28.8 308.0H93.2"/><path class="gpw-sv-h" d="M28.9 301.0H93.1"/><path class="gpw-sv-h" d="M29.1 294.0H92.9"/><path class="gpw-sv-h" d="M29.3 287.0H92.7"/><path class="gpw-sv-h" d="M29.5 280.0H92.5"/><path class="gpw-sv-h" d="M29.7 273.0H92.3"/><path class="gpw-sv-h" d="M29.9 266.0H92.1"/><path class="gpw-sv-h" d="M30.1 259.0H91.9"/><path class="gpw-sv-h" d="M30.2 252.0H91.8"/><path class="gpw-sv-h" d="M30.4 245.0H91.6"/><path class="gpw-sv-h" d="M30.6 238.0H91.4"/><path class="gpw-sv-h" d="M30.8 231.0H91.2"/><path class="gpw-sv-h" d="M31.0 224.0H91.0"/><path class="gpw-sv-h" d="M31.2 217.0H90.8"/><path class="gpw-sv-h" d="M31.4 210.0H90.6"/><path class="gpw-sv-h" d="M31.6 203.0H90.4"/><path class="gpw-sv-h" d="M31.8 196.0H90.2"/><path class="gpw-sv-h" d="M31.9 189.0H90.1"/><path class="gpw-sv-h" d="M32.1 182.0H89.9"/><path class="gpw-sv-h" d="M32.3 175.0H89.7"/><path class="gpw-sv-h" d="M32.5 168.0H89.5"/><path class="gpw-sv-h" d="M32.7 161.0H89.3"/><path class="gpw-sv-h2" d="M32.9 154.0H89.1"/><path class="gpw-sv-h2" d="M33.1 147.0H88.9"/><path class="gpw-sv-h2" d="M33.2 140.0H88.8"/><path class="gpw-sv-h2" d="M33.4 133.0H88.6"/><path class="gpw-sv-h2" d="M33.6 126.0H88.4"/><path class="gpw-sv-h2" d="M33.8 119.0H88.2"/><path class="gpw-sv-h2" d="M61 112.0V82.0M55 94.0h12"/><path class="gpw-sv-h2" d="M132 560.0V112.0"/><path class="gpw-sv-h2" d="M132 560.0h8"/><path class="gpw-sv-h2" d="M132 546.0h4"/><path class="gpw-sv-h2" d="M132 532.0h4"/><path class="gpw-sv-h2" d="M132 518.0h4"/><path class="gpw-sv-h2" d="M132 504.0h8"/><text class="gpw-sv-t" x="146" y="509.0">F<tspan class="gpw-sv-z">0</tspan>8</text><path class="gpw-sv-h2" d="M132 490.0h4"/><path class="gpw-sv-h2" d="M132 476.0h4"/><path class="gpw-sv-h2" d="M132 462.0h4"/><path class="gpw-sv-h2" d="M132 448.0h8"/><text class="gpw-sv-t" x="146" y="453.0">F16</text><path class="gpw-sv-h2" d="M132 434.0h4"/><path class="gpw-sv-h2" d="M132 420.0h4"/><path class="gpw-sv-h2" d="M132 406.0h4"/><path class="gpw-sv-h2" d="M132 392.0h8"/><text class="gpw-sv-t" x="146" y="397.0">F24</text><path class="gpw-sv-h2" d="M132 378.0h4"/><path class="gpw-sv-h2" d="M132 364.0h4"/><path class="gpw-sv-h2" d="M132 350.0h4"/><path class="gpw-sv-h2" d="M132 336.0h8"/><text class="gpw-sv-t" x="146" y="341.0">F32</text><path class="gpw-sv-h2" d="M132 322.0h4"/><path class="gpw-sv-h2" d="M132 308.0h4"/><path class="gpw-sv-h2" d="M132 294.0h4"/><path class="gpw-sv-h2" d="M132 280.0h8"/><text class="gpw-sv-t" x="146" y="285.0">F4<tspan class="gpw-sv-z">0</tspan></text><path class="gpw-sv-h2" d="M132 266.0h4"/><path class="gpw-sv-h2" d="M132 252.0h4"/><path class="gpw-sv-h2" d="M132 238.0h4"/><path class="gpw-sv-h2" d="M132 224.0h8"/><text class="gpw-sv-t" x="146" y="229.0">F48</text><path class="gpw-sv-h2" d="M132 210.0h4"/><path class="gpw-sv-h2" d="M132 196.0h4"/><path class="gpw-sv-h2" d="M132 182.0h4"/><path class="gpw-sv-h2" d="M132 168.0h8"/><text class="gpw-sv-t" x="146" y="173.0">F56</text><path class="gpw-sv-h2" d="M132 154.0h4"/><path class="gpw-sv-h2" d="M132 140.0h4"/><path class="gpw-sv-h2" d="M132 126.0h4"/><path class="gpw-sv-h2" d="M132 112.0h8"/><text class="gpw-sv-t" x="146" y="117.0">F64</text><path class="gpw-sv-h2" d="M190 112.0h6V154.0h-6"/><text class="gpw-sv-t gpw-sv-t-ink gpw-sv-t-nar" x="202" y="123">VESPER</text><text class="gpw-sv-t gpw-sv-t-ink gpw-sv-t-nar" x="202" y="138">LABS</text><path class="gpw-sv-h2 gpw-sv-dash" d="M132 112.0V14M132 14h8"/><text class="gpw-sv-t gpw-sv-t-ink" x="146" y="19">F4<tspan class="gpw-sv-z">0</tspan>4</text><text class="gpw-sv-t gpw-sv-t-nar" x="146" y="38">NOT IN THIS</text><text class="gpw-sv-t gpw-sv-t-nar" x="146" y="53">BUILDING</text></svg>{{end}}

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/yornik/go-practice-web/internal/auth"
 	"github.com/yornik/go-practice-web/internal/course"
 	"github.com/yornik/go-practice-web/internal/explain"
 	"github.com/yornik/go-practice-web/internal/runnerapi"
@@ -230,7 +231,7 @@ func (s *Server) saveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := identity(r)
-	if err := limit(s.writeLimit, id.User.ID); err != nil {
+	if err := limit(s.writeLimit, id.User.ID, limitWrites); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -264,7 +265,7 @@ func (s *Server) resetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := identity(r)
-	if err := limit(s.writeLimit, id.User.ID); err != nil {
+	if err := limit(s.writeLimit, id.User.ID, limitWrites); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -275,13 +276,32 @@ func (s *Server) resetFile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"content": f.Content})
 }
 
-// limit applies a per-user limiter.
-func limit(l interface {
-	Allow(string) (bool, time.Duration)
-}, userID int64) error {
+// limitText says what a per-user limit stopped (VESPER.md 10.5): did
+// takes the limit's count and window, then comes the wait and again.
+// "You ran the tests 10 times this minute. Wait 3 seconds, then run them
+// again."
+type limitText struct{ did, again string }
+
+var (
+	limitTests  = limitText{"You ran the tests %d times this %s.", "run them again"}
+	limitWrites = limitText{"The IDE saved your work %d times this %s.", "save again"}
+	limitChecks = limitText{"The check ran %d times this %s.", "type again to check"}
+	limitFormat = limitText{"You formatted the file %d times this %s.", "format it again"}
+	limitClaims = limitText{"You claimed %d certificates this %s.", "claim again"}
+)
+
+// limit applies a per-user limiter. The text's wait and Retry-After are
+// the same number of seconds.
+func limit(l *auth.Limiter, userID int64, t limitText) error {
 	if ok, retry := l.Allow(itoa(int(userID))); !ok {
+		n, per := l.Rate()
+		window := "minute"
+		if per >= time.Hour {
+			window = "hour"
+		}
 		return &apiError{status: http.StatusTooManyRequests, code: "rate_limited",
-			msg: "Slow down a little: too many requests. Wait a moment and try again.", retry: retryAfter(retry)}
+			msg:   fmt.Sprintf(t.did, n, window) + " Wait " + auth.WaitText(retry) + ", then " + t.again + ".",
+			retry: retryAfter(retry)}
 	}
 	return nil
 }
@@ -320,7 +340,7 @@ func (s *Server) check(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	if err := limit(s.checkLimit, id.User.ID); err != nil {
+	if err := limit(s.checkLimit, id.User.ID, limitChecks); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -434,7 +454,7 @@ func (s *Server) format(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := identity(r)
-	if err := limit(s.formatLimit, id.User.ID); err != nil {
+	if err := limit(s.formatLimit, id.User.ID, limitFormat); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -495,7 +515,7 @@ func (s *Server) reveal(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if in.Level > 1 && prev == nil {
-		s.fail(w, r, errorf(http.StatusConflict, "reveal_order", "Reveal "+course.Level(in.Level-1).String()+" first."))
+		s.fail(w, r, errorf(http.StatusConflict, "reveal_order", "Reveal "+course.Level(in.Level-1).InSentence()+" first."))
 		return
 	}
 	if !in.Confirm {
@@ -511,7 +531,7 @@ func (s *Server) reveal(w http.ResponseWriter, r *http.Request) {
 	}
 	rv, _, err := s.cfg.Store.RecordReveal(ctx, id.User.ID, ex.Slug, in.Level)
 	if errors.Is(err, store.ErrRevealOrder) {
-		s.fail(w, r, errorf(http.StatusConflict, "reveal_order", "Reveal "+course.Level(in.Level-1).String()+" first."))
+		s.fail(w, r, errorf(http.StatusConflict, "reveal_order", "Reveal "+course.Level(in.Level-1).InSentence()+" first."))
 		return
 	}
 	if err != nil {
@@ -568,7 +588,7 @@ func (s *Server) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := identity(r)
-	if err := limit(s.writeLimit, id.User.ID); err != nil {
+	if err := limit(s.writeLimit, id.User.ID, limitWrites); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -610,7 +630,7 @@ func (s *Server) saveNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := identity(r)
-	if err := limit(s.writeLimit, id.User.ID); err != nil {
+	if err := limit(s.writeLimit, id.User.ID, limitWrites); err != nil {
 		s.fail(w, r, err)
 		return
 	}

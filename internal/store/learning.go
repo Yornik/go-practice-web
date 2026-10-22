@@ -55,6 +55,28 @@ func (s *Store) DeleteCode(ctx context.Context, userID int64, exercise, file str
 	return nil
 }
 
+// LastSaves returns, by exercise slug, when the user last saved a file of
+// it. The dashboard's on-call exercise is the one worked in last, and a
+// save is the most frequent trace of that work.
+func (s *Store) LastSaves(ctx context.Context, userID int64) (map[string]time.Time, error) {
+	type save struct {
+		exercise string
+		at       time.Time
+	}
+	saves, err := queryAll(ctx, s.db, func(r scanner) (save, error) {
+		var sv save
+		return sv, r.Scan(&sv.exercise, tcol(&sv.at))
+	}, `SELECT exercise, MAX(updated_at) FROM code WHERE user_id = ? GROUP BY exercise`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("store: last saves: %w", err)
+	}
+	out := make(map[string]time.Time, len(saves))
+	for _, sv := range saves {
+		out[sv.exercise] = sv.at
+	}
+	return out, nil
+}
+
 // Status of an exercise for a user.
 type Status string
 

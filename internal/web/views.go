@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"regexp"
 	"strings"
@@ -10,63 +9,6 @@ import (
 	"github.com/yornik/go-practice-web/internal/explain"
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
-
-// strip is the course to scale: 1 bar per exercise, as wide as its hours,
-// grouped by tier (".design/FINAL.md", section 6.15).
-type strip struct {
-	Tiers []stripTier
-	Class string  // "strip-lg" on the landing page, "strip-mini" in the admin table
-	Links bool    // each bar links to its exercise
-	Label string  // the accessible name of the whole strip when the bars are not links
-	Max   float64 // the hours of the longest tier: on a narrow screen it is the full width
-}
-
-type stripTier struct {
-	N     int
-	Hours float64
-	Bars  []stripBar
-}
-
-type stripBar struct {
-	*course.Exercise
-	State string // "", "started", "passed" or "here"
-}
-
-// Name is the bar's accessible name: "07 Retries with backoff, jitter and
-// context, 2.5 h, started".
-func (b stripBar) Name() string {
-	state := map[string]string{"": "not started", "started": "started", "passed": "passed", "here": "shown above"}[b.State]
-	return fmt.Sprintf("%02d %s, %s, %s", b.Number, b.Title, formatHours(b.Hours), state)
-}
-
-// courseStrip builds the strip of the whole course; states maps a slug to
-// "started", "passed" or "here".
-func courseStrip(c *course.Course, states map[string]string) strip {
-	return coveredStrip(c.Tiers, states, nil)
-}
-
-// coveredStrip builds the strip of the given tiers. With a non-nil only,
-// it draws only the exercises in it: a certificate of the first course
-// covers 25 of the 50.
-func coveredStrip(tiers []*course.Tier, states map[string]string, only map[string]bool) strip {
-	var s strip
-	for _, t := range tiers {
-		st := stripTier{N: t.N}
-		for _, e := range t.Exercises {
-			if only != nil && !only[e.Slug] {
-				continue
-			}
-			st.Hours += e.Hours
-			st.Bars = append(st.Bars, stripBar{Exercise: e, State: states[e.Slug]})
-		}
-		if len(st.Bars) == 0 {
-			continue
-		}
-		s.Max = max(s.Max, st.Hours)
-		s.Tiers = append(s.Tiers, st)
-	}
-	return s
-}
 
 // xSection is 1 section of an explanation: its heading and its HTML.
 type xSection struct {
@@ -106,30 +48,77 @@ func explanationSections(html string) []xSection {
 	return out
 }
 
-// landingFigure is Figure 2 of the landing page: a compile error as the
-// IDE explains it, from the real catalog entry.
-type landingFigure struct {
-	Title    template.HTML // the plain title, with the captured name in <code>
-	Sections []xSection
-	Course   string
+// landingAnatomy is the anatomy drawing of the landing page (VESPER.md
+// 6.30): a compile error in exercise 07, as the IDE takes it apart. The
+// title and the meaning come from the real catalog entry, so the page
+// promises nothing the IDE does not say.
+type landingAnatomy struct {
+	Title template.HTML // the plain title, with the captured name in <code>
+	Means template.HTML // the first 2 sentences of "What it means"
 }
 
-func figureTwo(c *course.Course) landingFigure {
+// anatomyMessage is the drawn message. Its length is fixed: the leaders of
+// the drawing are measured in characters of this line.
+const anatomyMessage = "undefined: strings"
+
+func newLandingAnatomy() landingAnatomy {
 	e := explain.Explain(runnerapi.Diagnostic{
-		File: "retry.go", Line: 120, Column: 11, Severity: runnerapi.SeverityError,
-		Source: runnerapi.SourceCompile, Message: "undefined: sleepContext",
+		File: "rollcall.go", Line: 36, Column: 12, Severity: runnerapi.SeverityError,
+		Source: runnerapi.SourceCompile, Message: anatomyMessage,
 	})
-	var secs []xSection
+	a := landingAnatomy{Title: codeCaptures(e.Title, e.Raw.Captures)}
 	for _, s := range explanationSections(e.HTML) {
-		if s.Title == "What it means" || s.Title == "How to find it" {
-			secs = append(secs, s)
+		if s.Title == "What it means" {
+			a.Means = firstSentences(s.HTML, 2)
 		}
 	}
-	fig := landingFigure{Title: codeCaptures(e.Title, e.Raw.Captures), Sections: secs}
-	if _, ok := c.Exercise(e.Course); ok {
-		fig.Course = e.Course
+	return a
+}
+
+// voidTag is an element without an end tag.
+var voidTag = regexp.MustCompile(`^<(br|hr|img|wbr)\b`)
+
+// paragraph is the first paragraph of catalog HTML.
+var paragraph = regexp.MustCompile(`(?s)<p>(.*?)</p>`)
+
+// firstSentences is the start of the first paragraph of catalog HTML, up
+// to the end of its nth sentence: a title-block cell holds 2 sentences, not
+// the whole section. A sentence ends at ". " outside every element, so the
+// cut never splits a tag or leaves one open: "a. b" in <code> is no end.
+func firstSentences(html template.HTML, n int) template.HTML {
+	m := paragraph.FindStringSubmatch(string(html))
+	if m == nil {
+		return ""
 	}
-	return fig
+	p := m[1]
+	depth := 0
+	for i := 0; i < len(p); i++ {
+		switch {
+		case p[i] == '<':
+			end := strings.IndexByte(p[i:], '>')
+			if end < 0 {
+				return ""
+			}
+			tag := p[i : i+end+1]
+			switch {
+			case strings.HasPrefix(tag, "</"):
+				depth--
+			case !strings.HasSuffix(tag, "/>") && !voidTag.MatchString(tag):
+				depth++
+			}
+			i += end
+		case depth == 0 && p[i] == '.' && i+1 < len(p) && p[i+1] == ' ':
+			if n--; n == 0 {
+				p = p[:i+1]
+			}
+		}
+		if n == 0 {
+			break
+		}
+	}
+	// The catalog renders the HTML with every captured value escaped
+	// (internal/explain), and the cut falls outside every element.
+	return template.HTML(p) //nolint:gosec // see above
 }
 
 // codeCaptures escapes a title and sets each captured value in <code>, as
@@ -146,9 +135,22 @@ func codeCaptures(title string, captures map[string]string) template.HTML {
 	return template.HTML(out) //nolint:gosec // every piece is escaped above
 }
 
-// guideView is the guide page: the root README's sections and the 4
-// generic guides on reading Go messages.
+// guideView is the guide page (VESPER.md 8.2): a manual of numbered
+// sections, the root README's among them, and the 4 generic guides on
+// reading Go messages.
 type guideView struct {
-	Sections []course.Section
-	Guides   []explain.Explanation
+	Items  []guideItem
+	Guides []explain.Explanation
+}
+
+// guideItem is 1 numbered section of the guide.
+type guideItem struct {
+	N     int
+	ID    string
+	Title string // the title in the contents and over the section
+	// Kind picks the section's body: "story", "work", "checklist",
+	// "messages", "keys" and "tools" have their own; "section" is the
+	// README's HTML.
+	Kind    string
+	Section course.Section
 }

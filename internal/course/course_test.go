@@ -148,6 +148,10 @@ func TestSteps(t *testing.T) {
 			if all.ID != AllTestsID || all.Run != "" || !all.Race || all.Title() != "All tests" {
 				t.Errorf("last step = %+v, want All tests with -race", all)
 			}
+			// The Steps tab counts the README's steps, not All tests.
+			if e.ReadmeSteps() != len(e.Steps)-1 {
+				t.Errorf("ReadmeSteps() = %d, want %d", e.ReadmeSteps(), len(e.Steps)-1)
+			}
 			filtered := 0
 			ids := map[string]bool{}
 			for _, s := range e.Steps {
@@ -437,6 +441,11 @@ func TestRenderedHTML(t *testing.T) {
 		if strings.Contains(html, "raw HTML omitted") {
 			t.Errorf("%s: holds raw HTML", name)
 		}
+		// A wide table scrolls in its box; the box, not the table, takes
+		// the region role, so the table keeps its headers.
+		if all, boxed := strings.Count(html, "<table"), strings.Count(html, `<div class="gpw-tscroll"><table>`); all != boxed {
+			t.Errorf("%s: %d of %d tables outside a scroll box", name, all-boxed, all)
+		}
 	}
 	for _, s := range c.Guide {
 		check(t, "guide "+s.Title, string(s.HTML))
@@ -450,6 +459,11 @@ func TestRenderedHTML(t *testing.T) {
 			check(t, "README", string(e.HTML))
 			if !strings.Contains(string(e.HTML), `class="chroma"`) {
 				t.Error("README has no highlighted code")
+			}
+			// Every code block has 1 span per line, also without a language,
+			// so a wrapped command keeps its hanging indent.
+			if pre, chroma := strings.Count(string(e.HTML), "<pre"), strings.Count(string(e.HTML), `<pre class="chroma"><code><span class="line">`); pre != chroma {
+				t.Errorf("%d of %d code blocks have no line spans", pre-chroma, pre)
 			}
 			for l := Hint1; l <= MaxLevel; l++ {
 				h, err := e.Hidden(l)
@@ -646,6 +660,37 @@ func TestHighlightCSS(t *testing.T) {
 		}
 		if !strings.HasPrefix(line, "[data-theme=") && !strings.HasPrefix(line, ":root:not([data-theme])") {
 			t.Errorf("unscoped rule %q", line)
+		}
+	}
+	// The syntax colours of VESPER.md 3.2 and 12: keywords bold, predeclared
+	// types and constants, strings, upright comments, lexer errors; numbers,
+	// builtins and diffs stay ink, because red and green mean test results.
+	for _, want := range []string{
+		`[data-theme="light"] .chroma, :root:not([data-theme]) .chroma { color: #070707;`,
+		`[data-theme="light"] .chroma .k, :root:not([data-theme]) .chroma .k { color: #1f4e79; font-weight: bold }`,
+		`[data-theme="light"] .chroma .kd, :root:not([data-theme]) .chroma .kd { color: #1f4e79; font-weight: bold }`,
+		`[data-theme="light"] .chroma .kt, :root:not([data-theme]) .chroma .kt { color: #3d5f1c }`,
+		`[data-theme="light"] .chroma .kc, :root:not([data-theme]) .chroma .kc { color: #3d5f1c }`,
+		`[data-theme="light"] .chroma .s, :root:not([data-theme]) .chroma .s { color: #7a4500 }`,
+		`[data-theme="light"] .chroma .sc, :root:not([data-theme]) .chroma .sc { color: #7a4500 }`,
+		`[data-theme="light"] .chroma .c1, :root:not([data-theme]) .chroma .c1 { color: #595d61 }`,
+		`[data-theme="light"] .chroma .err, :root:not([data-theme]) .chroma .err { color: #bd2a1e }`,
+		`[data-theme="dark"] .chroma { color: #edeeef;`,
+		`[data-theme="dark"] .chroma .k { color: #a9c4dd; font-weight: bold }`,
+		`[data-theme="dark"] .chroma .kt { color: #b5cf9c }`,
+		`[data-theme="dark"] .chroma .s2 { color: #ddbe8e }`,
+		`[data-theme="dark"] .chroma .cm { color: #8e9398 }`,
+		`[data-theme="dark"] .chroma .err { color: #ff6150 }`,
+		`[data-theme="dark"] .chroma .hl { background-color: #3d3112 }`,
+		`:root:not([data-theme]) .chroma .k { color: #a9c4dd; font-weight: bold }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("HighlightCSS lacks %q", want)
+		}
+	}
+	for _, token := range []string{".mi ", ".m ", ".nb ", ".gi ", ".gd ", "italic; color", "background-color: #e5e5e5"} {
+		if strings.Contains(css, token) {
+			t.Errorf("HighlightCSS styles %q, which stays ink", token)
 		}
 	}
 	if _, err := HighlightCSSFor("no-such-style", "github-dark"); err == nil {

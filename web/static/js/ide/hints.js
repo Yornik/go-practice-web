@@ -6,9 +6,12 @@
 // to 6 open in the reading sheet, which covers your code on purpose.
 //
 // The spec comes first: the ladder starts folded until hint 1's gate has
-// passed, and it shows only the next rung in full. Every rung keeps its
-// buttons from the start and only their text and state change, so the
-// countdown never takes the keyboard focus away.
+// passed, and it shows only the next rung in full; the later ones show
+// their title and what they wait for (VESPER.md 7.8). Every rung keeps
+// its buttons from the start and only their text and state change, so the
+// countdown never takes the keyboard focus away. The gate line under the
+// heading has a story part and a plain part; CSS hides the story part
+// when story effects are off.
 import { api, ApiError, errorMessage } from "../api.js";
 import { h, load, save, reducedMotion } from "../ui/dom.js";
 import { clock } from "../ui/format.js";
@@ -49,11 +52,14 @@ export class Hints {
       this.build(l);
       this.levels.set(level, l);
     }
-    this.rest = this.ladder.querySelector("[data-rung-rest]");
     for (const r of this.revealed) this.store(r);
     this.foldButton = this.ladder.querySelector("[data-ladder-fold]");
     this.sub = this.ladder.querySelector("[data-ladder-sub]");
     this.passedNote = this.ladder.querySelector("[data-ladder-passed]");
+    this.row = this.ladder.querySelector("[data-rung-row]");
+    this.gateLine = this.ladder.querySelector("[data-ladder-gate]");
+    this.gateStory = this.ladder.querySelector("[data-gate-story]");
+    this.gatePlain = this.ladder.querySelector("[data-gate-plain]");
     this.foldButton.addEventListener("click", () => this.fold(!this.ladder.classList.contains("is-folded")));
     this.lastReveal = 0;
     // Folded until hint 1 can open without a gate, unless the learner chose.
@@ -65,7 +71,6 @@ export class Hints {
 
   /** The parts of a rung that change: made once, then only updated. */
   build(l) {
-    l.gateText = h("p", { class: "rung-gate-text" });
     l.ruler = h("div", { class: "ruler", role: "img", hidden: true });
     l.rule = h("p", { class: "rung-note" }, "Active time counts while this tab is in front. It pauses after 10 min without a key, a click or a scroll.");
     l.confirmText = h("p", {});
@@ -74,7 +79,7 @@ export class Hints {
     l.confirm = h("div", { class: "confirm", role: "group", "aria-label": `Reveal ${NAMES[l.level]} early`, hidden: true }, l.confirmText, h("div", { class: "btn-row" }, l.keep, l.early));
     l.button = h("button", { type: "button", class: "btn btn-sm", hidden: true, onclick: () => this.primary(l) });
     l.errorEl = h("p", { class: "field-error", role: "alert", hidden: true });
-    l.gate.append(l.gateText, l.ruler, l.rule, l.confirm);
+    l.gate.append(l.ruler, l.rule, l.confirm);
     l.actions.append(l.button, l.errorEl);
   }
 
@@ -122,11 +127,13 @@ export class Hints {
   render() {
     const next = this.highest() + 1;
     this.passedNote.hidden = !this.passed;
-    const locked = [];
+    this.renderGateLine(next);
+    // Levels 4 to 6 share 1 row until hint 3 is revealed.
+    const shared = next <= 3;
+    if (this.row) this.row.hidden = !shared;
     for (const [level, l] of this.levels) {
       // Hidden parts keep no text, so nothing stale is read or found.
       if (!l.confirming || l.revealed) l.confirmText.textContent = "";
-      if (l.revealed || level !== next) l.gateText.textContent = "";
       l.errorEl.hidden = !l.error;
       l.errorEl.textContent = l.error;
       l.button.setAttribute("aria-disabled", String(l.busy));
@@ -141,19 +148,17 @@ export class Hints {
       }
       if (level !== next) {
         this.state(l, "locked");
-        l.li.hidden = true;
+        l.li.hidden = level > 3 && shared;
         l.meta.textContent = l.after;
         l.gate.hidden = true;
         l.button.hidden = true;
-        locked.push(level);
         continue;
       }
       this.state(l, "next");
       l.li.hidden = false;
-      l.meta.textContent = "";
       const g = this.gate(level);
       const name = NAMES[level];
-      l.gate.hidden = false;
+      l.gate.hidden = !g && !l.confirming;
       l.confirm.hidden = !l.confirming;
       if (l.confirming) {
         const c = l.confirming;
@@ -161,24 +166,44 @@ export class Hints {
           ? `The course asks you to try for ${c.needed} minutes of active time before hint 1. You have ${minutesText(c.have)}.`
           : `The course asks you to wait ${c.needed} minutes between hints. You revealed ${NAMES[level - 1]} ${sinceText(c)}.`;
       }
-      if (!g) l.gateText.textContent = "";
-      l.gateText.hidden = !g || !!l.confirming;
       l.ruler.hidden = !g || !!l.confirming;
       l.rule.hidden = !g || g.kind !== "active" || !!l.confirming;
       if (g) {
-        l.gateText.textContent = g.kind === "active"
-          ? `You can reveal it after ${g.needed} min of active time. You have ${g.have} min${this.paused ? ", and the count is paused" : ""}.`
+        l.meta.textContent = g.kind === "active"
+          ? `You can reveal it after ${g.needed - g.have} more min of active time.`
           : `You can reveal it in ${g.needed - g.have} min.`;
         updateRuler(l.ruler, g);
+      } else {
+        l.meta.textContent = "";
       }
       l.button.hidden = !!l.confirming;
       l.button.textContent = g ? `Reveal ${name} now` : `Reveal ${name}`;
     }
-    if (this.rest) {
-      this.rest.hidden = locked.length === 0;
-      this.rest.textContent = locked.length ? `Then ${listText(locked.map((n) => NAMES[n]))}, 1 at a time.` : "";
-    }
+    // The rail runs down to the last rung that shows.
+    const shown = [...this.ladder.querySelectorAll(".rungs > .rung:not([hidden])")];
+    shown.forEach((li, i) => li.classList.toggle("is-last", i === shown.length - 1));
     this.renderSummary();
+  }
+
+  /** The gate line under the heading: a story part and a plain part (VESPER.md 7.8). */
+  renderGateLine(next) {
+    if (!this.gateLine) return;
+    let story = "";
+    let plain = "";
+    // Once every level is revealed, nothing is left to invite to.
+    if (!this.passed && this.levels.has(next)) {
+      const g = next === 1 ? this.gate(1) : null;
+      if (g) {
+        story = `The first ${g.needed} minutes are yours: you, the docs and the rain. Raw line first. `;
+        plain = `You can reveal hint 1 after ${g.needed} min of active time. You have ${g.have} min${this.paused ? ", and the count is paused" : ""}.`;
+      } else {
+        story = "Noor's notes are open, 1 at a time. A person wrote them, after getting stuck in the same place. ";
+        plain = "Reveal 1 level at a time.";
+      }
+    }
+    this.gateStory.textContent = story;
+    this.gatePlain.textContent = plain;
+    this.gateLine.hidden = !plain;
   }
 
   state(l, s) {
@@ -268,8 +293,11 @@ export class Hints {
 
   renderSummary() {
     if (!this.sub) return;
-    if (!this.ladder.classList.contains("is-folded")) {
-      this.sub.textContent = "Reveal 1 level at a time.";
+    // The summary is the folded ladder's 1 line; unfolded, the gate line says it.
+    const folded = this.ladder.classList.contains("is-folded");
+    this.sub.hidden = !folded;
+    if (!folded) {
+      this.sub.textContent = "";
       return;
     }
     const top = this.highest();
@@ -311,18 +339,21 @@ export class Hints {
       opener.focus();
     });
     document.body.append(dialog);
+    // site.js makes a wide table or code block in it reachable by keyboard.
+    dialog.dispatchEvent(new CustomEvent("gpw:content", { bubbles: true }));
     dialog.showModal();
     dialog.querySelector(".reading-head .btn").focus();
   }
 }
 
+/** The ruler: 1 cell per minute, the elapsed cells amber; every 5th of a long ruler is long. */
 function updateRuler(el, g) {
   const ticks = g.needed;
   el.setAttribute("aria-label", `${g.have} of ${g.needed} minutes have passed`);
-  el.style.setProperty("--elapsed", `${Math.min(100, (g.have / g.needed) * 100)}%`);
   if (el.childElementCount !== ticks) {
-    el.replaceChildren(...Array.from({ length: ticks }, (_, i) => h("i", { class: ticks > 10 && i % 5 === 0 ? "long" : null })));
+    el.replaceChildren(...Array.from({ length: ticks }, (_, i) => h("i", { class: ticks > 10 && (i + 1) % 5 === 0 ? "long" : null })));
   }
+  [...el.children].forEach((cell, i) => cell.classList.toggle("is-el", i < g.have));
 }
 
 function minutesText(n) {
@@ -333,11 +364,6 @@ function minutesText(n) {
 function sinceText(g) {
   const ago = g.have < 1 ? "less than 1 minute ago" : `${minutesText(g.have)} ago`;
   return g.at ? `at ${clock(g.at)}, ${ago}` : ago;
-}
-
-function listText(items) {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
 function capital(s) {

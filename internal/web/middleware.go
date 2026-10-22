@@ -135,18 +135,26 @@ func (s *Server) recoverPanics(next http.Handler) http.Handler {
 
 // csp is the Content-Security-Policy of docs/DESIGN.md. Monaco loads its
 // AMD modules from /static, which 'self' covers. Beyond that it needs
-// 'unsafe-inline' styles (it sets element styles), blob: workers (its
-// loader wraps each worker script in a blob that calls importScripts) and
-// data: fonts (its codicon icon font is inlined in the CSS as a data URL).
-const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+// blob: workers (its loader wraps each worker script in a blob that calls
+// importScripts), data: fonts (its codicon icon font is inlined in the CSS
+// as a data URL) and 'unsafe-inline' styles (it sets element styles). The
+// last one only the IDE's page gets (pageCSP), so on every other page the
+// browser itself refuses a style attribute.
+const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
 	"font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; " +
 	"form-action 'self'"
 
 // pageCSP is the policy of an HTML page: csp plus the hash of the page's
 // import map, the only inline script. A hash, not a nonce: the map is the
-// same on every page of a deploy.
-func pageCSP(importMapHash string) string {
-	return strings.Replace(csp, "script-src 'self'", "script-src 'self' "+importMapHash, 1)
+// same on every page of a deploy. The IDE's page also allows inline
+// styles, for Monaco and for the sizes its panels set as custom
+// properties.
+func pageCSP(importMapHash string, ide bool) string {
+	p := strings.Replace(csp, "script-src 'self'", "script-src 'self' "+importMapHash, 1)
+	if ide {
+		p = strings.Replace(p, "style-src 'self'", "style-src 'self' 'unsafe-inline'", 1)
+	}
+	return p
 }
 
 // securityHeaders sets the headers every response carries.
@@ -209,7 +217,13 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 			r = r.WithContext(context.WithValue(r.Context(), identityKey, id))
 		case !errors.Is(err, auth.ErrNoSession):
 			s.log.Error("load session", "err", err)
-			writeJSONError(w, http.StatusServiceUnavailable, "unavailable", "The site cannot reach its database. Try again in a minute.")
+			if strings.HasPrefix(p, "/api/") {
+				writeJSONError(w, http.StatusServiceUnavailable, "unavailable", "The site cannot reach its database. Try again in a minute.")
+				return
+			}
+			// A browser shows a JSON body as raw text. The request carries
+			// no identity here, so the error page runs no store query.
+			s.errorPage(w, r, http.StatusServiceUnavailable, "The site cannot reach its database.")
 			return
 		}
 		next.ServeHTTP(w, r)

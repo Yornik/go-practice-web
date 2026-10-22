@@ -1,157 +1,236 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
+{{define "readout"}}{{template "telem-landing"}}{{end}}
 {{define "content"}}
-<div class="landing">
-  <div class="wrap">
-    <section class="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">Practice Go on real operations tasks.<br> Do the thinking yourself.</h1>
-      <div class="hero-text">
-        <p class="lede">Parse logs, compute burn rates, retry with backoff, elect a leader, balance traffic. {{len .Course.Exercises}} exercises in {{len .Course.Tiers}} tiers, about {{printf "%.0f" .Course.Hours}} hours of work.</p>
-        <p class="body-text">You read the spec, write Go in the browser and run the real tests with <code>-race</code>. When a test fails, the site explains the error in plain words. It does not write the fix, and it has no LLM.</p>
-        <div class="hero-actions">
-          {{- if .User}}
-          <a class="btn btn-primary btn-lg" href="/learn">Open your course</a>
-          <a href="/guide">Read the guide</a>
-          {{- else}}
-          <a class="btn btn-primary btn-lg" href="/login">Sign in</a>
-          <a href="/guide">Read the guide</a>
-          {{- end}}
-        </div>
-        {{- if not .User}}
-        <p class="hero-invite">Invite only. To make an account, you need an invite link.</p>
+{{- $c := .Course}}{{$d := .Data}}
+<section class="gpw-hero" aria-labelledby="hero-h">
+  <div class="gpw-ruler" aria-hidden="true"><div class="wrap gpw-g12"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span><span>K</span><span>L</span></div></div>
+  <div class="wrap gpw-hero-grid">
+    <div class="gpw-hero-copy">
+      <h1 id="hero-h" class="gpw-h1">Practice Go on the night shift. <span>Write every line yourself.</span></h1>
+      <p class="gpw-lede">Meridian, 03:12. Rain on the Spire, neon in the rain, and under the city an AI that is very, very polite. You are the new junior SRE at Vesper Labs, where 1 rule is etched in the lobby glass: no AI writes the code that watches the AI. {{len $c.Exercises}} Go exercises, real <code>go test -race</code> runs, and every line is yours.</p>
+      <div class="gpw-cta">
+        {{- if .User}}
+        <a class="btn btn-primary" href="/learn">Open your course</a>
+        {{- else}}
+        <a class="btn btn-primary" href="/login">Sign in with a passkey</a>
         {{- end}}
+        <a class="gpw-link" href="/guide">Read the guide</a>
       </div>
-
-      <figure class="fig" aria-labelledby="fig1-caption">
-        <div class="fig-body" data-leaders>
-          <div class="fig-sheet grid-bg">
-            <div class="fig-code" role="region" aria-label="Figure 1, Go code" tabindex="0">
-<span class="ln"><span class="tok-com">// fetch gets the config. It tries 5 times.</span></span>
-<span class="ln"><span class="tok-kw">func</span> fetch(ctx context.Context) (Config, <span class="tok-num">error</span>) {</span>
-<span class="ln">&#9;<span class="tok-kw">var</span> cfg Config</span>
-<span class="ln">&#9;<span class="tok-kw">var</span> err <span class="tok-num">error</span></span>
-<span class="ln">&#9;<span class="tok-kw">for</span> i := <span class="tok-num">0</span>; i &lt; <span class="tok-num">5</span>; i++ {</span>
-<span class="ln">&#9;&#9;cfg, err = get(ctx, <span class="tok-str">"/config"</span>)</span>
-<span class="ln">&#9;&#9;<span class="tok-kw">if</span> <span class="mark">err == <span class="tok-num">nil</span></span> {<span class="eol" data-note="1"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">1</span></span>
-<span class="ln">&#9;&#9;&#9;<span class="tok-kw">return</span> cfg, <span class="tok-num">nil</span></span>
-<span class="ln">&#9;&#9;}</span>
-<span class="ln">&#9;&#9;delay := <span class="mark"><span class="tok-num">1</span> * time.Second</span><span class="eol" data-note="2"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">2</span></span>
-<span class="ln">&#9;&#9;<span class="mark">time.Sleep</span>(delay)<span class="eol" data-note="3"></span><span class="balloon balloon-sm eol-num" aria-hidden="true">3</span></span>
-<span class="ln">&#9;}</span>
-<span class="ln">&#9;<span class="tok-kw">return</span> cfg, err</span>
-<span class="ln">}</span>
-            </div>
-          </div>
-          <ol class="fig-notes" aria-label="Notes on Figure 1">
-            <li data-note="1"><span class="balloon" aria-hidden="true">1</span><p>Every error gets a retry. A 400 can never succeed. A <code>Retry-After:&nbsp;30</code> is ignored.</p></li>
-            <li data-note="2"><span class="balloon" aria-hidden="true">2</span><p>Every replica waits the same 1&nbsp;s. 200 replicas retry at the same moment and hit the service as 1 wave.</p></li>
-            <li data-note="3"><span class="balloon" aria-hidden="true">3</span><p><code>time.Sleep</code> ignores <code>ctx</code>. On SIGTERM the pod waits for the sleep. A deadline cannot stop it.</p></li>
-          </ol>
-          <svg class="leaders" aria-hidden="true" focusable="false"></svg>
-        </div>
-        <figcaption class="fig-caption" id="fig1-caption">
-          {{- with .Data.Exercise}}
-          <p><b>Figure 1.</b> The retry loop from the scenario of exercise {{pad2 .Number}}. You replace it with the helper that your team's clients share.</p>
-          <dl class="titleblock">
-            <div><dt>Exercise</dt><dd>{{pad2 .Number}}</dd></div>
-            <div><dt>Tier</dt><dd>{{.Tier}}</dd></div>
-            <div><dt>Estimate</dt><dd>{{hours .Hours}}</dd></div>
-          </dl>
-          {{- else}}
-          <p><b>Figure 1.</b> A retry loop from the scenario of an exercise. You replace it with the helper that your team's clients share.</p>
-          {{- end}}
-        </figcaption>
-      </figure>
-    </section>
-  </div>
-
-  <section class="section" aria-labelledby="explain-title">
-    <div class="wrap">
-      <h2 id="explain-title">When it breaks, you get the reason</h2>
-      <p class="section-intro">The site does not stop at "error at line 120". It names each part of the message and explains the rule behind it.</p>
-      {{- with .Data.Figure}}
-      <div class="fig2">
-        <figure aria-labelledby="fig2-caption">
-          <article class="problem" aria-label="Problem 1">
-            <span class="balloon is-filled" aria-hidden="true">1</span>
-            <p class="problem-source">The compiler found this while you typed, at 14:06.</p>
-            <h3 class="problem-title">{{.Title}}</h3>
-            <p class="problem-where">Line 120 in <span class="mono">retry.go</span></p>
-            <div class="anatomy">
-              <div class="raw" data-fig2="raw"><span class="part" data-part="a">retry.go:120:11</span>: undefined: <span class="part is-key" data-part="b">sleepContext</span></div>
-              <dl class="parts" data-fig2="parts">
-                <div><dt><span class="balloon" aria-hidden="true">a</span><code>retry.go:120:11</code></dt><dd>The file, the line and the column. The column counts bytes from 1, and a tab counts as 1.</dd></div>
-                <div><dt><span class="balloon" aria-hidden="true">b</span><code>sleepContext</code></dt><dd>The name that Go cannot find.</dd></div>
-              </dl>
-            </div>
-            {{- range $i, $s := .Sections}}
-            <details class="xsec" open{{if eq $i 0}} data-fig2="rule"{{end}}>
-              <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>{{$s.Title}}</summary>
-              <div class="xsec-body">{{$s.HTML}}</div>
-            </details>
-            {{- end}}
-          </article>
-          <figcaption id="fig2-caption"><b>Figure 2.</b> A compile error in {{with $.Data.Exercise}}exercise {{pad2 .Number}}{{else}}an exercise{{end}}, as the editor explains it. The text comes from the catalog of explanations that the site ships.</figcaption>
-        </figure>
-        <ul class="fig2-notes" aria-label="Notes on Figure 2" data-fig2-notes>
-          <li data-for="raw"><p>The raw message stays visible. Reading real Go errors is part of the course.</p></li>
-          <li data-for="parts"><p>Each part has a name: the place in the file, and the value Go complains about.</p></li>
-          <li data-for="rule"><p>The rule comes from the Go spec, not from a model. Every explanation is written and checked against the real compiler.</p></li>
-        </ul>
-      </div>
+      {{- if not .User}}
+      <p class="gpw-invite">Invite only. To make an account, you need an invite link.</p>
       {{- end}}
     </div>
-  </section>
+    {{template "spire"}}
+    {{template "lobby"}}
+  </div>
+</section>
 
-  <section class="section" aria-labelledby="how-title">
-    <div class="wrap">
-      <h2 id="how-title">How you work an exercise</h2>
-      <p class="section-intro">The steps come from the course itself. The site keeps the time, the runs and the hints in your learning log.</p>
-      <ol class="procedure">
-        <li><b>Read the spec twice.</b> Then read the tests. Their names tell you what "done" means.</li>
-        <li><b>Work 2 examples by hand.</b> Write down the state your code keeps and what must stay true about it.</li>
-        <li><b>Pass 1 test first.</b> Write the simplest code that can pass it. Run only that step.</li>
-        <li><b>Read each failure.</b> The site names every part of the message and explains the rule behind it.</li>
-        <li><b>Stuck for 25 minutes?</b> Reveal hint 1. Wait 10 minutes before the next hint.</li>
-      </ol>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="toc-title">
-    <div class="wrap">
-      <h2 id="toc-title">The {{len .Course.Exercises}} exercises</h2>
-      <p class="section-intro">Work them in order. Each tier assumes the tiers before it. The times are for a medior engineer who works without an LLM.</p>
-      {{template "strip" .Data.Strip}}
-      <div class="course-contents">
-        {{- range .Course.Tiers}}
-        <div>
-          <h3>{{.Label}}</h3>
-          <p>{{.Theme}}</p>
-          <ol>
-            {{- range .Exercises}}
-            <li><span class="no">{{pad2 .Number}}</span><span class="t"><span>{{.Title}}</span></span><span class="h">{{hours .Hours}}</span></li>
-            {{- end}}
-          </ol>
-        </div>
-        {{- end}}
-        <div class="contents-cert">
-          <h3>Certificates</h3>
-          <p class="muted">1 per tier and 1 for the course.</p>
-          <p>Each certificate is a signed PDF with a link to a public verify page. You choose if it shows your time and your hints.</p>
-        </div>
+<section class="gpw-sec" aria-labelledby="raw-h"><div class="wrap">
+  <div class="gpw-sec-h">
+    <h2 id="raw-h" class="gpw-h2">Raw line first</h2>
+    <p class="gpw-where gpw-lbl">{{zero "Floor 61, wall panel 3"}}<br>Your first night</p>
+    <p class="gpw-sec-lede">On your first night, a panel on floor 61 says the inference fleet had 0 errors since March. Noor opens the raw log instead.</p>
+  </div>
+  <figure class="gpw-fig1">
+    <div class="gpw-fig1-grid">
+      <div class="gpw-screen gpw-wall" role="img" aria-label="Wall panel on floor 61: errors per hour, inference fleet: 0 since March. Every bar is empty.">
+        <span class="gpw-lbl">Errors per hour, inference fleet</span>
+        <span class="gpw-wall-num" aria-hidden="true">{{zero "0"}}</span>
+        <span class="gpw-wall-val">since March</span>
+        <span class="gpw-wall-bars" aria-hidden="true">{{range seq 24}}<i></i>{{end}}</span><span class="gpw-wall-axis" aria-hidden="true"><span>March</span><span>Now</span></span>
+        <span class="gpw-wall-foot"><span class="gpw-lbl">{{zero "Floor 61, wall panel 3"}}</span><span class="gpw-lbl">Projected</span></span>
+      </div>
+      <div class="gpw-log gpw-brk">
+        <div class="gpw-log-h"><span class="gpw-lbl"><code>fleet.log</code>, the same hour</span><span class="gpw-lbl">Raw</span></div>
+        <ol class="gpw-log-lines">
+          <li><span>ts=21:14:07 host=vl-gw-2 <mark>level=ERROR</mark> msg="upstream timeout"</span><span class="gpw-pin" role="img" aria-label="Note 1">1</span></li>
+          <li><span>ts=21:14:09 host=vl-gpu-0117 <mark>lvl=err</mark> msg="ecc error, page retired"</span><span class="gpw-pin" role="img" aria-label="Note 2">2</span></li>
+          <li><span>ts=21:14:11 host=vl-gpu-0117 agent=hushd <mark>severity=critical</mark> msg="worker exited"</span><span class="gpw-pin" role="img" aria-label="Note 3">3</span></li>
+          <li><span>ts=21:14:12 host=vl-gw-1 level=info msg="health ok"</span><span></span></li>
+        </ol>
+        <ol class="gpw-notes" aria-label="Notes on the log">
+          <li><span class="gpw-pin-o" aria-hidden="true">1</span><span>Capital letters. The panel counts only <code>level=error</code>, so it skips this line.</span></li>
+          <li><span class="gpw-pin-o" aria-hidden="true">2</span><span>Another key, another spelling. Skipped.</span></li>
+          <li><span class="gpw-pin-o" aria-hidden="true">3</span><span>HUSH's own agent spells it like this. Skipped.</span></li>
+        </ol>
       </div>
     </div>
-  </section>
-
-  <section class="section" aria-labelledby="rules-title">
-    <div class="wrap">
-      <h2 id="rules-title">The rules</h2>
-      <ol class="rules">
-        <li><span>Do not use an LLM. That includes chat assistants and AI autocomplete. The editor has none.</span></li>
-        <li><span>Use the documentation freely: <code>go doc</code>, pkg.go.dev, the Go spec, the Go blog and RFCs. The editor shows the standard library docs when you hover a name.</span></li>
-        <li><span>Try for at least 25 minutes before you reveal hint 1. Wait at least 10 minutes between hints.</span></li>
-        <li><span>If you read the reference solution, close it, wait, and write your own version from memory.</span></li>
-        <li><span>After you pass, read the explanation and the walkthrough. They show the trade-offs.</span></li>
-      </ol>
+    <div class="gpw-figcap">
+      <figcaption><b>Figure 1.</b> The panel counts only lines with exactly <code>level=error</code>.{{with $d.First}} In exercise {{pad2 .Number}} you write the counter that reads every spelling.{{end}}</figcaption>
+      {{- with $d.First}}
+      <dl class="gpw-facts"><div><dt class="gpw-lbl">Exercise</dt><dd>{{zero (printf "%02d %s" .Number .Title)}}</dd></div><div><dt class="gpw-lbl">Tier</dt><dd>{{zero $d.FirstTier}}</dd></div><div><dt class="gpw-lbl">Estimate</dt><dd>{{zero (hours .Hours)}}</dd></div></dl>
+      {{- end}}
     </div>
-  </section>
-</div>
+  </figure>
+</div></section>
+
+<section class="gpw-sec" aria-labelledby="why-h"><div class="wrap">
+  <figure class="gpw-dimfig" aria-labelledby="why-h">
+    <div class="gpw-dim-head">
+      <h2 id="why-h" class="gpw-h2">When it breaks, you get the reason</h2>
+      <p class="gpw-lbl gpw-dim-no">Drawing 2: a compiler message, as the IDE takes it apart</p>
+    </div>
+    <p class="gpw-prob-src"><span class="gpw-pin" aria-hidden="true">1</span>The compiler found this while you typed, at 14:06.</p>
+    <p class="gpw-prob-title">{{$d.Anatomy.Title}}</p>
+    {{- /* The leaders are measured in characters of this exact line. */}}
+    <div class="gpw-dim-frame" tabindex="0" role="group" aria-label="The raw message: rollcall.go:36:12: undefined: strings"><div class="gpw-dim"><p class="gpw-dim-raw" aria-hidden="true"><span class="gpw-dp" data-part="a">rollcall.go:</span><span class="gpw-dp" data-part="b">36:</span><span class="gpw-dp" data-part="c">12:</span> <span class="gpw-dp" data-part="d">undefined:</span> <span class="gpw-dp gpw-part-key" data-part="e">strings</span></p><svg class="gpw-dim-lead" viewBox="0 0 370 72" preserveAspectRatio="none" aria-hidden="true"><path d="M60 0V16L6 58V72M135 0V16L80 58V72M165 0V16L154 58V72M240 0V16L228 58V72M335 0V16L302 58V72"/></svg></div></div>
+    <dl class="gpw-dim-legend">
+      <div><dt><i aria-hidden="true">a</i><code>rollcall.go</code></dt><dd>The file. It opens in the editor.</dd></div>
+      <div><dt><i aria-hidden="true">b</i><code>36</code></dt><dd>The line.</dd></div>
+      <div><dt><i aria-hidden="true">c</i><code>12</code></dt><dd>The column, in bytes from 1. A tab counts as 1.</dd></div>
+      <div><dt><i aria-hidden="true">d</i><code>undefined:</code></dt><dd>What is wrong. The title above says it in plain words.</dd></div>
+      <div><dt><i aria-hidden="true">e</i><code>strings</code></dt><dd>The name that Go cannot find.</dd></div>
+    </dl>
+    <dl class="gpw-dim-tb">
+      {{- with $d.Anatomy.Means}}
+      <div class="gpw-dim-tb-means"><dt class="gpw-lbl">What it means</dt><dd>{{.}}</dd></div>
+      {{- end}}
+      <div><dt class="gpw-lbl">The raw message</dt><dd>Stays on screen, exactly as the compiler printed it.</dd></div>
+      <div><dt class="gpw-lbl">Each part</dt><dd>Has a name and a meaning.</dd></div>
+      <div><dt class="gpw-lbl">The rule</dt><dd>Comes from the Go spec, not from a model.</dd></div>
+    </dl>
+  </figure>
+</div></section>
+
+<section class="gpw-sec" aria-labelledby="shift-h"><div class="wrap">
+  <div class="gpw-ts-board">
+    <div class="gpw-ts-head">
+      <h2 id="shift-h" class="gpw-h2">How a shift works</h2>
+      <p>The story sets the scene. The task, the rules and the tests stay exact and plain.</p>
+      <p class="gpw-lbl gpw-ts-key">{{zero "Exercise 07, splits in local time"}}</p>
+    </div>
+    <ol class="gpw-ts">
+      <li class="gpw-ts-done"><p class="gpw-ts-n" aria-hidden="true"><span>S1</span></p><span class="gpw-ts-track" aria-hidden="true"></span><p class="gpw-ts-split"><span class="gpw-vh">Sector 1, Done. Split: </span>{{zero "14:02"}}</p><h3>Read the spec</h3><p class="gpw-ts-cap">Each exercise opens with a page from the night. Then the exact task and its rules.</p></li>
+      <li class="gpw-ts-done"><p class="gpw-ts-n" aria-hidden="true"><span>S2</span></p><span class="gpw-ts-track" aria-hidden="true"></span><p class="gpw-ts-split"><span class="gpw-vh">Sector 2, Done. Split: </span>{{zero "14:06"}}</p><h3>Write Go in the browser</h3><p class="gpw-ts-cap">The editor checks your code as you type. It does not suggest code.</p></li>
+      <li class="gpw-ts-live"><p class="gpw-ts-n" aria-hidden="true"><span>S3</span><span class="gpw-ts-tag">Live</span></p><span class="gpw-ts-track" aria-hidden="true"></span><p class="gpw-ts-split"><span class="gpw-vh">Sector 3, Live now. Split: </span>Running</p><h3>Run <code>go test -race</code></h3><p class="gpw-ts-cap">The real tests run on a sandboxed runner. Nobody marks this green for you.</p></li>
+      <li class="gpw-ts-next"><p class="gpw-ts-n" aria-hidden="true"><span>S4</span></p><span class="gpw-ts-track" aria-hidden="true"></span><p class="gpw-ts-split"><span class="gpw-vh">Sector 4, Next. Split: </span>–</p><h3>Read the reason</h3><p class="gpw-ts-cap">A failure comes with each part of its message named and explained.</p></li>
+      <li class="gpw-ts-next"><p class="gpw-ts-n" aria-hidden="true"><span>S5</span></p><span class="gpw-ts-track" aria-hidden="true"></span><p class="gpw-ts-split"><span class="gpw-vh">Sector 5, Next. Split: </span>–</p><h3>Add it to the Ledger</h3><p class="gpw-ts-cap">A pass enters the Ledger with you as its author.</p></li>
+    </ol>
+  </div>
+</div></section>
+
+<section class="gpw-sec" aria-labelledby="dir-h"><div class="wrap">
+  <div class="gpw-dir">
+    <div class="gpw-dir-top">
+      <h2 id="dir-h" class="gpw-h2">Who you work with</h2>
+      <p>The staff directory of Vesper Labs, floors 58 to 64 of the Spire, and the halls under the city.</p>
+      <p class="gpw-lbl gpw-dir-sort">Lobby directory<br>Sorted by floor</p>
+    </div>
+    <div class="gpw-dir-cols" aria-hidden="true"><span class="gpw-lbl">Floor</span><span class="gpw-lbl">Name</span><span class="gpw-lbl">In 1 line</span><span class="gpw-lbl">Desk</span></div>
+    <ul class="gpw-dir-list" aria-label="Staff directory">
+      {{- template "dir-row" (dict "Floor" "64" "Name" "Adaeze Nwosu" "Role" "CEO." "Line" "Wrote the Rule. Asks who is not in the room." "Desk" "64-01, corner office")}}
+      {{- template "dir-row" (dict "Floor" "63" "Name" "Daniyar Seitkali" "Role" "CTO." "Line" "Built HUSH in a weekend. Thinks it is basically fine, until the evidence says otherwise." "Desk" "63-04, the lab")}}
+      {{- template "dir-row" (dict "Floor" "61" "Name" "Noor Haddad" "Role" "Principal SRE. Your mentor." "Line" "Calm, exact: “Raw line first.”" "Desk" "61-12, next to your desk")}}
+      {{- template "dir-row" (dict "Floor" "61" "Name" "Wren Lindqvist" "Role" "SRE. Your rotation partner." "Line" "Owns the alert rules. Writes the best pull request descriptions in the building." "Desk" "61-14, by the swap board")}}
+      {{- template "dir-row" (dict "Floor" "59" "Name" "Marisol Quispe Mamani" "Role" "Support lead." "Line" "Forwards every ticket verbatim, because a person wrote it at 4 in the morning." "Desk" "59-02, support desk")}}
+      <li class="gpw-dir-row gpw-dir-hush"><span class="gpw-dir-fl" aria-hidden="true">H3</span><div class="gpw-dir-who"><b>HUSH</b><span>The model.</span></div><p class="gpw-dir-line">Holds the pager for 40&nbsp;000 companies. Would love to help. That is the problem.</p><p class="gpw-dir-desk"><span class="gpw-vh">Desk: </span>{{zero "Rows A to K, 40 "}}<span class="gpw-nocaps">m</span> down</p></li>
+      {{- template "dir-row" (dict "Floor" "H3" "Name" "Fuse" "Role" "Cat." "Line" "Lives in the Undercroft. Probably innocent." "Desk" "The warmest rack")}}
+    </ul>
+  </div>
+</div></section>
+
+<section class="gpw-sec gpw-sec-course" aria-labelledby="course-h"><div class="wrap">
+  <div class="gpw-sky-band">
+    <div class="gpw-sky-copy">
+      <h2 id="course-h" class="gpw-h2">{{zero (printf "%d exercises, %d tiers, %d years on floor 61" (len $c.Exercises) (len $c.Tiers) (len $d.Years))}}</h2>
+      <p class="gpw-sec-lede">On day 1 you get a red lanyard with an empty steel ring. Each tier you pass stamps a steel tag for it. Work the exercises in order: each tier assumes the tiers before it.</p>
+    </div>
+    {{template "skyline" $d.Sky}}
+    <p class="gpw-sky-note"><span>{{len $c.Exercises}} exercises in {{len $c.Tiers}} tiers, about {{hours $c.Hours}} of work. Each tower is 1 exercise, as tall as its estimate.</span>{{with $d.First}}<span>The lit tower is where you start: {{pad2 .Number}}.</span>{{end}}</p>
+  </div>
+  <div class="gpw-dep">
+    {{- range $d.Years}}
+    <section class="gpw-dep-year" aria-labelledby="dep-y{{.N}}"><div class="gpw-dep-yh"><h3 id="dep-y{{.N}}">Year {{.N}}</h3><p class="gpw-lbl">{{zero .Label}} <span class="gpw-nocaps">h</span></p></div>
+      {{- range .Tiers}}
+      <section class="gpw-dep-tier" aria-labelledby="dep-t{{.N}}">
+        <div class="gpw-dep-th">{{template "tag" (dict "N" .N "Name" .Name "State" .State)}}<h4 id="dep-t{{.N}}" class="gpw-lbl"><span class="gpw-vh">{{.Tier.Label}}: </span>{{zero .Head}} <span class="gpw-nocaps">h</span></h4></div>
+        {{- with .LineSentence}}
+        <p class="gpw-dep-line">{{.}}</p>
+        {{- end}}
+        <ol class="gpw-dep-list" aria-label="Exercises of tier {{.N}}">
+          {{- range .Exercises}}
+          <li{{if and $d.First (eq .Slug $d.First.Slug)}} class="gpw-dep-start"{{end}}><span class="gpw-dep-n">{{zero (pad2 .Number)}}</span><span class="gpw-dep-t">{{.Title}}</span><span class="gpw-dep-h">{{zero (hours .Hours)}}</span></li>
+          {{- end}}
+        </ol>
+      </section>
+      {{- end}}
+    </section>
+    {{- end}}
+  </div>
+  <div class="gpw-eleven">
+    <span class="gpw-eleven-n" aria-hidden="true">{{zero (inc (len $c.Tiers))}}</span>
+    <div class="gpw-eleven-body">
+      <div class="gpw-eleven-tags" aria-hidden="true">{{range $c.Tiers}}<span class="gpw-el-tag"><i></i>{{zero (printf "T%d" .N)}}</span>{{end}}<span class="gpw-el-key">{{template "key" "gpw-keybig"}}</span></div>
+      <p><b>{{inc (len $c.Tiers)}} certificates.</b> A stamped tag for each tier, and the Key for the whole course. The course issues them. Each one is a signed PDF with a public verify page.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="gpw-sec" aria-labelledby="rules-h"><div class="wrap">
+  <div class="gpw-placard">
+    {{- range seq 4}}<svg class="gpw-screw" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.25"/><path d="M6 2.6V9.4M2.6 6H9.4"/></svg>{{end}}
+    <div class="gpw-placard-h">
+      <h2 id="rules-h" class="gpw-h2">The rules</h2>
+      <p>Rule 1 is about practice, not a verdict on AI tools at work. At your job, use the tools your team trusts.</p>
+    </div>
+    <ol class="gpw-pl-list">
+      <li class="gpw-pl-1"><span class="gpw-hazard" aria-hidden="true"></span><span class="gpw-pl-n" aria-hidden="true">1</span><p><span class="gpw-vh">Rule 1. </span>Do not use an LLM. That includes chat assistants and AI autocomplete. In the Spire, this rule is etched in the lobby glass.</p></li>
+      <li><span class="gpw-pl-n" aria-hidden="true">2</span><p><span class="gpw-vh">Rule 2. </span>Use documentation freely: go doc, pkg.go.dev, the Go spec, man pages and RFCs. Finding the answer in the docs is part of the skill.</p></li>
+      <li><span class="gpw-pl-n" aria-hidden="true">3</span><p><span class="gpw-vh">Rule 3. </span>Try for at least 25 minutes before you reveal hint 1. Wait at least 10 minutes between hints.</p></li>
+      <li><span class="gpw-pl-n" aria-hidden="true">4</span><p><span class="gpw-vh">Rule 4. </span>If you read the reference solution, close it, wait, and write your own version from memory.</p></li>
+      <li><span class="gpw-pl-n" aria-hidden="true">5</span><p><span class="gpw-vh">Rule 5. </span>Read the explanation and the walkthrough after you pass, too. They show the trade-offs.</p></li>
+    </ol>
+  </div>
+</div></section>
 {{end}}
+
+{{/* The disclaimer: the very last element of the landing page and of no
+     other page (VESPER.md 8.1). */}}
+{{define "foot-end"}}
+  <div class="wrap"><p class="gpw-disclaim">Vesper Labs, HUSH, Meridian and everybody in this story are fictional. The story exists to make Go practice fun. Any resemblance to real companies, people or events is a coincidence and not intended.</p></div>
+{{- end}}
+
+{{/* 1 row of the lobby directory (VESPER.md 6.25). */}}
+{{define "dir-row"}}
+      <li class="gpw-dir-row"><span class="gpw-dir-fl" aria-hidden="true">{{.Floor}}</span><div class="gpw-dir-who"><b>{{.Name}}</b><span>{{.Role}}</span></div><p class="gpw-dir-line">{{.Line}}</p><p class="gpw-dir-desk"><span class="gpw-vh">Desk: </span>{{zero .Desk}}</p></li>
+{{- end}}
+
+{{/* The Rule poster (VESPER.md 6.19): the loudest type on the site, with
+     Adaeze's caption and the lobby's Calm Score. */}}
+{{define "lobby"}}
+    <section class="gpw-lobby gpw-ghost" aria-labelledby="rule-h">
+      <div class="gpw-rulebar">
+        <span class="gpw-hazard" aria-hidden="true"></span>
+        <h2 id="rule-h" class="gpw-rule1">Rule 1</h2>
+        <p class="gpw-lbl">Lobby glass, ground floor of the Spire</p>
+        <p class="gpw-lbl gpw-rulebar-end">Etched on day 1</p>
+      </div>
+      <blockquote class="gpw-poster">
+        <p class="gpw-poster-3"><span>No AI writes</span><span>the code that</span><span class="gpw-poster-hv">watches the AI.</span></p>
+        <p class="gpw-poster-5"><span>No AI</span><span>writes the</span><span>code that</span><span class="gpw-poster-hv">watches</span><span class="gpw-poster-hv">the AI.</span></p>
+      </blockquote>
+      <div class="gpw-lobby-foot">
+        <p class="gpw-lobby-cap">Adaeze Nwosu, the CEO, had 2 things installed on the first day: Breaker 0, and this sentence. In this course it is rule 1: you solve the exercises without an LLM, because the practice is yours.</p>
+        {{template "calm" (dict "Kind" "lobby" "Level" 3)}}
+      </div>
+    </section>
+{{- end}}
+
+{{/* The Spire (VESPER.md 6.26): a section drawing, drawn once in
+     .design/vesper-v2/tools/build.py. A 0 in a label is set in Atkinson
+     Mono (gpw-sv-z), whose 0 is slashed. */}}
+{{define "spire"}}
+<figure class="gpw-spire">
+<svg class="gpw-spire-full" viewBox="0 0 520 618" role="img" aria-label="Section through the Spire: Vesper Labs on floors 58 to 64, floor 61 lit, and the 4 server halls 40 metres under the street, with HUSH in Hall 3 and Breaker 0 beside it."><path class="gpw-sv-rain" d="M257 223l-4.7 21.3"/><path class="gpw-sv-rain" d="M167 128l-4.3 19.7"/><path class="gpw-sv-rain" d="M253 144l-3.4 15.7"/><path class="gpw-sv-rain" d="M171 67l-4.1 18.8"/><path class="gpw-sv-rain" d="M465 276l-4.2 18.9"/><path class="gpw-sv-rain" d="M176 173l-2.6 12.0"/><path class="gpw-sv-rain" d="M379 119l-3.1 14.1"/><path class="gpw-sv-rain" d="M510 136l-5.2 23.7"/><path class="gpw-sv-rain" d="M321 304l-4.1 18.8"/><path class="gpw-sv-rain" d="M93 285l-3.0 13.6"/><path class="gpw-sv-rain" d="M212 52l-2.4 10.8"/><path class="gpw-sv-rain" d="M191 6l-3.4 15.4"/><path class="gpw-sv-rain" d="M442 399l-3.5 15.9"/><path class="gpw-sv-rain" d="M56 138l-2.4 10.9"/><path class="gpw-sv-rain" d="M113 249l-4.1 18.6"/><path class="gpw-sv-rain" d="M16 195l-3.5 15.9"/><path class="gpw-sv-rain" d="M207 54l-3.4 15.5"/><path class="gpw-sv-rain" d="M53 274l-4.2 19.1"/><path class="gpw-sv-rain" d="M327 163l-5.1 23.4"/><path class="gpw-sv-rain" d="M192 82l-3.4 15.2"/><path class="gpw-sv-rain" d="M475 63l-4.6 20.7"/><path class="gpw-sv-rain" d="M488 341l-3.6 16.5"/><path class="gpw-sv-rain" d="M234 349l-4.4 19.9"/><path class="gpw-sv-rain" d="M420 71l-4.1 18.5"/><path class="gpw-sv-rain" d="M384 95l-2.8 12.9"/><path class="gpw-sv-rain" d="M437 227l-3.5 15.7"/><path class="gpw-sv-rain" d="M253 103l-3.0 13.5"/><path class="gpw-sv-rain" d="M55 161l-2.7 12.1"/><path class="gpw-sv-rain" d="M466 382l-4.0 18.3"/><path class="gpw-sv-rain" d="M47 239l-2.7 12.2"/><path class="gpw-sv-rain" d="M193 51l-3.7 17.0"/><path class="gpw-sv-rain" d="M39 112l-2.9 13.3"/><path class="gpw-sv-rain" d="M242 372l-4.0 18.1"/><path class="gpw-sv-rain" d="M407 290l-3.8 17.4"/><path class="gpw-sv-rain" d="M35 23l-2.6 11.9"/><path class="gpw-sv-rain" d="M268 136l-5.1 23.0"/><path class="gpw-sv-rain" d="M104 53l-4.2 19.0"/><path class="gpw-sv-rain" d="M316 21l-3.3 14.8"/><path class="gpw-sv-rain" d="M231 329l-4.6 20.9"/><path class="gpw-sv-rain" d="M454 214l-5.1 23.1"/><path class="gpw-sv-rain" d="M245 116l-2.6 12.0"/><path class="gpw-sv-rain" d="M433 260l-4.1 18.6"/><path class="gpw-sv-rain" d="M509 253l-3.2 14.3"/><path class="gpw-sv-rain" d="M361 370l-2.7 12.5"/><path class="gpw-sv-rain" d="M491 166l-2.5 11.6"/><path class="gpw-sv-rain" d="M264 312l-3.7 16.9"/><path class="gpw-sv-rain" d="M140 307l-2.5 11.4"/><path class="gpw-sv-rain" d="M349 145l-4.1 18.6"/><path class="gpw-sv-rain" d="M264 112l-2.8 12.9"/><path class="gpw-sv-rain" d="M427 183l-3.1 14.0"/><path class="gpw-sv-rain" d="M308 307l-2.5 11.2"/><path class="gpw-sv-rain" d="M238 61l-4.6 20.8"/><path class="gpw-sv-rain" d="M24 333l-3.9 17.8"/><path class="gpw-sv-rain" d="M268 215l-3.1 13.9"/><path class="gpw-sv-rain" d="M235 68l-3.3 15.0"/><path class="gpw-sv-rain" d="M310 244l-3.2 14.5"/><path class="gpw-sv-rain" d="M320 314l-4.6 20.9"/><path class="gpw-sv-rain" d="M2 200l-2.7 12.4"/><path class="gpw-sv-rain" d="M426 233l-3.6 16.2"/><path class="gpw-sv-rain" d="M317 204l-2.8 12.9"/><path class="gpw-sv-rain" d="M475 23l-2.3 10.5"/><path class="gpw-sv-rain" d="M153 57l-3.4 15.2"/><path class="gpw-sv-rain" d="M320 156l-5.2 23.6"/><path class="gpw-sv-rain" d="M170 376l-5.2 23.7"/><path class="gpw-sv-h2" d="M0 432.0H520"/><path class="gpw-sv-plane" d="M206 432.0L222 86.39999999999998H318L334 432.0Z"/><path class="gpw-sv-h2" d="M206 432.0L222 86.39999999999998H318L334 432.0M334 432.0L366 416.0L350 70.39999999999998L318 86.39999999999998M222 86.39999999999998L254 70.39999999999998H350"/><path class="gpw-sv-h" d="M227.3 432.0L238.0 86.39999999999998"/><path class="gpw-sv-h" d="M248.7 432.0L254.0 86.39999999999998"/><path class="gpw-sv-h" d="M270.0 432.0L270.0 86.39999999999998"/><path class="gpw-sv-h" d="M291.3 432.0L286.0 86.39999999999998"/><path class="gpw-sv-h" d="M312.7 432.0L302.0 86.39999999999998"/><path class="gpw-sv-h" d="M206.2 426.6H333.8"/><path class="gpw-sv-h" d="M206.5 421.2H333.5"/><path class="gpw-sv-h" d="M206.8 415.8H333.2"/><path class="gpw-sv-h" d="M207.0 410.4H333.0"/><path class="gpw-sv-h" d="M207.2 405.0H332.8"/><path class="gpw-sv-h" d="M207.5 399.6H332.5"/><path class="gpw-sv-h" d="M207.8 394.2H332.2"/><path class="gpw-sv-h" d="M208.0 388.8H332.0"/><path class="gpw-sv-h" d="M208.2 383.4H331.8"/><path class="gpw-sv-h" d="M208.5 378.0H331.5"/><path class="gpw-sv-h" d="M208.8 372.6H331.2"/><path class="gpw-sv-h" d="M209.0 367.2H331.0"/><path class="gpw-sv-h" d="M209.2 361.8H330.8"/><path class="gpw-sv-h" d="M209.5 356.4H330.5"/><path class="gpw-sv-h" d="M209.8 351.0H330.2"/><path class="gpw-sv-h" d="M210.0 345.6H330.0"/><path class="gpw-sv-h" d="M210.2 340.2H329.8"/><path class="gpw-sv-h" d="M210.5 334.8H329.5"/><path class="gpw-sv-h" d="M210.8 329.4H329.2"/><path class="gpw-sv-h" d="M211.0 324.0H329.0"/><path class="gpw-sv-h" d="M211.2 318.6H328.8"/><path class="gpw-sv-h" d="M211.5 313.2H328.5"/><path class="gpw-sv-h" d="M211.8 307.8H328.2"/><path class="gpw-sv-h" d="M212.0 302.4H328.0"/><path class="gpw-sv-h" d="M212.2 297.0H327.8"/><path class="gpw-sv-h" d="M212.5 291.6H327.5"/><path class="gpw-sv-h" d="M212.8 286.2H327.2"/><path class="gpw-sv-h" d="M213.0 280.8H327.0"/><path class="gpw-sv-h" d="M213.2 275.4H326.8"/><path class="gpw-sv-h" d="M213.5 270.0H326.5"/><path class="gpw-sv-h" d="M213.8 264.6H326.2"/><path class="gpw-sv-h" d="M214.0 259.2H326.0"/><path class="gpw-sv-h" d="M214.2 253.8H325.8"/><path class="gpw-sv-h" d="M214.5 248.4H325.5"/><path class="gpw-sv-h" d="M214.8 243.0H325.2"/><path class="gpw-sv-h" d="M215.0 237.6H325.0"/><path class="gpw-sv-h" d="M215.2 232.2H324.8"/><path class="gpw-sv-h" d="M215.5 226.8H324.5"/><path class="gpw-sv-h" d="M215.8 221.4H324.2"/><path class="gpw-sv-h" d="M216.0 216.0H324.0"/><path class="gpw-sv-h" d="M216.2 210.6H323.8"/><path class="gpw-sv-h" d="M216.5 205.2H323.5"/><path class="gpw-sv-h" d="M216.8 199.8H323.2"/><path class="gpw-sv-h" d="M217.0 194.4H323.0"/><path class="gpw-sv-h" d="M217.2 189.0H322.8"/><path class="gpw-sv-h" d="M217.5 183.6H322.5"/><path class="gpw-sv-h" d="M217.8 178.2H322.2"/><path class="gpw-sv-h" d="M218.0 172.8H322.0"/><path class="gpw-sv-h" d="M218.2 167.4H321.8"/><path class="gpw-sv-h" d="M218.5 162.0H321.5"/><path class="gpw-sv-h" d="M218.8 156.6H321.2"/><path class="gpw-sv-h" d="M219.0 151.2H321.0"/><path class="gpw-sv-h" d="M219.2 145.8H320.8"/><path class="gpw-sv-h" d="M219.5 140.4H320.5"/><path class="gpw-sv-h" d="M219.8 135.0H320.2"/><path class="gpw-sv-h" d="M220.0 129.6H320.0"/><path class="gpw-sv-h2" d="M220.2 124.2H319.8l32 -16"/><path class="gpw-sv-h2" d="M220.5 118.8H319.5l32 -16"/><path class="gpw-sv-h2" d="M220.8 113.4H319.2l32 -16"/><path class="gpw-sv-h2" d="M221.0 108.0H319.0l32 -16"/><path class="gpw-sv-h2" d="M221.2 102.6H318.8l32 -16"/><path class="gpw-sv-h2" d="M221.5 97.2H318.5l32 -16"/><path class="gpw-sv-h2" d="M221.8 91.8H318.2l32 -16"/><path class="gpw-sv-amf" d="M221.0 108.0L221.2 102.6H318.8L319.0 108.0Z"/><path class="gpw-sv-amw" d="M319.0 108.0L318.8 102.6l32 -16v5.4Z"/><path class="gpw-sv-am" d="M219.2 80.6H209.2V90.6"/><path class="gpw-sv-am" d="M352.8 80.6H362.8V90.6"/><path class="gpw-sv-am" d="M219.2 120.0H209.2V110.0"/><path class="gpw-sv-am" d="M352.8 120.0H362.8V110.0"/><path class="gpw-sv-am" d="M217.2 105.3H124l-12 -12H14"/><circle class="gpw-sv-amf" cx="217.2" cy="105.3" r="2.5"/><text class="gpw-sv-t gpw-sv-t-am gpw-sv-t-lg" x="14" y="84">F61 SITE RELIABILITY</text><text class="gpw-sv-t" x="14" y="126">YOUR DESK</text><text class="gpw-sv-t" x="14" y="144">RAIN ON 3 WALLS</text><path class="gpw-sv-h2" d="M376 86h8V124h-8"/><text class="gpw-sv-t gpw-sv-t-ink" x="392" y="99">VESPER LABS</text><text class="gpw-sv-t" x="392" y="116">F58 TO F64</text><path class="gpw-sv-h2" d="M506 432.0V86.39999999999998"/><path class="gpw-sv-h2" d="M499 432h7"/><path class="gpw-sv-h2" d="M499 389h7"/><text class="gpw-sv-t" x="493" y="394" text-anchor="end">F<tspan class="gpw-sv-z">0</tspan>8</text><path class="gpw-sv-h2" d="M499 346h7"/><text class="gpw-sv-t" x="493" y="351" text-anchor="end">F16</text><path class="gpw-sv-h2" d="M499 302h7"/><text class="gpw-sv-t" x="493" y="307" text-anchor="end">F24</text><path class="gpw-sv-h2" d="M499 259h7"/><text class="gpw-sv-t" x="493" y="264" text-anchor="end">F32</text><path class="gpw-sv-h2" d="M499 216h7"/><text class="gpw-sv-t" x="493" y="221" text-anchor="end">F4<tspan class="gpw-sv-z">0</tspan></text><path class="gpw-sv-h2" d="M499 173h7"/><path class="gpw-sv-h2" d="M499 130h7"/><path class="gpw-sv-h2" d="M499 86h7"/><path class="gpw-sv-h" d="M502 432.0h4"/><path class="gpw-sv-h" d="M502 421.2h4"/><path class="gpw-sv-h" d="M502 410.4h4"/><path class="gpw-sv-h" d="M502 399.6h4"/><path class="gpw-sv-h" d="M502 388.8h4"/><path class="gpw-sv-h" d="M502 378.0h4"/><path class="gpw-sv-h" d="M502 367.2h4"/><path class="gpw-sv-h" d="M502 356.4h4"/><path class="gpw-sv-h" d="M502 345.6h4"/><path class="gpw-sv-h" d="M502 334.8h4"/><path class="gpw-sv-h" d="M502 324.0h4"/><path class="gpw-sv-h" d="M502 313.2h4"/><path class="gpw-sv-h" d="M502 302.4h4"/><path class="gpw-sv-h" d="M502 291.6h4"/><path class="gpw-sv-h" d="M502 280.8h4"/><path class="gpw-sv-h" d="M502 270.0h4"/><path class="gpw-sv-h" d="M502 259.2h4"/><path class="gpw-sv-h" d="M502 248.4h4"/><path class="gpw-sv-h" d="M502 237.6h4"/><path class="gpw-sv-h" d="M502 226.8h4"/><path class="gpw-sv-h" d="M502 216.0h4"/><path class="gpw-sv-h" d="M502 205.2h4"/><path class="gpw-sv-h" d="M502 194.4h4"/><path class="gpw-sv-h" d="M502 183.6h4"/><path class="gpw-sv-h" d="M502 172.8h4"/><path class="gpw-sv-h" d="M502 162.0h4"/><path class="gpw-sv-h" d="M502 151.2h4"/><path class="gpw-sv-h" d="M502 140.4h4"/><path class="gpw-sv-h" d="M502 129.6h4"/><path class="gpw-sv-h" d="M502 118.8h4"/><path class="gpw-sv-h" d="M502 108.0h4"/><path class="gpw-sv-h" d="M502 97.2h4"/><path class="gpw-sv-h" d="M502 86.4h4"/><path class="gpw-sv-h2" d="M302 78.39999999999998V14M294 50h16M296 34h12M299 22h6"/><text class="gpw-sv-t" x="316" y="26">THE SPIRE, 64 FLOORS</text><path class="gpw-sv-h2" d="M8 86H2V432.0H8M2 259H8"/><text class="gpw-sv-t gpw-sv-t-ink" x="14" y="264">THE STACK</text><text class="gpw-sv-t gpw-sv-t-ink" x="14" y="424">THE GROUND</text><text class="gpw-sv-t gpw-sv-t-ink" x="14" y="454">THE UNDERCITY</text><path class="gpw-sv-h2 gpw-sv-dash" d="M302 432.0V466.0M16 466.0H496"/><rect class="gpw-sv-h2" x="24" y="480.0" width="100" height="56"/><text class="gpw-sv-t" x="24" y="556.0">HALL 1</text><path class="gpw-sv-h2 gpw-sv-dash" d="M74 466.0v14"/><rect class="gpw-sv-h2" x="140" y="480.0" width="100" height="56"/><text class="gpw-sv-t" x="140" y="556.0">HALL 2</text><path class="gpw-sv-h2 gpw-sv-dash" d="M190 466.0v14"/><rect class="gpw-sv-cyf" x="256" y="480.0" width="100" height="56"/><path class="gpw-sv-cy" d="M270 490.0v36"/><path class="gpw-sv-cy" d="M280 490.0v36"/><path class="gpw-sv-cy" d="M290 490.0v36"/><path class="gpw-sv-cy" d="M300 490.0v36"/><path class="gpw-sv-cy" d="M310 490.0v36"/><path class="gpw-sv-cy" d="M320 490.0v36"/><path class="gpw-sv-cy" d="M330 490.0v36"/><path class="gpw-sv-cy" d="M340 490.0v36"/><text class="gpw-sv-t gpw-sv-t-cy" x="256" y="556.0">HALL 3</text><text class="gpw-sv-t gpw-sv-t-cy" x="256" y="574.0">HUSH</text><rect class="gpw-sv-amf" x="360" y="500.0" width="8" height="15"/><path class="gpw-sv-am" d="M364 515.0V588.0H374"/><text class="gpw-sv-t gpw-sv-t-am" x="378" y="593.0">BREAKER <tspan class="gpw-sv-z">0</tspan></text><text class="gpw-sv-t gpw-sv-t-am" x="378" y="611.0">AT 9<tspan class="gpw-sv-z">0</tspan> <tspan class="gpw-sv-unit">cm</tspan></text><path class="gpw-sv-h2 gpw-sv-dash" d="M306 466.0v14"/><rect class="gpw-sv-h2" x="372" y="480.0" width="100" height="56"/><text class="gpw-sv-t" x="372" y="556.0">HALL 4</text><path class="gpw-sv-h2 gpw-sv-dash" d="M422 466.0v14"/><path class="gpw-sv-h2" d="M506 432.0V480.0M499 480.0h7"/><text class="gpw-sv-t" x="493" y="461" text-anchor="end">4<tspan class="gpw-sv-z">0</tspan> <tspan class="gpw-sv-unit">m</tspan></text></svg>
+<svg class="gpw-spire-win" viewBox="0 0 340 236" aria-hidden="true"><path class="gpw-sv-plane" d="M111.2 228.0L114.0 84.0H196.0L198.8 228.0Z"/><path class="gpw-sv-h2" d="M111.2 228.0L114.0 84.0H196.0L198.8 228.0M196.0 84.0l22 -11V217.0l-22 11"/><path class="gpw-sv-h" d="M111.2 214.0H198.8l22 -11"/><path class="gpw-sv-h" d="M111.5 201.0H198.5l22 -11"/><path class="gpw-sv-h" d="M111.8 188.0H198.2l22 -11"/><path class="gpw-sv-h2" d="M112.0 175.0H198.0l22 -11"/><path class="gpw-sv-h2" d="M112.3 162.0H197.7l22 -11"/><path class="gpw-sv-h2" d="M112.6 149.0H197.4l22 -11"/><path class="gpw-sv-h2" d="M112.9 136.0H197.1l22 -11"/><path class="gpw-sv-h2" d="M113.2 123.0H196.8l22 -11"/><path class="gpw-sv-h2" d="M113.4 110.0H196.6l22 -11"/><path class="gpw-sv-h2" d="M113.7 97.0H196.3l22 -11"/><path class="gpw-sv-amf" d="M112.9 136.0L113.2 123.0H196.8L197.1 136.0Z"/><path class="gpw-sv-amw" d="M197.1 136.0L196.8 123.0l22 -11v13.0Z"/><path class="gpw-sv-am" d="M109.2 129.5H4"/><text class="gpw-sv-t gpw-sv-t-am gpw-sv-t-lg" x="4" y="120">F61</text><path class="gpw-sv-h2" d="M246 84h7V175h-7"/><text class="gpw-sv-t gpw-sv-t-ink" x="260" y="96">VESPER</text><text class="gpw-sv-t gpw-sv-t-ink" x="260" y="112">LABS</text><text class="gpw-sv-t" x="260" y="130">F58 TO F64</text><path class="gpw-sv-h2" d="M155 84.0V6M146 30h18M150 18h10"/></svg>
+<figcaption class="gpw-spire-list">
+  <dl>
+    <div><dt>Floor 61</dt><dd>Site reliability. Your desk, with rain on 3 walls.</dd></div>
+    <div><dt>Floors 58 to 64</dt><dd>Vesper Labs, at the top of the Spire.</dd></div>
+    <div><dt>{{zero "Hall 3, 40\u00a0m down"}}</dt><dd>HUSH's racks, and Breaker 0 at 90&nbsp;cm.</dd></div>
+  </dl>
+</figcaption>
+</figure>
+{{- end}}

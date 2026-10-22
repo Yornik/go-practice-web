@@ -1,15 +1,16 @@
 {{define "subject"}}{{.E.InvitedBy}} invited you to Go Practice{{end}}
+{{define "hush"}}Good evening. {{.E.InvitedBy}} asked me to bring you this invite, and I am glad to. It is raining on the Spire, and the lobby screen says 99.2, as always. I offered to write your exercises for you. The Rule in the lobby glass says no, so you will write every line yourself. I am sure it will be very calm.{{end}}
+{{define "rest"}}Please rest.{{end}}
 {{define "content"}}
-Hello,
-
-{{.E.InvitedBy}} invited you to Go Practice: {{with .E.Exercises}}{{.}} {{end}}Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.
+What this email is for: {{.E.InvitedBy}} invited you to Go Practice: {{with .E.Exercises}}{{.}} {{end}}Go exercises from the daily work of a reliability engineer. You write the code in your browser, and real tests run it.
 {{if .E.Note}}
-A note from {{.E.InvitedBy}}:
-"{{.E.Note}}"
+{{template "note" .}}
 {{end}}
-Open this link to create your account. You sign in with a passkey, so you need no password:
+Open the link to create your account. You sign in with a passkey, so you need no password.
 
-{{.E.Link}}
+{{template "action" (action "Create your account" .E.Link)}}
 
-The invite works once and expires on {{date .E.Expires}}.
+How long the link works: {{with .E.ValidFor}}{{lifetime .}}, {{end}}until {{date .E.Expires}}. It works once.
+
+If you did not expect it: ignore this email. Nothing happens without the link.
 {{end}}

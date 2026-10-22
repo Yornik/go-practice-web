@@ -1,0 +1,71 @@
+{{/* partials/story.html: the story components that more than 1 page
+     shows (VESPER.md 6.15 to 6.28). Their CSS is in the components.story
+     layer of site.css, and every class of it starts with gpw-. A story
+     picture that story effects hide carries gpw-story. */}}
+
+{{/* The readout strip of the landing page (VESPER.md 6.5): static. */}}
+{{define "telem-landing"}}<div class="gpw-telem" role="region" aria-label="Where you are"><dl class="gpw-telem-in">
+  <div class="gpw-t"><dt class="gpw-lbl">Location</dt><dd>Meridian, the Spire, <b>{{zero "floor 61"}}</b></dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Local time</dt><dd>{{zero "03:12"}}</dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Weather</dt><dd>{{zero "Rain, 14\u00a0°C"}}</dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Pager</dt><dd><i>HUSH</i>, for {{zero "40\u00a0000"}} companies</dd></div>
+</dl></div>{{end}}
+
+{{/* The readout strip of the app pages (VESPER.md 6.5, 16.2, 16.3):
+     {{template "telem-app" .Story.Readout}}. The story decides the role,
+     the month and the rotation (story.go), so no page can disagree with
+     the badge or the ring. Tier 0 leaves the tier out. */}}
+{{define "telem-app"}}<div class="gpw-telem" role="region" aria-label="Where you are"><dl class="gpw-telem-in">
+  <div class="gpw-t"><dt class="gpw-lbl">Ledger</dt><dd>{{zero .Ledger}}</dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Month in Meridian</dt><dd>{{with .Month}}{{zero .}}{{if $.Tier}}, {{end}}{{end}}{{with .Tier}}<b>{{zero (printf "tier %d" .)}}</b>{{end}}</dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Rotation</dt><dd>{{if .KeyOnRing}}<b>On call</b>, with Wren{{else}}The Key is on its hook{{end}}</dd></div>
+  <div class="gpw-t"><dt class="gpw-lbl">Pager</dt><dd><i>HUSH</i>, for {{zero "40\u00a0000"}} companies</dd></div>
+</dl></div>{{end}}
+
+{{/* The stamped tag (VESPER.md 6.18): (dict "N" 2 "Name" "The Key" "State" "on").
+     State: "on" stamped, "cur" the open tier, "off" not yet. A tag is
+     never a button; where it acts as a heading, the heading sits beside it. */}}
+{{define "tag"}}<span class="gpw-tag gpw-tag-{{.State}}">{{zero (printf "T%d · %s" .N (upper .Name))}}</span>{{end}}
+
+{{/* The skyline (VESPER.md 6.15): 1 picture with a full label, never a set
+     of controls. Call it with the skyline function:
+     {{template "skyline" (skyline .Course $states "dash" "Your skyline: ...")}},
+     or with the learner's own: {{template "skyline" .Story.Skyline}} (the
+     dashboard's kind, with its label).
+     Kinds: "landing" (with the reflection), "dash", "key" (the certificates
+     page) and "mini" (the admin table: no plates, no year labels). */}}
+{{define "skyline"}}<div class="gpw-sky {{.Class}}" role="img" aria-label="{{.Label}}">
+  {{- range .Years}}<div class="gpw-sky-yr">{{if not $.Mini}}<span class="gpw-sky-yl">Year {{.N}}</span>{{end}}<div class="gpw-sky-row">
+    {{- range .Tiers}}<div class="{{.Class}}">
+      {{- if not $.Mini}}<span class="{{.PlateClass}}"><b>{{zero (printf "T%d" .N)}}</b><span>{{zero (hours .Hours)}}</span></span>{{end -}}
+      <div class="gpw-sky-towers">{{range .Towers}}<i class="{{.Class}}"></i>{{end}}</div></div>
+    {{- end}}</div></div>
+  {{- end}}</div>{{end}}
+
+{{/* The Calm Score (VESPER.md 6.20, 6.21, 16.4): a screen, dark in both
+     themes, static. (dict "Kind" "lobby" "Level" 3) on the landing page, in
+     the Rule poster's foot; (dict "Kind" "strip" "Level" 2 "After50" false)
+     on the dashboard. The landing always shows 99.2. */}}
+{{define "calm"}}<section class="gpw-calm gpw-calm-{{.Kind}} gpw-story" aria-labelledby="calm-h">
+  <div class="gpw-calm-h">{{if eq .Level 3}}<h3 id="calm-h" class="gpw-lbl">{{template "calm-name"}}</h3>{{else}}<h2 id="calm-h" class="gpw-lbl">{{template "calm-name"}}</h2>{{end}}<span class="gpw-lbl">{{if eq .Kind "lobby"}}Lobby screen{{else if .After50}}After exercise {{zero "50"}}{{else}}Lobby screen, ground floor of the Spire{{end}}</span></div>
+  {{- if eq .Kind "lobby"}}
+  <p class="gpw-calm-num">99.2</p>
+  <svg class="gpw-calm-svg" viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true"><path class="gpw-sv-hc" d="M0 6H300M0 16H300"/><path class="gpw-sv-hc" d="M1.0 16v6"/><path class="gpw-sv-hc" d="M10.9 16v4"/><path class="gpw-sv-hc" d="M20.9 16v4"/><path class="gpw-sv-hc" d="M30.8 16v4"/><path class="gpw-sv-hc" d="M40.7 16v4"/><path class="gpw-sv-hc" d="M50.7 16v4"/><path class="gpw-sv-hc" d="M60.6 16v4"/><path class="gpw-sv-hc" d="M70.5 16v4"/><path class="gpw-sv-hc" d="M80.5 16v4"/><path class="gpw-sv-hc" d="M90.4 16v4"/><path class="gpw-sv-hc" d="M100.3 16v6"/><path class="gpw-sv-hc" d="M110.3 16v4"/><path class="gpw-sv-hc" d="M120.2 16v4"/><path class="gpw-sv-hc" d="M130.1 16v4"/><path class="gpw-sv-hc" d="M140.1 16v4"/><path class="gpw-sv-hc" d="M150.0 16v4"/><path class="gpw-sv-hc" d="M159.9 16v4"/><path class="gpw-sv-hc" d="M169.9 16v4"/><path class="gpw-sv-hc" d="M179.8 16v4"/><path class="gpw-sv-hc" d="M189.7 16v4"/><path class="gpw-sv-hc" d="M199.7 16v6"/><path class="gpw-sv-hc" d="M209.6 16v4"/><path class="gpw-sv-hc" d="M219.5 16v4"/><path class="gpw-sv-hc" d="M229.5 16v4"/><path class="gpw-sv-hc" d="M239.4 16v4"/><path class="gpw-sv-hc" d="M249.3 16v4"/><path class="gpw-sv-hc" d="M259.3 16v4"/><path class="gpw-sv-hc" d="M269.2 16v4"/><path class="gpw-sv-hc" d="M279.1 16v4"/><path class="gpw-sv-hc" d="M289.1 16v4"/><path class="gpw-sv-hc" d="M299.0 16v6"/><path class="gpw-sv-cy" d="M1 6.6H299"/><rect class="gpw-sv-cyf2" x="296" y="3.6" width="6" height="6" transform="rotate(45 299 6.6)"/></svg>
+  <p class="gpw-calm-say">All 40 000 customers are calm. Please rest.</p>
+  {{- else if .After50}}
+  <p class="gpw-calm-num">71</p>
+  <div class="gpw-calm-chart"><p class="gpw-calm-y" aria-hidden="true"><span>{{zero "100"}}</span><span>75</span><span>{{zero "50"}}</span></p><svg class="gpw-calm-svg gpw-calm-svg-y" viewBox="0 0 600 72" preserveAspectRatio="none" aria-hidden="true"><path class="gpw-sv-hc" d="M0 1H600M0 36H600M0 71H600"/><path class="gpw-sv-cy" d="M1.0 36.8L20.9 39.0L40.9 30.1L60.8 38.8L80.7 44.6L100.7 53.6L120.6 49.4L140.5 43.9L160.5 35.9L180.4 30.4L200.3 21.9L220.3 25.3L240.2 22.9L260.1 28.6L280.1 33.3L300.0 30.5L319.9 24.5L339.9 21.8L359.8 13.4L379.7 16.0L399.7 10.4L419.6 8.0L439.5 15.0L459.5 13.9L479.4 21.9L499.3 30.5L519.3 33.5L539.2 29.0L559.1 22.6L579.1 18.1L599.0 41.6"/></svg><div class="gpw-calm-days" aria-hidden="true"><span>{{zero "30 nights ago"}}</span><span>{{zero "20"}}</span><span>{{zero "10"}}</span><span>Tonight</span></div></div>
+  <div class="gpw-calm-txt"><p class="gpw-calm-cap gpw-calm-true">Lower, and true. Every pager in Meridian still works.</p></div>
+  {{- else}}
+  <p class="gpw-calm-num">99.2</p>
+  <div class="gpw-calm-chart"><p class="gpw-calm-y" aria-hidden="true"><span>99.4</span><span>99.2</span><span>{{zero "99.0"}}</span></p><svg class="gpw-calm-svg gpw-calm-svg-y" viewBox="0 0 600 72" preserveAspectRatio="none" aria-hidden="true"><path class="gpw-sv-hc" d="M0 1H600M0 36.0H600M0 71H600"/><path class="gpw-sv-hc" d="M1.0 71v-7"/><path class="gpw-sv-hc" d="M20.9 71v-4"/><path class="gpw-sv-hc" d="M40.9 71v-4"/><path class="gpw-sv-hc" d="M60.8 71v-4"/><path class="gpw-sv-hc" d="M80.7 71v-4"/><path class="gpw-sv-hc" d="M100.7 71v-4"/><path class="gpw-sv-hc" d="M120.6 71v-4"/><path class="gpw-sv-hc" d="M140.5 71v-4"/><path class="gpw-sv-hc" d="M160.5 71v-4"/><path class="gpw-sv-hc" d="M180.4 71v-4"/><path class="gpw-sv-hc" d="M200.3 71v-7"/><path class="gpw-sv-hc" d="M220.3 71v-4"/><path class="gpw-sv-hc" d="M240.2 71v-4"/><path class="gpw-sv-hc" d="M260.1 71v-4"/><path class="gpw-sv-hc" d="M280.1 71v-4"/><path class="gpw-sv-hc" d="M300.0 71v-4"/><path class="gpw-sv-hc" d="M319.9 71v-4"/><path class="gpw-sv-hc" d="M339.9 71v-4"/><path class="gpw-sv-hc" d="M359.8 71v-4"/><path class="gpw-sv-hc" d="M379.7 71v-4"/><path class="gpw-sv-hc" d="M399.7 71v-7"/><path class="gpw-sv-hc" d="M419.6 71v-4"/><path class="gpw-sv-hc" d="M439.5 71v-4"/><path class="gpw-sv-hc" d="M459.5 71v-4"/><path class="gpw-sv-hc" d="M479.4 71v-4"/><path class="gpw-sv-hc" d="M499.3 71v-4"/><path class="gpw-sv-hc" d="M519.3 71v-4"/><path class="gpw-sv-hc" d="M539.2 71v-4"/><path class="gpw-sv-hc" d="M559.1 71v-4"/><path class="gpw-sv-hc" d="M579.1 71v-4"/><path class="gpw-sv-hc" d="M599.0 71v-7"/><path class="gpw-sv-cy" d="M1 36.0H599"/><rect class="gpw-sv-cyf2" x="596" y="33.0" width="6" height="6" transform="rotate(45 599 36.0)"/></svg><div class="gpw-calm-days" aria-hidden="true"><span>{{zero "30 nights ago"}}</span><span>{{zero "20"}}</span><span>{{zero "10"}}</span><span>Tonight</span></div></div>
+  <div class="gpw-calm-txt"><p class="gpw-calm-say">All 40 000 customers are calm. Please rest.</p><p class="gpw-calm-cap">It said 99.2 on your first day too.</p></div>
+  {{- end}}
+</section>{{end}}
+
+{{define "calm-name"}}<svg class="icon gpw-moon" aria-hidden="true"><use href="#i-moon"/></svg>Calm Score{{end}}
+
+{{/* The Key (VESPER.md 6.28) as a silhouette in currentColor. The argument
+     is its size class: gpw-pi-key (34 by 12 px, the ring card's line) or
+     gpw-keybig (92 by 32 px, the on-call slab). */}}
+{{define "key"}}<svg class="icon {{.}}" aria-hidden="true"><use href="#i-key"/></svg>{{end}}

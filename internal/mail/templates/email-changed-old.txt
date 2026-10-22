@@ -1,14 +1,13 @@
 {{define "subject"}}The email address of your account is changing{{end}}
+{{define "hush"}}{{template "security"}}{{end}}
 {{define "content"}}
-Hello {{.E.Name}},
+What happened: on {{when .E.When}}, someone changed the email address of your Go Practice account from {{.E.Old}} to {{.E.New}}.{{if .E.Pending}} The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.{{else}} From now on, security notices and recovery links go to {{.E.New}}.{{end}}
 
-On {{when .E.When}}, someone changed the email address of your Go Practice account from {{.E.Old}} to {{.E.New}}.
-{{if .E.Pending}}
-The change takes effect when the new address is verified. Until then, recovery links still go to {{.E.Old}}.
-{{else}}
-From now on, security notices and recovery links go to {{.E.New}}.
-{{end}}
-If you did not do this, sign in and check your account page:
+If you did this: you need to do nothing.
 
-{{.SiteURL}}/account
+WARNING: If you did not do this, someone else is signed in to your account. Sign in and check your account page.
+
+{{template "action" (action "Open your account page" (print .SiteURL "/account"))}}
+
+What the link does: it opens your account page. You sign in there with your passkey, as always.
 {{end}}

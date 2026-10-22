@@ -14,11 +14,22 @@
 // check by file and line, then the build, then failing tests in the order
 // of the test tree (step 1 first).
 import { balloon, h } from "../ui/dom.js";
+import { zero } from "../ui/zero.js";
 import { byteToUtf16Column } from "./monaco.js";
 import { chipLabel, chipText, problemView } from "./explain.js";
 
 const STUB_IDS = new Set(["test-panicked-stub", "runtime-todo-implement"]);
+
+/** The plain title of a problem as text, for the hover. */
+function plainTitle(p) {
+  if (p.stub && p.stubs?.all.length) return p.stubs.all.length === 1 ? "1 function is still the course stub." : `${p.stubs.all.length} functions are still the course stub.`;
+  return p.explain?.title || p.diag?.message || "Problem";
+}
+// The chips stay on at most 2 rows and show at most 7 (VESPER.md 7.6);
+// the rest fold into "N more", so the selected problem's title and its
+// anatomy stay in view in a short pane.
 const CHIP_CAP = 7;
+const CHIP_ROWS = 2;
 
 export class Problems {
   /**
@@ -28,7 +39,8 @@ export class Problems {
    * @param {import("./files.js").Files} o.files
    * @param {HTMLElement} o.chips
    * @param {HTMLElement} o.view
-   * @param {HTMLElement[]} o.counts
+   * @param {HTMLElement[]} o.counts the count squares
+   * @param {HTMLElement} [o.countText] the hidden count after the Problems heading
    * @param {HTMLElement} o.status the status bar cell
    * @param {Record<string, string>} o.titles
    * @param {import("./leader.js").Leader} [o.leader]
@@ -193,9 +205,10 @@ export class Problems {
     const errors = this.list.filter((p) => p.severity !== "advice").length;
     for (const c of this.counts) {
       c.hidden = this.list.length === 0;
-      c.textContent = String(this.list.length);
+      c.replaceChildren(saira(String(this.list.length)));
       c.classList.toggle("is-advice", errors === 0);
     }
+    if (this.countText) this.countText.textContent = this.list.length ? `: ${this.list.length}` : "";
     this.onCount?.(this.list.length);
     this.scheduleAnnounce();
   }
@@ -305,11 +318,14 @@ export class Problems {
           startColumn: at.column ? startColumn : model.getLineFirstNonWhitespaceColumn(line) || 1,
           endLineNumber: endLine,
           endColumn: at.column ? endColumn : model.getLineMaxColumn(line),
-          // The hover shows the plain title in the manual's font (see
-          // registerHover in main.js); the marker keeps the raw message.
-          message: `${e.raw?.message || p.diag?.message || ""}\n\nSee problem ${p.n}.`,
+          // The hover shows the marker first, so the plain title leads
+          // it (VESPER.md 7.4), then the raw message as the tool printed it.
+          // No source: Monaco would print it after "See problem 1.", and
+          // the problem's chip already names the tool. A marker is plain
+          // text, so the title cannot take its own weight here without a
+          // site rule on Monaco's hover (VESPER.md 14.2).
+          message: `${plainTitle(p)}\n\n${e.raw?.message || p.diag?.message || ""}\n\nSee problem ${p.n}.`,
           severity: advice ? sev.Warning : sev.Error,
-          source: p.diag ? (p.diag.code ? `${p.diag.source} ${p.diag.code}` : p.diag.source) : "go test",
           relatedInformation: this.related(p),
         });
         decos.push({
@@ -336,48 +352,98 @@ export class Problems {
     }
   }
 
-  /** The problem on a line of a file, for the editor's hover. */
-  atLine(file, line) {
-    return this.list.filter((p) => this.places(p).some((at) => at.file === file && Math.min(at.line, this.files.model(file)?.getLineCount() || at.line) === line));
-  }
-
   renderChips() {
     const selected = this.selected();
-    const many = this.list.length > CHIP_CAP + 1 && !this.showAllChips;
-    const shown = many ? this.list.filter((p, i) => i < CHIP_CAP || p === selected) : this.list;
-    const want = shown.map((p) => `${p.key}#${p.n}`).join("\n") + (many ? `\nmore:${this.list.length - shown.length}` : "");
+    const want = this.list.map((p) => `${p.key}#${p.n}`).join("\n");
     // Rebuild only when the set of chips changes; a new selection updates
     // the chips in place, so the chip that has the focus keeps it.
     let hadFocus = false;
     if (want !== this.chipsSig) {
       hadFocus = this.chips.contains(document.activeElement);
       this.chipsSig = want;
-      const nodes = shown.map((p) => h("button", {
+      // The chip is set in Saira: its numbers go through zero(). It shows
+      // the short label; its name and title keep the long one.
+      const nodes = this.list.map((p) => h("button", {
         type: "button", role: "tab", class: `chip${p.severity === "advice" ? " is-advice" : ""}`,
-        "aria-controls": "problem-view", "data-n": p.n, id: `chip-${p.n}`, title: chipText(p),
+        "aria-controls": "problem-view", "data-n": p.n, id: `chip-${p.n}`, title: chipText(p), "aria-label": `Problem ${p.n}: ${chipText(p)}`,
         onclick: () => this.select(p.n),
         onkeydown: (event) => this.chipKey(event),
-      }, balloon(String(p.n)), h("span", { class: "visually-hidden" }, `Problem ${p.n}: `), h("span", { class: "chip-label" }, chipLabel(p))));
-      if (many) {
-        const rest = this.list.length - shown.length;
-        nodes.push(h("button", { type: "button", class: "chip chip-more", onclick: () => { this.showAllChips = true; this.renderChips(); this.chips.querySelector(`[data-n="${shown.length + 1}"]`)?.focus(); } }, `${rest} more`));
-      }
+      }, balloon(saira(String(p.n))), h("span", { class: "chip-label" }, chipLabel(p, { short: true }).map((n) => (typeof n === "string" ? saira(n) : n)))));
+      nodes.push(h("button", { type: "button", class: "chip chip-more", hidden: true, onclick: () => this.showMoreChips() }));
       this.chips.replaceChildren(...nodes);
+      if (!this.chipsWatch) {
+        // Refit when the pane's width changes; in the next frame, so the
+        // refit never resizes what the observer is reporting on.
+        let width = -1;
+        this.chipsWatch = new ResizeObserver(([entry]) => {
+          if (Math.round(entry.contentRect.width) === width) return;
+          width = Math.round(entry.contentRect.width);
+          cancelAnimationFrame(this.chipsFrame);
+          this.chipsFrame = requestAnimationFrame(() => this.fitChips());
+        });
+        this.chipsWatch.observe(this.chips);
+      }
     }
     for (const chip of this.chips.querySelectorAll('[role="tab"]')) {
       const on = Number(chip.dataset.n) === selected?.n;
       chip.setAttribute("aria-selected", String(on));
       chip.tabIndex = on ? 0 : -1;
-      chip.querySelector(".balloon").classList.toggle("is-filled", on);
     }
+    this.fitChips();
     // After the loop: only then does a new chip carry aria-selected.
-    if (hadFocus) (this.chips.querySelector('[aria-selected="true"]') || this.chips.querySelector('[role="tab"]') || this.view).focus({ preventScroll: true });
+    if (hadFocus) (this.chips.querySelector('[aria-selected="true"]') || this.chips.querySelector('[role="tab"]:not([hidden])') || this.view).focus({ preventScroll: true });
     if (selected) this.view.setAttribute("aria-labelledby", `chip-${selected.n}`);
     else this.view.removeAttribute("aria-labelledby");
   }
 
-  chipKey(event) {
+  /**
+   * Shows the chips that fit on CHIP_ROWS rows, at most CHIP_CAP of them,
+   * and folds the rest into "N more". The selected chip always shows.
+   */
+  fitChips() {
     const chips = [...this.chips.querySelectorAll('[role="tab"]')];
+    const more = this.chips.querySelector(".chip-more");
+    if (!more) return;
+    for (const c of chips) c.hidden = false;
+    more.hidden = true;
+    // A pane that is not laid out (a hidden tab) has nothing to measure:
+    // the observer fits it when it gets its width.
+    if (this.showAllChips || !this.chips.offsetWidth) return;
+    const rows = () => {
+      const tops = [];
+      for (const c of this.chips.children) {
+        if (c.hidden) continue;
+        if (!tops.some((t) => Math.abs(t - c.offsetTop) < 4)) tops.push(c.offsetTop);
+      }
+      return tops.length;
+    };
+    // "1 more" would take the place of the 1 chip it folds.
+    if (chips.length <= CHIP_CAP + 1 && rows() <= CHIP_ROWS) return;
+    const selected = this.selected();
+    more.hidden = false;
+    let shown = chips.length;
+    let folded = 0;
+    for (let i = chips.length - 1; i >= 0; i--) {
+      if (folded > 0 && shown <= CHIP_CAP && rows() <= CHIP_ROWS) break;
+      if (Number(chips[i].dataset.n) === selected?.n) continue;
+      chips[i].hidden = true;
+      shown--;
+      folded++;
+      // Its width changes with the number, so the next check measures it.
+      more.replaceChildren(saira(`${folded} more`));
+    }
+  }
+
+  /** "N more": every chip, wrapped; the focus goes to the first that was folded. */
+  showMoreChips() {
+    const first = this.chips.querySelector('[role="tab"][hidden]');
+    this.showAllChips = true;
+    this.fitChips();
+    first?.focus();
+  }
+
+  chipKey(event) {
+    const chips = [...this.chips.querySelectorAll('[role="tab"]:not([hidden])')];
     const i = chips.indexOf(event.currentTarget);
     let j = -1;
     if (event.key === "ArrowRight") j = (i + 1) % chips.length;
@@ -418,12 +484,14 @@ export class Problems {
     const errors = this.list.filter((p) => p.severity !== "advice");
     const notes = this.list.length - errors.length;
     if (this.list.length) {
+      // The count as a square, then the word (VESPER.md 7.9).
       s.classList.add(errors.length ? "is-fail" : "is-advice");
-      for (const p of (errors.length ? errors : this.list).slice(0, 5)) s.append(balloon(String(p.n)));
-      const words = [];
-      if (errors.length) words.push(errors.length === 1 ? "1 problem" : `${errors.length} problems`);
-      if (notes) words.push(notes === 1 ? "1 note" : `${notes} notes`);
-      s.append(words.join(", "));
+      // The square holds the number; the space keeps "2 problems" whole for a screen reader and a copy.
+      const shown = errors.length || notes;
+      s.append(h("span", { class: `count-badge${errors.length ? "" : " is-advice"}` }, saira(String(shown))));
+      const words = [errors.length ? (errors.length === 1 ? "problem" : "problems") : notes === 1 ? "note" : "notes"];
+      if (errors.length && notes) words.push(notes === 1 ? "1 note" : `${notes} notes`);
+      s.append(saira(` ${words.join(", ")}`));
       return;
     }
     if (this.checkError) {
@@ -448,6 +516,11 @@ export class Problems {
       if (!first || this.list.length) this.announce?.(text);
     }, 2000);
   }
+}
+
+/** Text in a Saira cell: every 0 slashed (VESPER.md 3.3). */
+function saira(text) {
+  return /0/.test(text) ? zero(text) : text;
 }
 
 function severity(d) {

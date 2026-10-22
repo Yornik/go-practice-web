@@ -1,40 +1,39 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page guide">
-  <header class="page-head">
-    <h1>The guide</h1>
-    <p class="lede">How the course works, and how to think through a problem.</p>
-  </header>
-  <div class="guide-layout">
-    <nav class="toc" aria-label="On this page" data-toc>
+<div class="wrap gpw-guide">
+  <div class="gpw-guide-head">
+    <h1 class="gpw-guide-h1">The guide</h1>
+    <p class="gpw-sum">How the course works, and how to think through a problem.</p>
+    <p class="gpw-guide-spec">{{zero (printf "%d exercises in %d tiers, about %s of work, and %d certificates." (len .Course.Exercises) (len .Course.Tiers) (hours .Course.Hours) (inc (len .Course.Tiers)))}}</p>
+  </div>
+  <div class="gpw-guide-grid">
+    <nav class="gpw-toc" aria-labelledby="toc-h" data-toc>
+      <p class="gpw-lbl" id="toc-h">On this page</p>
       <ol>
-        {{- range .Data.Sections}}
-        {{- if eq .Title "Make it a tool"}}
-        <li><a href="#read-go-messages">How to read Go messages</a></li>
-        <li><a href="#editor-keys">Keys in the editor</a></li>
-        {{- end}}
-        <li><a href="#{{.ID}}">{{if eq .Title "A problem-solving checklist"}}The checklist{{else}}{{.Title}}{{end}}</a></li>
+        {{- range .Data.Items}}
+        <li><a href="#{{.ID}}"><span aria-hidden="true">{{.N}}</span>{{.Title}}</a></li>
         {{- end}}
       </ol>
     </nav>
-    <div class="guide-body">
-      {{- range .Data.Sections}}
-      {{- if eq .Title "Make it a tool"}}
-      {{template "guide-messages" $}}
-      {{- end}}
-      <section class="guide-section{{if eq .Title "Make it a tool"}} guide-tools{{end}}" id="{{.ID}}" aria-labelledby="{{.ID}}-title">
-        {{- if eq .Title "A problem-solving checklist"}}
-        {{- /* The heading is inside the card, so a printed card has its title. */}}
-        <div class="checklist-card" data-checklist>
-          <h2 id="{{.ID}}-title">{{.Title}}</h2>
-          <div class="prose">{{.HTML}}</div>
-          <p class="btn-row no-print mt-5"><button type="button" class="btn" data-print-checklist>Print the checklist</button></p>
+    <div class="gpw-guide-body">
+      {{- range .Data.Items}}
+      <section class="gpw-gs" id="{{.ID}}" aria-labelledby="{{.ID}}-title">
+        <div class="gpw-gs-h"><span class="gpw-gs-n" aria-hidden="true">{{.N}}</span><h2 id="{{.ID}}-title">{{.Title}}</h2></div>
+        {{- if eq .Kind "story"}}{{template "guide-story"}}
+        {{- else if eq .Kind "work"}}{{template "guide-work"}}
+        {{- else if eq .Kind "checklist"}}
+        {{- /* The card prints on its own, so it carries its own title. */}}
+        <div class="gpw-guide-card" data-checklist>
+          <p class="gpw-guide-card-h" aria-hidden="true">{{.Section.Title}}</p>
+          <div class="prose gpw-prose">{{.Section.HTML}}</div>
+          <p class="btn-row no-print gpw-guide-print"><button type="button" class="btn" data-print-checklist>Print the checklist</button></p>
         </div>
-        {{- else if eq .Title "How to work an exercise"}}
-        <h2 id="{{.ID}}-title">{{.Title}}</h2>
-        {{template "guide-work"}}
+        {{- else if eq .Kind "messages"}}{{template "guide-messages" $}}
+        {{- else if eq .Kind "keys"}}{{template "guide-keys"}}
         {{- else}}
-        <h2 id="{{.ID}}-title">{{.Title}}</h2>
-        <div class="prose">{{.HTML}}</div>
+        <div class="prose gpw-prose{{if eq .Kind "tools"}} gpw-guide-tools{{end}}">{{.Section.HTML}}</div>
         {{- end}}
       </section>
       {{- end}}
@@ -43,41 +42,70 @@
 </div>
 {{end}}
 
+{{/* The story and the cast (VESPER.md 8.2). The story is where the
+     manual says what it changes: nothing in an exercise's task. */}}
+{{define "guide-story"}}
+        <div class="prose gpw-prose">
+          <p>The exercises follow 1 story. You are the new junior SRE at Vesper Labs, an AI lab on floors 58 to 64 of the Spire, in the city of Meridian. The lab sells HUSH, an AI that holds the pager for 40&nbsp;000 companies, so that their engineers can sleep.</p>
+          <p>Vesper Labs has 1 rule, etched in the lobby glass: no AI writes the code that watches the AI. In this course it is rule 1. You write every tool by hand, and each one goes into the Ledger with you as its author.</p>
+          <h3>Who you work with</h3>
+        </div>
+        <ul class="gpw-cast" aria-label="The cast">
+          {{- template "cast-row" (dict "Floor" "64" "Name" "Adaeze Nwosu" "Role" "CEO" "Desk" "64-01, corner office")}}
+          {{- template "cast-row" (dict "Floor" "63" "Name" "Daniyar Seitkali" "Role" "CTO" "Desk" "63-04, the lab")}}
+          {{- template "cast-row" (dict "Floor" "61" "Name" "Noor Haddad" "Role" "Principal SRE. Your mentor" "Desk" "61-12, next to your desk")}}
+          {{- template "cast-row" (dict "Floor" "61" "Name" "Wren Lindqvist" "Role" "SRE. Your rotation partner" "Desk" "61-14, by the swap board")}}
+          {{- template "cast-row" (dict "Floor" "59" "Name" "Marisol Quispe Mamani" "Role" "Support lead" "Desk" "59-02, support desk")}}
+          <li class="gpw-cast-hush"><span class="gpw-cast-fl" aria-hidden="true">H3</span><b>HUSH</b><span class="gpw-cast-r">The model<span class="gpw-vh">. Rows A to K, 40&nbsp;m down</span></span></li>
+          {{- template "cast-row" (dict "Floor" "H3" "Name" "Fuse" "Role" "Cat" "Desk" "The warmest rack")}}
+        </ul>
+        <div class="prose gpw-prose">
+          <h3>Why there is a story</h3>
+          <p>A tool is easier to care about when you know who reads its output at 03:12. So each exercise opens with a page from the night: a ticket, a log line, a dashboard that lies. The story exists to make Go practice fun.</p>
+          <h3>What stays exact</h3>
+          <p>The story lives in the first paragraph of each exercise and in its data: log lines, tickets, host names. The task, the rules and the tests are exact and plain. The hints and the explanations teach without the story, and the story does not change what an exercise teaches.</p>
+          <p>On this site, Story effects in the header turn off the story's screens, such as the Calm Score. The exercises stay the same.</p>
+        </div>
+{{- end}}
+
+{{define "cast-row"}}
+          <li><span class="gpw-cast-fl" aria-hidden="true">{{.Floor}}</span><b>{{.Name}}</b><span class="gpw-cast-r">{{.Role}}<span class="gpw-vh">. {{.Desk}}</span></span></li>
+{{- end}}
+
 {{define "guide-messages"}}
-      <section class="guide-section" id="read-go-messages" aria-labelledby="read-go-messages-title">
-        <h2 id="read-go-messages-title">How to read Go messages</h2>
-        <div class="prose">
+        <div class="prose gpw-prose">
           <p>The editor explains every problem that the compiler, <code>go vet</code>, staticcheck or a test reports. When no explanation fits a message, it links 1 of these 4 guides. Read them once before your first exercise.</p>
         </div>
-        <div class="guide-guides">
+        <div class="gpw-guide-guides">
           {{- range .Data.Guides}}
           <details id="{{.ID}}">
             <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>{{.Title}}</summary>
-            <div class="prose">{{catalogHTML .HTML}}</div>
+            <div class="prose gpw-prose">{{catalogHTML .HTML}}</div>
           </details>
           {{- end}}
         </div>
-      </section>
-      <section class="guide-section" id="editor-keys" aria-labelledby="editor-keys-title">
-        <h2 id="editor-keys-title">Keys in the editor</h2>
-        <dl class="facts guide-keys">
-          <dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run the tests of the step you picked.</dd>
-          <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd>Save now. The editor also saves 1.5 seconds after you stop typing.</dd>
-          <dt><kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd></dt><dd>Go to the next or the previous problem.</dd>
-          <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd>Format the file with gofmt.</dd>
-          <dt><kbd>Ctrl</kbd>+<kbd>M</kbd>, then <kbd>Tab</kbd></dt><dd>Tab moves the focus out of the editor instead of typing a tab. Press <kbd>Ctrl</kbd>+<kbd>M</kbd> again to type tabs.</dd>
-        </dl>
-        <p class="help mt-3">On a Mac, use Cmd in place of Ctrl.</p>
-      </section>
-{{end}}
+{{- end}}
+
+{{define "guide-keys"}}
+        <div class="prose gpw-prose">
+          <dl class="facts gpw-guide-keys">
+            <dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run the tests of the step you picked.</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd>Save now. The editor also saves 1.5 seconds after you stop typing.</dd>
+            <dt><kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd></dt><dd>Go to the next or the previous problem.</dd>
+            <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd>Format the file with gofmt.</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>M</kbd>, then <kbd>Tab</kbd></dt><dd>Tab moves the focus out of the editor instead of typing a tab. Press <kbd>Ctrl</kbd>+<kbd>M</kbd> again to type tabs.</dd>
+          </dl>
+          <p class="help">On a Mac, use Cmd in place of Ctrl.</p>
+        </div>
+{{- end}}
 
 {{define "guide-work"}}
         {{- /* The course README's 10 steps, adapted to the site: the site runs
            the tests, keeps the log and has the Steps tab. */}}
-        <div class="prose">
+        <div class="prose gpw-prose">
           <ol>
             <li>Read the spec twice. It is on the left of the exercise page.</li>
-            <li>Read the tests: open them from the Tests menu above the editor. Find the case names and the helper functions. They tell you what "done" means.</li>
+            <li>Read the tests: open them from the Test files menu above the editor. Find the case names and the helper functions. They tell you what "done" means.</li>
             <li>Work 2 small examples by hand, on paper.</li>
             <li>Write down the state your code must keep and what must always be true about it: the invariants.</li>
             <li>Write the simplest version that can pass 1 test.</li>
@@ -88,4 +116,4 @@
             <li>Keep a log of where you got stuck: the Notes tab of the exercise. The course page keeps the time, the runs and the hints you used.</li>
           </ol>
         </div>
-{{end}}
+{{- end}}

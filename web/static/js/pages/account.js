@@ -3,10 +3,13 @@ import { ApiError, api, errorMessage, setStatus } from "../api.js";
 import { createPasskey } from "../webauthn.js";
 import { confirmDialog, promptDialog } from "../ui/dialog.js";
 import { toast, toastNext } from "../ui/toast.js";
-import { isBusy, setBusy } from "../ui/fields.js";
+import { clearFieldErrors, fieldError, focusFirstInvalid, isBusy, setBusy } from "../ui/fields.js";
 
 const profile = document.getElementById("profile-form");
 const profileStatus = document.querySelector('[data-status="profile"]');
+// An error about 1 field goes under that field (VESPER.md 6.3).
+const PROFILE_FIELD = { bad_display_name: "profile-name", bad_email: "profile-email", email_taken: "profile-email" };
+const PROFILE_LABEL = { "profile-name": "Display name", "profile-email": "Email" };
 const passkeyStatus = document.querySelector('[data-status="passkeys"]');
 
 profile?.addEventListener("submit", async (event) => {
@@ -14,6 +17,8 @@ profile?.addEventListener("submit", async (event) => {
   const data = new FormData(profile);
   const button = profile.querySelector("button[type=submit]");
   if (isBusy(button)) return;
+  clearFieldErrors(profile);
+  setStatus(profileStatus, "");
   setBusy(button, true, "Saving");
   try {
     const res = await api("PUT", "/api/account", {
@@ -27,6 +32,13 @@ profile?.addEventListener("submit", async (event) => {
     }
     setStatus(profileStatus, "Profile saved.", "success");
   } catch (err) {
+    const id = err instanceof ApiError ? PROFILE_FIELD[err.code] : null;
+    const input = id && document.getElementById(id);
+    if (input) {
+      fieldError(input, `${PROFILE_LABEL[id]}: ${err.message}`);
+      focusFirstInvalid(profile);
+      return;
+    }
     setStatus(profileStatus, errorMessage(err), "error");
   } finally {
     setBusy(button, false, "Save the profile");
@@ -120,6 +132,7 @@ document.querySelector("[data-logout-everywhere]")?.addEventListener("click", as
   const ok = await confirmDialog({
     title: "Sign out everywhere?",
     text: "Every browser that is signed in to this account signs out. This one does too.",
+    warning: true,
     confirm: "Sign out everywhere",
     cancel: "Stay signed in",
     danger: true,
@@ -134,12 +147,13 @@ document.querySelector("[data-logout-everywhere]")?.addEventListener("click", as
   }
 });
 
-// The editor's text size: the exercise page reads it when it opens.
+// The editor's text size: the exercise page reads it when it opens. 14 px
+// is the default (VESPER.md 8.10, 11.3).
 const size = document.querySelector("[data-editor-size]");
 if (size) {
-  let stored = "13";
+  let stored = "14";
   try {
-    stored = localStorage.getItem("gpw-editor-size") || "13";
+    stored = localStorage.getItem("gpw-editor-size") || "14";
   } catch {
     // Storage blocked: the default.
   }

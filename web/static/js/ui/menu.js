@@ -67,8 +67,9 @@ function show(state, index) {
   open.add(state);
   const list = items(state.wrap);
   // A menu of choices opens on the current choice; a menu of actions on its first item.
-  const choices = list.every((el) => el.getAttribute("role") === "menuitemradio");
-  const checked = choices ? list.findIndex((el) => el.getAttribute("aria-checked") === "true") : -1;
+  // The theme menu ends with the Story effects checkbox, so its choices are its radios.
+  const choices = list.some((el) => el.getAttribute("role") === "menuitemradio") && list.every((el) => el.getAttribute("role") !== "menuitem");
+  const checked = choices ? list.findIndex((el) => el.getAttribute("role") === "menuitemradio" && el.getAttribute("aria-checked") === "true") : -1;
   const target = index === 0 && checked >= 0 ? checked : index < 0 ? list.length - 1 : index;
   list[target]?.focus();
 }

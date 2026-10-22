@@ -1,23 +1,30 @@
+{{define "styles"}}
+<link rel="stylesheet" href="{{static "css/public.css"}}">
+{{- end}}
 {{define "content"}}
-<div class="wrap page">
-  <section class="auth narrow" aria-labelledby="login-title">
-    <header class="page-head">
-      <h1 id="login-title">Sign in</h1>
-      <p class="lede">Use the passkey on this device or on your phone.</p>
-    </header>
-    <form id="login-form" class="auth-form" data-next="{{.Data.Next}}" novalidate>
-      <div class="field">
-        <label for="login-username">Username, optional</label>
-        <input class="text-input" id="login-username" name="username" autocomplete="username webauthn" autocapitalize="none" spellcheck="false" aria-describedby="login-username-help">
-        <p class="help" id="login-username-help">Click the field and your browser lists your passkeys. The button works without a username.</p>
+<div class="wrap gpw-gate">
+  <section class="gpw-gate-panel gpw-ghost" aria-labelledby="login-title">
+    {{template "gate-strip-site" .Data.Host}}
+    <div class="gpw-gate-in">
+      <h1 id="login-title" class="gpw-h1-app">Sign in</h1>
+      <p class="gpw-sum">Use the passkey on this device or on your phone.</p>
+      <form id="login-form" class="gpw-gate-form" data-next="{{.Data.Next}}" novalidate>
+        <div class="field">
+          <label for="login-username">Username, optional</label>
+          <input class="text-input" id="login-username" name="username" autocomplete="username webauthn" autocapitalize="none" spellcheck="false" aria-describedby="login-username-help">
+          <p class="help" id="login-username-help">Click the field and your browser lists your passkeys. The button works without a username.</p>
+        </div>
+        <button type="submit" class="btn btn-primary gpw-btn-wide">Sign in with a passkey</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+      <div class="gpw-gate-more">
+        <p>Lost your passkey? <a href="/recover">Recover your account</a>.</p>
+        <p>No account? Go Practice is invite only. Ask the owner of this site for an invite link.</p>
       </div>
-      <button type="submit" class="btn btn-primary btn-lg">Sign in with a passkey</button>
-      <p class="form-status mt-4" role="status" aria-live="polite"></p>
-    </form>
-    <div class="auth-aside">
-      <p>Lost your passkey? <a href="/recover">Recover your account</a>.</p>
-      <p>No account? Go Practice is invite only. Ask the owner of this site for an invite link.</p>
     </div>
   </section>
+  {{- with .Data.MovedFrom}}
+  {{template "gate-moved" (dict "From" . "To" $.Data.Host "Button" true)}}
+  {{- end}}
 </div>
 {{end}}
