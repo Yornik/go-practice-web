@@ -8,7 +8,9 @@
 #   GO_PRACTICE_DEV_STATE  directory for the database, logs and runs; default
 #                          a new temporary directory. Reuse 1 to keep your
 #                          account.
-#   GO_PRACTICE_DEV_PORT   port of the site; default 8080.
+#   GO_PRACTICE_DEV_PORT   port of the site; default 8080. The runner listens
+#                          on the next port and the metrics on this port plus
+#                          1010 and 1011, so 2 checkouts can run side by side.
 #   GO_PRACTICE_DEV_CACHE  build cache of the runner; default
 #                          ~/.cache/go-practice-dev, kept between starts.
 set -euo pipefail
@@ -18,6 +20,7 @@ cd "$root"
 
 state="${GO_PRACTICE_DEV_STATE:-$(mktemp -d "${TMPDIR:-/tmp}/go-practice-dev.XXXXXX")}"
 port="${GO_PRACTICE_DEV_PORT:-8080}"
+runner_port=$((port + 1))
 mkdir -p "$state/bin" "$state/data" "$state/runs"
 # The build cache outlives the state directory, so a second start is fast.
 cache="${GO_PRACTICE_DEV_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-practice-dev}"
@@ -49,8 +52,8 @@ trap stop INT TERM EXIT
 
 # staticcheck is optional; go install puts it in GOPATH/bin.
 PATH="$(go env GOPATH)/bin:$PATH" \
-GPR_ADDR="127.0.0.1:8081" \
-GPR_METRICS_ADDR="127.0.0.1:9091" \
+GPR_ADDR="127.0.0.1:$runner_port" \
+GPR_METRICS_ADDR="127.0.0.1:$((port + 1011))" \
 GPR_TOKEN="$token" \
 GPR_COURSE_DIR="$root/course" \
 GPR_WORK_DIR="$state/runs" \
@@ -60,11 +63,11 @@ GPR_GOCACHE_SEED="" \
 pids+=($!)
 
 GPW_ADDR="127.0.0.1:$port" \
-GPW_METRICS_ADDR="127.0.0.1:9090" \
+GPW_METRICS_ADDR="127.0.0.1:$((port + 1010))" \
 GPW_PUBLIC_URL="http://localhost:$port" \
 GPW_DB_PATH="$state/data/go-practice.db" \
 GPW_COURSE_DIR="$root/course" \
-GPW_RUNNER_URL="http://127.0.0.1:8081" \
+GPW_RUNNER_URL="http://127.0.0.1:$runner_port" \
 GPW_RUNNER_TOKEN="$token" \
 GPW_TRUSTED_PROXIES="" \
 GPW_DEV="true" \
@@ -77,7 +80,7 @@ pids+=($!)
 echo "Waiting for the web server and the runner (the first start compiles the standard library with -race)"
 deadline=$((SECONDS + 300))
 until curl -fsS "http://127.0.0.1:$port/readyz" >/dev/null 2>&1 &&
-	curl -fsS "http://127.0.0.1:8081/readyz" >/dev/null 2>&1; do
+	curl -fsS "http://127.0.0.1:$runner_port/readyz" >/dev/null 2>&1; do
 	for pid in "${pids[@]}"; do
 		if ! kill -0 "$pid" 2>/dev/null; then
 			echo "A server stopped. Logs:" >&2

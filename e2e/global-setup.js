@@ -3,7 +3,8 @@
 // which compiles the standard library with -race on a cold cache: a minute
 // or more on a CI machine. A check or a run before that fails, so the
 // tests wait for the runner of scripts/dev.sh too.
-const RUNNER = "http://127.0.0.1:8081/readyz";
+// scripts/dev.sh puts the runner on the port after the site's.
+const RUNNER = `http://127.0.0.1:${Number(process.env.GO_PRACTICE_DEV_PORT || 8080) + 1}/readyz`;
 
 export default async function globalSetup() {
   // A site that is already running has its runner out of reach.
