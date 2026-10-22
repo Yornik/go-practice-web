@@ -8,6 +8,6 @@ It holds the docs of the Go standard library for the Go release of the runner im
 GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc
 ```
 
-When the runner image moves to a new Go release, change `-go` in the `go:generate` line of `godoc.go` in the same change. With another release the generator fails instead of writing docs for the wrong compiler.
+Renovate moves `-go` in the `go:generate` line of `godoc.go` with the runner image. `TestIndexRelease` fails until the index comes from that minor release, so regenerate it in the same pull request. With another release the generator fails instead of writing docs for the wrong compiler.
 
 The output is deterministic, so it changes in git only when the docs change.

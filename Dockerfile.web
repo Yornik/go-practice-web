@@ -8,15 +8,18 @@
 # Build from the repository root with the course submodule checked out:
 #   docker build -f Dockerfile.web -t go-practice-web .
 
-ARG GO_IMAGE=golang:1.27-bookworm
+# The patch release is pinned, so a release builds with the Go release that
+# CI tested (GO_VERSION in .github/workflows/ci.yml). Renovate moves both in
+# 1 pull request, and CI fails while they differ.
+ARG GO_IMAGE=golang:1.27.2-bookworm
 
 FROM ${GO_IMAGE} AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
-# Monaco comes from the npm registry, checked against a pinned SHA-256, so
-# the build needs no Node. It lands in web/static/vendor/ before go build
-# embeds web/static.
+# Monaco comes from the npm registry, checked against a pinned sha512
+# integrity, so the build needs no Node. It lands in web/static/vendor/
+# before go build embeds web/static.
 COPY scripts/fetch-monaco.sh scripts/
 RUN scripts/fetch-monaco.sh
 COPY cmd/ cmd/

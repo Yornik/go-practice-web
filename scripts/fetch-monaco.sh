@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Downloads the Monaco editor from the npm registry and copies its AMD build
 # (package/min/vs) to web/static/vendor/monaco/vs, where the IDE page loads
-# it. The tarball is checked against a pinned SHA-256. Run it once after a
-# checkout; the web image runs it at build time.
+# it. The tarball is checked against the sha512 integrity that the registry
+# publishes for that version, pinned here: Renovate moves the version and
+# the integrity together. Run it once after a checkout; the web image runs it
+# at build time.
 #
 # Usage: scripts/fetch-monaco.sh
-# To try another release: MONACO_VERSION=x.y.z MONACO_SHA256=<sha256> scripts/fetch-monaco.sh
+# To try another release: MONACO_VERSION=x.y.z MONACO_INTEGRITY=sha512-... scripts/fetch-monaco.sh
+# (npm view monaco-editor@x.y.z dist.integrity prints it)
 set -euo pipefail
 
 version="${MONACO_VERSION:-0.57.0}"
 if [[ "$version" == "0.57.0" ]]; then
-	sha256="${MONACO_SHA256:-3ea1712fbacd3290cf4751007e3a5b57cc279767607812d4c3e57925fb0b05c2}"
+	integrity="${MONACO_INTEGRITY:-sha512-5BkI9KGoqrNvBGUe15/QlZq3OooZ8WLg1AxTpaqHRCP3HNpzPPZKE2EDz8M7c+VRmCeUw1Brp4cx/PWm3kI/5A==}"
 else
-	sha256="${MONACO_SHA256:?set MONACO_SHA256 to the SHA-256 of the monaco-editor-$version tarball}"
+	integrity="${MONACO_INTEGRITY:?set MONACO_INTEGRITY to the sha512 integrity of monaco-editor@$version}"
 fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,13 +33,10 @@ url="https://registry.npmjs.org/monaco-editor/-/monaco-editor-$version.tgz"
 echo "Downloading $url"
 curl -fsSL --retry 3 -o "$tmp/monaco.tgz" "$url"
 
-if command -v sha256sum >/dev/null; then
-	got="$(sha256sum "$tmp/monaco.tgz" | cut -d' ' -f1)"
-else
-	got="$(shasum -a 256 "$tmp/monaco.tgz" | cut -d' ' -f1)"
-fi
-if [[ "$got" != "$sha256" ]]; then
-	echo "SHA-256 mismatch for $url: got $got, want $sha256" >&2
+# openssl base64 -A, not base64 -w0: the base64 of macOS has no -w.
+got="sha512-$(openssl dgst -sha512 -binary "$tmp/monaco.tgz" | openssl base64 -A)"
+if [[ "$got" != "$integrity" ]]; then
+	echo "integrity mismatch for $url: got $got, want $integrity" >&2
 	exit 1
 fi
 
