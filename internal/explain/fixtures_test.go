@@ -23,8 +23,8 @@ import (
 	"github.com/yornik/go-practice-web/internal/runnerapi"
 )
 
-// fixtureToolchain is the Go release of the runner image (Dockerfile.runner,
-// golang:1.27-bookworm). Bump it with the image, so a changed message text
+// fixtureToolchain is the Go release of the runner image (the golang image
+// of Dockerfile.runner). It moves with the image, so a changed message text
 // fails here before it reaches a learner. EXPLAIN_GOTOOLCHAIN overrides it.
 const fixtureToolchain = "go1.27.2"
 

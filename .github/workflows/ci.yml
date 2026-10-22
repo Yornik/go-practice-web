@@ -24,8 +24,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # The images build on golang:1.27-bookworm, and the explain fixtures pin
-  # this release: the compiler's messages are part of what they check.
+  # The images build with this release (Dockerfile.web, Dockerfile.runner),
+  # and the explain fixtures pin it: the compiler's messages are part of what
+  # they check. Renovate moves all of them in 1 pull request, and the "Go
+  # release" step below fails while they differ.
+  # renovate: datasource=golang-version depName=go
   GO_VERSION: "1.27.2"
   GOTOOLCHAIN: local
 
@@ -39,6 +42,23 @@ jobs:
           # release.yml passes the release commit; other events leave it empty.
           ref: ${{ inputs.ref }}
           submodules: true
+      # go.dev and Docker Hub publish a Go release at different times, so a
+      # Renovate pull request can move GO_VERSION before the images. A release
+      # must build with the Go release that this job tests.
+      - name: Go release
+        run: |
+          fail=0
+          want() {
+            if ! grep -qF -- "$2" "$1"; then
+              echo "::error file=$1::$1 does not name Go $GO_VERSION: want $2"
+              fail=1
+            fi
+          }
+          want Dockerfile.web "ARG GO_IMAGE=golang:${GO_VERSION}-bookworm"
+          want Dockerfile.runner "ARG GO_IMAGE=golang:${GO_VERSION}-bookworm"
+          want internal/explain/fixtures_test.go "const fixtureToolchain = \"go${GO_VERSION}\""
+          want internal/godoc/godoc.go "cmd/gendocs -go go${GO_VERSION%.*} "
+          exit "$fail"
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -60,6 +80,29 @@ jobs:
           # The staticcheck fixtures fail instead of skipping without it.
           EXPLAIN_REQUIRE_STATICCHECK: "1"
         run: go test -race ./...
+
+  # Renovate moves the font versions and their sha512 in
+  # scripts/fetch-fonts.sh, but it cannot copy the font files. The script
+  # checks each tarball against its hash, and the diff catches committed
+  # fonts of another version. A font bump stays red until a person commits
+  # the files, and release.yml builds no image from a red commit.
+  fonts:
+    name: fonts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # release.yml passes the release commit; other events leave it empty.
+          ref: ${{ inputs.ref }}
+      - run: scripts/fetch-fonts.sh
+      - name: web/static/fonts is what the script fetches
+        run: |
+          out="$(git status --porcelain -- web/static/fonts)"
+          if [ -n "$out" ]; then
+            echo "::error::web/static/fonts differs from scripts/fetch-fonts.sh: run it and commit the files"
+            echo "$out"
+            exit 1
+          fi
 
   e2e:
     name: end-to-end

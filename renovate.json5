@@ -1,0 +1,497 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'docker:enableMajor',
+    ':separateMultipleMajorReleases',
+  ],
+  baseBranchPatterns: [
+    'main',
+  ],
+  labels: [
+    'renovate',
+    'dependencies',
+  ],
+  // Release Please reads the commit type to decide on a release: `fix`
+  // cuts a patch release, `chore` cuts none. Renovate guesses the convention
+  // from the last commits, and the merge commits of pull requests can tip
+  // that guess to "no prefix". Then no bump would ever release.
+  semanticCommits: 'enabled',
+  // No branch protection requires the CI jobs: Release Please opens its
+  // release pull request with GITHUB_TOKEN, such a pull request starts no
+  // workflow, and a required check would block it for good. GitHub's own
+  // auto-merge waits only for required checks, so it could merge before CI
+  // ends. Renovate's own automerge waits until every check has passed.
+  platformAutomerge: false,
+  // This list replaces the one of config:recommended. The fixture modules
+  // in testdata/ pin the Go version of the course on purpose, and course/
+  // is a submodule: its own repository decides its dependencies.
+  ignorePaths: [
+    '**/node_modules/**',
+    '**/testdata/**',
+    'course/**',
+  ],
+  // A major update of a module changes its import path, so the code must
+  // move with go.mod. Tidy drops the go.sum lines that the update leaves.
+  postUpdateOptions: [
+    'gomodTidy',
+    'gomodUpdateImportPaths',
+  ],
+  // Off by default in Renovate. The course is what learners read and run,
+  // so its commit is a dependency like any other.
+  'git-submodules': {
+    enabled: true,
+  },
+  packageRules: [
+    // Commit types. config:recommended gives `fix` to the direct modules in
+    // go.mod and `chore` to everything else. A bump that changes what runs
+    // in the 2 images needs `fix`, so that Release Please cuts a release for
+    // it and the gitops repository can roll it out. Every direct module is
+    // linked into cmd/web or cmd/runner (go list -deps), so all of them keep
+    // `fix`. Actions, the e2e packages and golangci-lint never reach an
+    // image and keep `chore`. So does the `# syntax=` line of a Dockerfile:
+    // it picks the parser of the build, not what the image holds.
+    {
+      matchManagers: [
+        'dockerfile',
+      ],
+      matchDepTypes: [
+        'stage',
+        'final',
+        'install',
+      ],
+      semanticCommitType: 'fix',
+    },
+    // Renovate skips the `// indirect` lines of go.mod by default, and so
+    // do its vulnerability alerts. 23 of the 25 indirect modules are linked
+    // into the binaries (go list -deps on linux/amd64), among them
+    // golang.org/x/crypto, google.golang.org/protobuf and the parsers of
+    // WebAuthn attestations. Without this rule a fix in one of them ships
+    // only when a direct module happens to raise it.
+    {
+      matchManagers: [
+        'gomod',
+      ],
+      matchDepTypes: [
+        'indirect',
+      ],
+      enabled: true,
+      semanticCommitType: 'fix',
+    },
+    // modernc.org/sqlite works only with the exact libc, mathutil and
+    // memory releases of its own go.mod. A bump of sqlite moves them.
+    {
+      matchManagers: [
+        'gomod',
+      ],
+      matchPackageNames: [
+        'modernc.org/libc',
+        'modernc.org/mathutil',
+        'modernc.org/memory',
+      ],
+      enabled: false,
+    },
+    // Only the next 3 rules set automerge, for patches as in
+    // sharkshere-gitops. A patch passes CI first, and a merge here deploys
+    // nothing: a person merges the release pull request and then the image
+    // bump in the gitops repository. The rules are an allow-list, so a
+    // manager added later waits for a person until it is listed here. Unlike
+    // the gitops repository, no docker minor merges itself: here it changes
+    // what the images hold.
+    {
+      matchManagers: [
+        'gomod',
+      ],
+      matchUpdateTypes: [
+        'patch',
+      ],
+      // No group: Release Please copies the commit title into
+      // CHANGELOG.md, and a group's title names no module.
+      automerge: true,
+      labels: [
+        'renovate',
+        'dependencies',
+        'automerge',
+      ],
+    },
+    {
+      matchManagers: [
+        'github-actions',
+        'npm',
+      ],
+      matchUpdateTypes: [
+        'patch',
+      ],
+      groupName: 'tooling patches',
+      automerge: true,
+      labels: [
+        'renovate',
+        'dependencies',
+        'automerge',
+      ],
+    },
+    {
+      matchPackageNames: [
+        'github.com/golangci/golangci-lint/v2',
+      ],
+      matchUpdateTypes: [
+        'patch',
+      ],
+      groupName: 'tooling patches',
+      automerge: true,
+      labels: [
+        'renovate',
+        'dependencies',
+        'automerge',
+      ],
+    },
+    // Majors never merge themselves, so each stays open until a person
+    // acts, and Renovate opens no new pull request past 10 open ones. On
+    // 22 October 2026 the 9 actions were 12 majors behind, 1 pull request
+    // each: that alone filled the limit and held back the course and Go.
+    // The runner label and Node stay apart, because a new Ubuntu or Node
+    // can break the e2e job on its own. 2 rules, because Renovate decides
+    // separateMultipleMajor before the update type: the first offers only
+    // the newest major of an action, the second groups those majors.
+    {
+      matchManagers: [
+        'github-actions',
+      ],
+      matchDepTypes: [
+        'action',
+      ],
+      separateMultipleMajor: false,
+    },
+    {
+      matchManagers: [
+        'github-actions',
+      ],
+      matchDepTypes: [
+        'action',
+      ],
+      matchUpdateTypes: [
+        'major',
+      ],
+      groupName: 'GitHub Actions majors',
+    },
+    // The Go release is named in the 2 Dockerfiles, GO_VERSION in ci.yml,
+    // the explain fixtures, the go:generate line of the stdlib index and
+    // the commands in the docs. The fixtures check the compiler's messages
+    // and the index holds the docs of 1 release, so all of them move in 1
+    // pull request. A person regenerates the index in it.
+    {
+      matchPackageNames: [
+        'go',
+        'golang',
+      ],
+      groupName: 'Go',
+      // Release Please copies the title into CHANGELOG.md, so it names the
+      // release once. Renovate's own suffix ("to v1.27.3") drops out when
+      // the upgrades differ (1.28.0, and 1.28 in the go:generate line) and
+      // doubles the version when they agree, so the topic carries it
+      // instead. It takes the first upgrade, and Renovate sorts them by
+      // name: `go` (the go command) comes before `golang` (the image). A
+      // branch with only `go` in it is no group to Renovate, so the rule
+      // sets the topic outside the group too.
+      group: {
+        commitMessageTopic: 'Go to {{{newVersion}}}',
+      },
+      commitMessageTopic: 'Go to {{{newVersion}}}',
+      commitMessageExtra: '',
+      semanticCommitType: 'fix',
+      automerge: false,
+      // Opens before the tooling when the limit of open pull requests is
+      // reached.
+      prPriority: 5,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> :warning: **Manual steps required.** Renovate moves the Go release in the Dockerfiles, CI, the explain fixtures and the docs. It cannot regenerate a file, and CI does not build the images.',
+        '',
+        '1. Wait until this pull request moves both Dockerfiles. go.dev and Docker Hub publish a release at different times, and Renovate adds the image once Docker Hub has its tag. Until then the "Go release" step of CI fails. Push nothing before that: Renovate stops updating a branch that someone else pushed to.',
+        '2. Regenerate the stdlib index with the release in `GO_VERSION` of `.github/workflows/ci.yml`, and push it to this branch. On a new minor release, `TestIndexRelease` fails until you do.',
+        '',
+        '```bash',
+        'GOTOOLCHAIN=go1.X.Y go generate ./internal/godoc',
+        '```',
+        '',
+        '3. CI runs the explain fixtures and staticcheck with the new release. A fixture fails when a compiler message changed. A new minor release can need the next staticcheck release first.',
+        '4. Update the Go release in the text of `docs/DESIGN.md` and `internal/explain/catalog/README.md`.',
+        '5. Build both images once, with the course submodule checked out: `docker build -f Dockerfile.runner .` and `docker build -f Dockerfile.web .`. Only the release workflow builds them.',
+      ],
+    },
+    // The go line of go.mod is the minimum of the dependencies
+    // (docs/DESIGN.md), not the release the images build with. `go get`
+    // raises it when a dependency needs more.
+    {
+      matchManagers: [
+        'gomod',
+      ],
+      matchDepTypes: [
+        'golang',
+      ],
+      enabled: false,
+    },
+    // staticcheck runs in the runner image, so learners see its findings.
+    // ci.yml and Dockerfile.runner pin the same release, and the explain
+    // fixtures check its output.
+    {
+      matchPackageNames: [
+        'honnef.co/go/tools',
+      ],
+      commitMessageTopic: 'staticcheck',
+      semanticCommitType: 'fix',
+      automerge: false,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> staticcheck runs in the runner image, and learners see its findings. CI builds this release with the Go release of the images and runs the staticcheck fixtures of the explain catalog. Read the release notes for new and changed checks, and update the release name (`# release 2026.2.2`) next to the install command in `internal/explain/catalog/README.md`.',
+      ],
+    },
+    // Both images copy the course, so a new commit ships in the next
+    // release. A person reads it: a renamed exercise needs a redirect, and
+    // a changed tier changes what a certificate covers.
+    {
+      matchManagers: [
+        'git-submodules',
+      ],
+      commitMessageTopic: 'the course',
+      semanticCommitType: 'fix',
+      automerge: false,
+      // Opens before the tooling when the limit of open pull requests is
+      // reached.
+      prPriority: 5,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> :warning: **Learner-facing change.** Both images copy the course, so this commit ships in the next release.',
+        '',
+        '- CI runs every exercise of the new course through the runner sandbox. The tests of `internal/course`, `internal/web` and the explain catalog read it too.',
+        '- A renamed exercise needs a row in `internal/course/renames.go` (`docs/DESIGN.md`, "Renamed exercises"). A changed tier changes what a certificate covers.',
+        '- Read the commits of the course since the old commit before you merge.',
+      ],
+    },
+    // A 0.x minor release of Monaco can change its API, and the IDE is
+    // built on it. The integrity moves with the version, and the
+    // end-to-end job runs the IDE with the new release.
+    {
+      matchPackageNames: [
+        'monaco-editor',
+      ],
+      commitMessageTopic: 'Monaco',
+      semanticCommitType: 'fix',
+      automerge: false,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> Renovate moves the version and its sha512 integrity in `scripts/fetch-monaco.sh`. The `end-to-end` CI job fetches the new release, checks it against that integrity and runs the IDE with it.',
+        '',
+        'Read the release notes, then open the IDE with `scripts/dev.sh`: a 0.x minor release of Monaco can change its API.',
+      ],
+    },
+    // The web fonts are committed files. Renovate moves the version and the
+    // sha512 integrity of each package, but it cannot copy the files. The
+    // `fonts` CI job runs scripts/fetch-fonts.sh and stays red until
+    // web/static/fonts holds what the script fetches.
+    {
+      matchPackageNames: [
+        '@fontsource-variable/**',
+      ],
+      groupName: 'web fonts',
+      semanticCommitType: 'fix',
+      automerge: false,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> :warning: **Manual steps required.** Renovate moves the versions and their sha512 integrity in `scripts/fetch-fonts.sh`, and the versions in `docs/DESIGN.md`. The `fonts` CI job fails until `web/static/fonts/` holds the files of these versions.',
+        '',
+        '```bash',
+        'scripts/fetch-fonts.sh',
+        'git add web/static/fonts/',
+        '```',
+        '',
+        '- Compare the `unicode-range` of each file in the package CSS with `web/static/css/site.css`.',
+        '- Update the @fontsource-variable version in the header comment of `scripts/pdf-fonts.py`.',
+        '- If the font itself has a new version, the certificate fonts follow it: move `COMMIT` and the sha256 values in `scripts/pdf-fonts.py`, run it and commit `internal/cert/fonts/`.',
+      ],
+    },
+    // The certificate PDF cuts its fallback font for names from this
+    // release. Its sha256 values and the committed fonts need a person and
+    // fontTools, and no CI job runs scripts/pdf-fonts.py. A draft cannot be
+    // merged by accident.
+    {
+      matchPackageNames: [
+        'rsms/inter',
+      ],
+      commitMessageTopic: 'the Inter font of the certificate',
+      semanticCommitType: 'fix',
+      automerge: false,
+      draftPR: true,
+      labels: [
+        'renovate',
+        'dependencies',
+      ],
+      prBodyNotes: [
+        '> :warning: **Not ready to merge as it stands.** This draft moves the Inter release in `scripts/pdf-fonts.py`. The sha256 values next to it still describe the old release, and `internal/cert/fonts/` still holds fonts cut from it.',
+        '',
+        '1. Put the sha256 of the new zip into `INTER_ZIP`, and the sha256 of `extras/ttf/Inter-Bold.ttf` in it into `INTER_TTF`. Move the version in the cache file names.',
+        '2. Run `python3 -I scripts/pdf-fonts.py` (needs fontTools 4.x). Read `internal/cert/fonts/SOURCES.txt`: every sample name must still print.',
+        '3. Commit `internal/cert/fonts/` and push it to this branch. Then mark this pull request ready, or close it to stay on the old release.',
+      ],
+    },
+    // It comes last, so that a major bump gets the `major` label in every
+    // group above.
+    {
+      matchUpdateTypes: [
+        'major',
+      ],
+      automerge: false,
+      labels: [
+        'renovate',
+        'major',
+      ],
+    },
+  ],
+  customManagers: [
+    // Tool versions in workflow env vars, with the comment convention of
+    // sharkshere-gitops. The quotes are optional, because YAML reads
+    // 1.30 as the number 1.3.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/workflows/.+\\.ya?ml$/',
+      ],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\n\\s*[A-Z_]+_VERSION: "?(?<currentValue>[^"\\s]+)"?',
+      ],
+    },
+    // Tools that `go install` builds from source. The capture stops at
+    // /cmd/, because the go datasource looks up a module, not a package.
+    // fixtures_test.go and the catalog README name the staticcheck release
+    // in the install command that a person copies.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/workflows/.+\\.ya?ml$/',
+        '/^Dockerfile\\.runner$/',
+        '/^internal/explain/fixtures_test\\.go$/',
+        '/^internal/explain/catalog/README\\.md$/',
+      ],
+      matchStrings: [
+        'go install (?<depName>[a-z0-9.-]+(?:/[A-Za-z0-9._-]+)*?)/cmd/[a-z0-9-]+@(?<currentValue>v\\d+\\.\\d+\\.\\d+)',
+      ],
+      datasourceTemplate: 'go',
+    },
+    // The explain fixtures run the runner's Go release by name.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^internal/explain/fixtures_test\\.go$/',
+      ],
+      matchStrings: [
+        'const fixtureToolchain = "go(?<currentValue>\\d+\\.\\d+\\.\\d+)"',
+      ],
+      depNameTemplate: 'go',
+      datasourceTemplate: 'golang-version',
+    },
+    // gendocs refuses a GOROOT of another minor release, so the flag names
+    // a minor release. The golang image has a tag of that name (1.28), so
+    // the flag follows the same Docker Hub tags as the Dockerfiles.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^internal/godoc/godoc\\.go$/',
+      ],
+      matchStrings: [
+        '//go:generate go run \\.\\./\\.\\./cmd/gendocs -go go(?<currentValue>\\d+\\.\\d+) ',
+      ],
+      depNameTemplate: 'golang',
+      datasourceTemplate: 'docker',
+    },
+    // A person copies these commands. A stale release in them downloads
+    // the wrong toolchain.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^internal/godoc/godoc\\.go$/',
+        '/^internal/godoc/data/README\\.md$/',
+        '/^cmd/gendocs/main\\.go$/',
+        '/^internal/explain/catalog/README\\.md$/',
+        '/^docs/DESIGN\\.md$/',
+      ],
+      matchStrings: [
+        'GOTOOLCHAIN=go(?<currentValue>\\d+\\.\\d+\\.\\d+) ',
+      ],
+      depNameTemplate: 'go',
+      datasourceTemplate: 'golang-version',
+    },
+    // The script names the version twice, the default and the release that
+    // the pinned integrity belongs to, and then the integrity. 1 match spans
+    // all 3 lines. Renovate replaces the version everywhere in the match,
+    // and the integrity with the `dist.integrity` of the new release, which
+    // the npm datasource returns as its digest.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^scripts/fetch-monaco\\.sh$/',
+      ],
+      matchStrings: [
+        'version="\\$\\{MONACO_VERSION:-(?<currentValue>\\d+\\.\\d+\\.\\d+)\\}"\\nif \\[\\[ "\\$version" == "\\d+\\.\\d+\\.\\d+" \\]\\]; then\\n\\tintegrity="\\$\\{MONACO_INTEGRITY:-(?<currentDigest>sha512-[A-Za-z0-9+/]+=*)\\}"',
+      ],
+      depNameTemplate: 'monaco-editor',
+      datasourceTemplate: 'npm',
+    },
+    // `fetch <package> <version> \` calls in the script, with the sha512
+    // integrity on the next line: Renovate moves it like the Monaco one.
+    // The comment that documents the arguments has `<package>`, which the
+    // pattern rejects.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^scripts/fetch-fonts\\.sh$/',
+      ],
+      matchStrings: [
+        'fetch (?<depName>[a-z0-9-]+) (?<currentValue>\\d+\\.\\d+\\.\\d+) \\\\\\n\\t"(?<currentDigest>sha512-[A-Za-z0-9+/]+=*)"',
+      ],
+      depNameTemplate: '@fontsource-variable/{{{depName}}}',
+      datasourceTemplate: 'npm',
+    },
+    // The design notes name the font packages with their versions. The
+    // same group moves them with the script.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^docs/DESIGN\\.md$/',
+      ],
+      matchStrings: [
+        '`@fontsource-variable/(?<depName>[a-z0-9-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)`',
+      ],
+      depNameTemplate: '@fontsource-variable/{{{depName}}}',
+      datasourceTemplate: 'npm',
+    },
+    // The Inter release that the certificate's fallback font comes from.
+    // The URL names the version twice, and both move.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^scripts/pdf-fonts\\.py$/',
+      ],
+      matchStrings: [
+        'https://github\\.com/rsms/inter/releases/download/v(?<currentValue>\\d+(?:\\.\\d+)+)/Inter-\\d+(?:\\.\\d+)+\\.zip',
+      ],
+      depNameTemplate: 'rsms/inter',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.+)$',
+    },
+  ],
+}

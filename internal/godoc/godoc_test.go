@@ -3,6 +3,8 @@ package godoc_test
 import (
 	"bytes"
 	"compress/gzip"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -356,6 +358,28 @@ func TestDefault(t *testing.T) {
 	}
 	if p := ix.Package("io/ioutil"); p == nil || p.Deprecated == "" {
 		t.Error("io/ioutil is not marked deprecated")
+	}
+}
+
+// Renovate moves the -go flag of the go:generate line with the runner image,
+// but it cannot regenerate the index. Without this check a Go pull request
+// passes CI and ships the docs of the old release to the editor.
+func TestIndexRelease(t *testing.T) {
+	src, err := os.ReadFile("godoc.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^//go:generate go run \.\./\.\./cmd/gendocs -go (go1\.\d+) `).FindSubmatch(src)
+	if m == nil {
+		t.Fatal("godoc.go has no go:generate line with -go go1.N")
+	}
+	ix, err := godoc.Default()
+	if err != nil {
+		t.Fatalf("Default: %v", err)
+	}
+	want := string(m[1])
+	if got := ix.GoVersion; got != want && !strings.HasPrefix(got, want+".") {
+		t.Errorf("the index is from %s, and the go:generate line wants %s: regenerate it with GOTOOLCHAIN=%s.N go generate ./internal/godoc", got, want, want)
 	}
 }
 
