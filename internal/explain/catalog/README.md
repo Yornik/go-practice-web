@@ -180,7 +180,7 @@ EXPLAIN_CHECK_LINKS=1 go test -run TestLinks ./internal/explain/            # fe
 The staticcheck fixtures need a staticcheck built with Go 1.27; an older build cannot load the Go 1.27 standard library, and the fixtures are skipped with the reason. Build one and point `STATICCHECK` at it:
 
 ```bash
-GOTOOLCHAIN=go1.27.2 GOBIN=/tmp/sc go install honnef.co/go/tools/cmd/staticcheck@v0.8.2   # release 2026.2.2
+GOTOOLCHAIN=go1.27.3 GOBIN=/tmp/sc go install honnef.co/go/tools/cmd/staticcheck@v0.8.2   # release 2026.2.2
 STATICCHECK=/tmp/sc/staticcheck go test ./internal/explain/
 ```
 

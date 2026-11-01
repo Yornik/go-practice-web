@@ -29,7 +29,7 @@ env:
   # they check. Renovate moves all of them in 1 pull request, and the "Go
   # release" step below fails while they differ.
   # renovate: datasource=golang-version depName=go
-  GO_VERSION: "1.27.2"
+  GO_VERSION: "1.27.3"
   GOTOOLCHAIN: local
 
 jobs:

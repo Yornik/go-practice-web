@@ -26,7 +26,7 @@ import (
 // fixtureToolchain is the Go release of the runner image (the golang image
 // of Dockerfile.runner). It moves with the image, so a changed message text
 // fails here before it reaches a learner. EXPLAIN_GOTOOLCHAIN overrides it.
-const fixtureToolchain = "go1.27.2"
+const fixtureToolchain = "go1.27.3"
 
 const fixturesDir = "testdata/fixtures"
 
