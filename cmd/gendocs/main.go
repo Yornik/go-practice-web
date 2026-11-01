@@ -3,7 +3,7 @@
 //
 // Run it with the Go release of the runner image, so the docs describe the compiler that runs the learner's code:
 //
-//	GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc
+//	GOTOOLCHAIN=go1.27.3 go generate ./internal/godoc
 //
 // The go:generate line passes -go with that release, so a run with another release fails instead of writing
 // docs for the wrong compiler. Update it together with the Go version in Dockerfile.runner.

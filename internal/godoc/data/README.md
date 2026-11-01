@@ -5,7 +5,7 @@
 It holds the docs of the Go standard library for the Go release of the runner image, for linux/amd64. Regenerate it with that release:
 
 ```bash
-GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc
+GOTOOLCHAIN=go1.27.3 go generate ./internal/godoc
 ```
 
 Renovate moves `-go` in the `go:generate` line of `godoc.go` with the runner image. `TestIndexRelease` fails until the index comes from that minor release, so regenerate it in the same pull request. With another release the generator fails instead of writing docs for the wrong compiler.
