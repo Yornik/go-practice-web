@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.1](https://github.com/Yornik/go-practice-web/compare/v0.3.0...v0.3.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/philhofer/fwd to v1.2.1 ([#13](https://github.com/Yornik/go-practice-web/issues/13)) ([3d6538b](https://github.com/Yornik/go-practice-web/commit/3d6538bf7fc955349b788b5a1d01640c8b943a92))
+* **deps:** update module github.com/phpdave11/gofpdi to v1.0.16 ([#16](https://github.com/Yornik/go-practice-web/issues/16)) ([cc4f13e](https://github.com/Yornik/go-practice-web/commit/cc4f13e200c335001b5d2531793f9526f5e41f3a))
+* **deps:** update module github.com/signintech/gopdf to v0.38.4 ([#17](https://github.com/Yornik/go-practice-web/issues/17)) ([cc7b1d5](https://github.com/Yornik/go-practice-web/commit/cc7b1d5f56c5557259d87041dc76760a86f49f6f))
+* **deps:** update module github.com/tinylib/msgp to v1.6.5 ([#18](https://github.com/Yornik/go-practice-web/issues/18)) ([7f274bd](https://github.com/Yornik/go-practice-web/commit/7f274bd1453f0742b6e12f27c7e97d7c79a09f83))
+* **deps:** update module github.com/yuin/goldmark to v1.8.7 ([#19](https://github.com/Yornik/go-practice-web/issues/19)) ([1fa5f6b](https://github.com/Yornik/go-practice-web/commit/1fa5f6b0ad01e177a94b8ae2127e801493fadcf0))
+
 ## [0.3.0](https://github.com/Yornik/go-practice-web/compare/v0.2.0...v0.3.0) (2026-10-22)
 
 
