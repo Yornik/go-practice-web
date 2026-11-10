@@ -11,7 +11,7 @@
 # The patch release is pinned, so a release builds with the Go release that
 # CI tested (GO_VERSION in .github/workflows/ci.yml). Renovate moves both in
 # 1 pull request, and CI fails while they differ.
-ARG GO_IMAGE=golang:1.27.2-bookworm
+ARG GO_IMAGE=golang:1.27.4-bookworm
 
 FROM ${GO_IMAGE} AS build
 WORKDIR /src

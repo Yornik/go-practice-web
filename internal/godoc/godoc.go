@@ -4,7 +4,7 @@
 // cmd/gendocs builds the index from the GOROOT of the runner image's Go release, so the docs describe the
 // compiler that runs the learner's code. Regenerate it when the runner image moves to a new Go release:
 //
-//	GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc
+//	GOTOOLCHAIN=go1.27.4 go generate ./internal/godoc
 package godoc
 
 //go:generate go run ../../cmd/gendocs -go go1.27 -o data/stdlib.json.gz
