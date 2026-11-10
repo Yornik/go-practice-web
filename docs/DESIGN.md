@@ -352,7 +352,7 @@ tools find comes with an explanation that teaches, written for the course's medi
     (the text after `Deprecated:`, so a learner sees what to use instead). Types list `embeds`, so `rw.Read` on an
     `io.ReadWriter` finds `io.Reader.Read`; 2 matches at the same depth are ambiguous, as for the compiler.
   - The index is committed as `internal/godoc/data/stdlib.json.gz` (about 0.45 MB) and embedded, so the web image
-    needs no GOROOT. Regenerate it with the runner's release: `GOTOOLCHAIN=go1.27.2 go generate ./internal/godoc`.
+    needs no GOROOT. Regenerate it with the runner's release: `GOTOOLCHAIN=go1.27.4 go generate ./internal/godoc`.
     The `go:generate` line passes the minor release of the runner (`-go go1.N`) and fails with another release. Renovate
     moves it with `Dockerfile.runner`, and `TestIndexRelease` fails until the index comes from that minor release.
   - The routes are under `/api/docs/` (see HTTP routes). A miss answers 404 with a message that teaches the usual
